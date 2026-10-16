@@ -104,10 +104,18 @@ jobs:
     # Pushes to main plan too, so the plan is on screen while the production approval is pending.
     # Fork pull requests get no OIDC token and no access to the plan identity, and a dispatch
     # from any other ref would present a subject the plan identity does not trust.
+    #
+    # Dependabot's own run skips this job, so Louis reads a provider bump (changelog, publisher,
+    # release date) before it can reach the plan identity, which can read the deployment token.
+    # Re-running the workflow makes him the triggering actor and the plan then runs. A re-run
+    # keeps the original run's privileges, so it still uses Dependabot's secrets and token.
     if: >-
-      github.event_name == 'push'
-      || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      github.triggering_actor != 'dependabot[bot]'
+      && (
+        github.event_name == 'push'
+        || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No `environment:` here: that would change the OIDC subject, and the plan identity is
@@ -180,7 +188,9 @@ jobs:
             fi
           } > plan-comment.md
           cat plan-comment.md >> "${GITHUB_STEP_SUMMARY}"
-      # Dependabot's token is read-only, so it gets the step summary only.
+      # A Dependabot pull request's token is read-only, and a re-run by Louis keeps it, so
+      # `github.actor` (the original actor, unlike `triggering_actor`) is the right test here.
+      # Such runs get the step summary only.
       - name: Post plan comment
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         env:

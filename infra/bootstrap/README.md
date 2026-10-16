@@ -83,9 +83,9 @@ The first apply uses local state, because the storage account does not exist yet
 4. Run `terraform plan`; it should report no changes. Then delete the local `terraform.tfstate*` files.
 5. `backend.tf` holds placement only, nothing sensitive, and is committed.
 
-### 3. Set the GitHub variables and Dependabot secrets
+### 3. Set the Actions secrets and Dependabot secrets
 
-Dependabot-triggered runs cannot read Actions variables or secrets reliably, so each ID is stored in both places under the same name. These IDs never go into committed files.
+Each ID is stored as an **Actions secret** and as a **Dependabot secret** of the same name, because Dependabot-triggered runs read only the Dependabot secrets. Do not use repository variables: the repository is public, and a variable is printed unmasked in the `env:` header of the step that masks it, whereas the runner masks a secret from the first log line. These IDs never go into committed files. CI checks that each one is a GUID, so stray whitespace from copying fails with a message naming the secret.
 
 ```powershell
 $values = @{
@@ -95,7 +95,7 @@ $values = @{
   AZURE_SUBSCRIPTION_ID   = (terraform output -raw subscription_id)
 }
 foreach ($name in $values.Keys) {
-  gh variable set $name --body $values[$name]
+  gh secret set $name --body $values[$name]
   gh secret set $name --app dependabot --body $values[$name]
 }
 ```
