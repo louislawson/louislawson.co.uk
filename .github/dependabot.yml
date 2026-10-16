@@ -18,9 +18,10 @@ updates:
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
-      # The majors of @types/node follow the Node version in .nvmrc, not the latest Node: types for
-      # a newer major would describe APIs the runtime does not have. Bump them by hand, together
-      # with .nvmrc and engines.
+      # The majors of @types/node follow the Node version in .nvmrc, the runtime the site builds
+      # and deploys with: not the latest Node, and not the lower bound in "engines". Types for a
+      # newer major would describe APIs the runtime does not have. Bump them by hand, together
+      # with .nvmrc.
       - dependency-name: "@types/node"
         update-types:
           - version-update:semver-major
@@ -31,7 +32,11 @@ updates:
           - patch
 
   - package-ecosystem: github-actions
-    directory: /
+    # The local composite actions pin third-party actions of their own (azure/login), which a
+    # scan of / alone would never reach.
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     cooldown:

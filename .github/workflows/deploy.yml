@@ -4,8 +4,9 @@ on:
   # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
-  # folders, Markdown outside src/, and the workflows other than this one and the local actions),
-  # because each production deploy hands the job's OIDC request token to a third-party container.
+  # folders, tests, the test, lint and format configs, Markdown outside src/, and the workflows
+  # other than this one and the local actions), because each production deploy hands the job's
+  # OIDC request token to a third-party container.
   # Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
@@ -15,6 +16,15 @@ on:
       - "!infra/**"
       - "!.impeccable/**"
       - "!.claude/**"
+      - "!src/**/*.test.*"
+      - "!src/**/*.spec.*"
+      - "!src/**/__tests__/**"
+      - "!src/**/__fixtures__/**"
+      - "!vitest.config.ts"
+      - "!eslint.config.mjs"
+      - "!.prettierrc.json"
+      - "!.prettierignore"
+      - "!.markdownlint-cli2.jsonc"
       - "!.github/**"
       - .github/workflows/deploy.yml
       - .github/actions/**
@@ -49,12 +59,6 @@ on:
       - .github/actions/**
 
 permissions: {}
-
-# Nothing is cancelled mid-deploy. Each pull request has its own group; production has one, so
-# two pushes to main deploy in order.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || 'production' }}
-  cancel-in-progress: false
 
 env:
   # Not secrets: both names are committed in infra/site.
@@ -112,6 +116,14 @@ jobs:
   deploy:
     name: Deploy
     needs: build
+    # Nothing is cancelled mid-deploy. Each pull request has its own group, and production has
+    # one, so two pushes to main deploy in order. The group is on this job, not the workflow, so a
+    # run whose jobs are all skipped (a draft) never enters it. preview-cleanup.yml uses the same
+    # group name for the same pull request, so a close never overlaps a deploy, and a skipped run
+    # cannot displace a pending close.
+    concurrency:
+      group: Deploy-${{ github.event.pull_request.number || 'production' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No `environment:` here: that would change the OIDC subject, and the plan identity is
