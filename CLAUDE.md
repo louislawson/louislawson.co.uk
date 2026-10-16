@@ -36,7 +36,7 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 - **The mock is a spec.** Rebuild layout and components as Astro components on the design tokens; harvest only the trace maths, the ASCII wheel renderer and the photo dither, each behind unit tests.
 - **GitHub Actions:** third-party actions pinned to full commit SHAs with a version comment; least-privilege `permissions` per job.
 - **Terraform:** `required_version = ">= 1.15, < 2.0"` (Dependabot's Terraform support ends at 1.15.x), azurerm `~> 5.10`, lock file for `windows_amd64` and `linux_amd64`; `fmt`, `validate` and `tflint` clean before pushing. Backend blocks hold only placement (`storage_account_name`, `container_name`, `key`) and `use_azuread_auth = true`; credentials and the auth method come from `ARM_*` environment variables (`ARM_USE_OIDC` in CI, `ARM_USE_CLI` locally). The one exception is the bootstrap backend, which only ever runs locally and may also set `use_cli = true`.
-- **Azure access from CI** is OIDC through two managed identities: _plan_ (read, plus deploys) and _apply_ (write, `production` environment only). Their IDs live in GitHub repository variables and same-named Dependabot secrets; reference them as `vars.*` / `secrets.*`.
+- **Azure access from CI** is OIDC through two managed identities: _plan_ (read, plus deploys) and _apply_ (write, `production` environment only). Their IDs live in GitHub Actions secrets and same-named Dependabot secrets (not repository variables, which would print in public logs); reference them as `secrets.*` only.
 
 ## Skills for the work
 
