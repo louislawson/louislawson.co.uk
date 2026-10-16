@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.astro/
+.impeccable/
+docs/design/mock/
+package-lock.json

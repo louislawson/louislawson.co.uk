@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/site/index.html"
+        ],
+        "createdAt": "2026-10-14T19:03:25.082Z",
+        "reason": "Claude triage: flagged children are full-bleed decorative canvas/SVG or cells with clamp() padding (18-28px); text is inset. Mock-up file only."
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/site/index.html"
+        ],
+        "createdAt": "2026-10-14T19:03:25.269Z",
+        "reason": "User approved: placeholder hatching is part of the approved Wind Tunnel world specimen. Mock-up file only."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/site/project.html"
+        ],
+        "createdAt": "2026-10-14T19:03:25.458Z",
+        "reason": "Claude triage: flagged children are full-bleed decorative canvas/SVG or cells with clamp() padding (18-28px); text is inset. Mock-up file only."
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/site/project.html"
+        ],
+        "createdAt": "2026-10-14T19:03:25.642Z",
+        "reason": "User approved: placeholder hatching is part of the approved Wind Tunnel world specimen. Mock-up file only."
+      }
+    ]
+  }
+}

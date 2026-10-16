@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing zone rebuild · Louis Lawson: reference mock</title>
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="mockbar" role="region" aria-label="Mock-up controls"><b>Reference mock · example content, not real claims</b><a href="index.html">Back to home</a></div>
+
+<header class="nav">
+  <div class="wrap nav__inner" style="position:relative">
+    <a class="nav__home" href="index.html">louis<span>.</span>lawson</a>
+    <button class="nav__menu" type="button" aria-expanded="false" aria-controls="links">menu</button>
+    <nav aria-label="Sections"><div class="nav__links" id="links">
+      <a href="index.html#projects"><kbd>1</kbd>projects</a><a href="index.html#skills"><kbd>2</kbd>skills</a><a href="index.html#certifications"><kbd>3</kbd>certs</a><a href="index.html#garage"><kbd>4</kbd>garage</a><a href="index.html#contact"><kbd>5</kbd>contact</a>
+    </div></nav>
+    <button class="inspect-btn" type="button" aria-pressed="false"><kbd>i</kbd>inspect</button>
+  </div>
+</header>
+
+<main>
+  <section class="wrap p-head" aria-labelledby="title">
+    <a class="back" href="index.html#projects"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5M11 6l-6 6 6 6"/></svg> cd ../projects</a>
+    <h1 id="title" data-inspect="generated from r01-landing-zone.md at build">Landing zone rebuild</h1>
+    <p class="p-meta"><span class="hv">R01</span><span class="tag">featured</span><span class="status status--in-service">in service</span><span>2024 – 2025</span><span>A UK financial-services organisation</span></p>
+    <div class="p-sheet">
+      <div><h2>setup</h2><p>Forty subscriptions built by hand over five years, each slightly different, with no record of why.</p></div>
+      <div><h2>change</h2><p>A Bicep landing zone with policy guardrails, and subscription vending through a pipeline with peer review.</p></div>
+      <div><h2>result</h2><p>New environments in under an hour, down from three weeks, and every one identical.</p></div>
+    </div>
+  </section>
+
+  <section class="section wrap" aria-labelledby="measured">
+    <div class="p-cols">
+      <h2 id="measured"># measured</h2>
+      <div>
+        <div class="diff" role="table" aria-label="Before and after measurements">
+          <div class="h" role="row"><span role="columnheader">measure</span><span role="columnheader">before</span><span role="columnheader">after</span></div>
+          <div role="row"><span role="cell">time to a new environment</span><span role="cell" class="before">~3 weeks</span><span role="cell" class="after">&lt;1 hour</span></div>
+          <div role="row"><span role="cell">policy compliance</span><span role="cell" class="before">~60%</span><span role="cell" class="after">&gt;95%</span></div>
+          <div role="row"><span role="cell">manual production changes</span><span role="cell" class="before">weekly</span><span role="cell" class="after">rare, reviewed</span></div>
+        </div>
+        <ul class="stack" aria-label="Tools used"><li>azure</li><li>bicep</li><li>azure policy</li><li>azure devops pipelines</li><li>powershell</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section wrap" aria-labelledby="writeup">
+    <div class="p-cols">
+      <h2 id="writeup"># write-up</h2>
+      <div class="prose">
+        <p>This is example text showing how a longer write-up reads. The real one would be yours, in your own words.</p>
+        <h2>Context</h2>
+        <p>Teams needed new environments every few weeks, and each request went through a ticket queue and a person who knew which settings to copy. The estate had grown one subscription at a time, so no two were quite the same.</p>
+        <h2>What I built</h2>
+        <ul>
+          <li><strong>Landing zone in Bicep:</strong> management groups, networking and shared services as code.</li>
+          <li><strong>Guardrails:</strong> Azure Policy assignments that deny what shouldn't exist, rather than reporting on it afterwards.</li>
+          <li><strong>Subscription vending:</strong> a pull request with a short config file is all a team needs to raise.</li>
+        </ul>
+        <figure class="figure"><div>Architecture diagram goes here (SVG on a dark ground, or PNG at 2×)</div><figcaption>Example caption: the landing zone and how a new subscription is vended.</figcaption></figure>
+        <h2>What I'd do differently</h2>
+        <p>Bring the application teams in earlier. The guardrails were right, but the first version blocked two legitimate patterns that a single conversation would have surfaced.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <a class="next" href="project.html"><span><small>next project · R04</small><strong>This website</strong></span><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a>
+  </div>
+</main>
+
+<footer class="foot" data-inspect="served by Azure Static Web Apps · HTML revalidated, assets cached for a year">
+  <div class="wrap foot__mark" aria-hidden="true">LAWSON</div>
+  <div class="wrap foot__row">
+    <span>updated October 2026</span>
+    <span>built with Astro, hosted on Azure Static Web Apps · <a href="index.html">source on GitHub</a></span>
+    <span>cookieless, anonymous visit counts via Cloudflare Web Analytics. no tracking.</span>
+  </div>
+</footer>
+<aside class="inspect-note" aria-live="polite"><b>Inspect mode.</b> Every outlined part says how it's built and served. Press <b>i</b> to leave.</aside>
+<script>
+(() => {
+  const nav = document.querySelector('.nav'), m = nav.querySelector('.nav__menu'), b = document.querySelector('.inspect-btn');
+  m.addEventListener('click', () => m.setAttribute('aria-expanded', String(nav.toggleAttribute('data-open'))));
+  const t = () => b.setAttribute('aria-pressed', String(document.body.classList.toggle('inspect')));
+  b.addEventListener('click', t);
+  addEventListener('keydown', (e) => { if (e.key === 'i' && !e.metaKey && !e.ctrlKey && !e.altKey) t(); });
+})();
+</script>
+</body>
+</html>

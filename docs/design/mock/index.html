@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Louis Lawson: reference mock (C3 Trace)</title>
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-count="2">
+<div class="mockbar" role="region" aria-label="Mock-up controls">
+  <b>Reference mock · example content, not real claims · trace timings are real</b>
+  <span>Projects: <button type="button" data-count="2">2 (launch)</button> <button type="button" data-count="5">5</button></span>
+  <button type="button" data-ph-toggle>Placeholder view</button>
+</div>
+
+<header class="nav">
+  <div class="wrap nav__inner" style="position:relative">
+    <a class="nav__home" href="#top">louis<span>.</span>lawson</a>
+    <button class="nav__menu" type="button" aria-expanded="false" aria-controls="links">menu</button>
+    <nav aria-label="Sections"><div class="nav__links" id="links">
+      <a href="#projects"><kbd>1</kbd>projects</a><a href="#skills"><kbd>2</kbd>skills</a><a href="#certifications"><kbd>3</kbd>certs</a><a href="#garage"><kbd>4</kbd>garage</a><a href="#contact"><kbd>5</kbd>contact</a>
+    </div></nav>
+    <button class="inspect-btn" type="button" aria-pressed="false"><kbd>i</kbd>inspect</button>
+  </div>
+</header>
+
+<main id="top">
+  <section class="wrap hero" aria-labelledby="name">
+    <div class="hero__copy">
+      <h1 class="hero__name" id="name" data-inspect="h1 · Martian Mono 800 · static HTML, no JavaScript">Louis<br>Lawson<span class="caret" aria-hidden="true"></span></h1>
+      <p class="hero__role">Cloud and DevOps engineer, focused on Azure.</p>
+      <p class="hero__intro when-real">I design and run cloud platforms, and build the pipelines that ship to them. I like systems that are boring in production and easy to change.</p>
+      <p class="hero__intro when-ph"><span class="ph"><span class="vh">Placeholder: </span>Two sentences in your own words: what you build, and what you care about getting right.</span></p>
+      <p class="hero__career when-real">Eight years in cloud and DevOps, across financial services and the public sector.</p>
+      <p class="hero__career when-ph"><span class="ph"><span class="vh">Placeholder: </span>Years in cloud and DevOps, and the sectors you've worked in.</span></p>
+      <div class="hero__actions">
+        <a class="btn btn--hv" href="#projects">see projects <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a>
+        <a class="btn" href="#contact">get in touch</a>
+      </div>
+    </div>
+    <figure class="trace" data-trace data-inspect="measured in your browser by the Navigation Timing API · nothing sent anywhere">
+      <figcaption class="trace__head"><span><b>how this page reached you</b></span><span class="trace__total" data-total></span></figcaption>
+      <ol aria-label="Steps this page took to reach you, with real timings"></ol>
+      <div class="trace__foot"><span class="ok">measured in your browser, just now</span><span class="hv">build and commit: example values</span><button class="replay" type="button">replay</button></div>
+    </figure>
+  </section>
+
+  <section class="section wrap" id="projects" aria-labelledby="projects-title" data-inspect="generated at build from src/content/projects/*.md">
+    <div class="shead"><h2 id="projects-title">projects<span class="n" data-run-count>(02)</span></h2><p>Each one written up as setup, change and result. Figures are measured, not estimated.</p></div>
+    <div class="runs" data-runs></div>
+  </section>
+
+  <section class="section wrap" id="skills" aria-labelledby="skills-title" data-inspect="from profile.ts · every 'seen in' link checked in CI">
+    <div class="shead"><h2 id="skills-title">skills</h2><p>Where I've used each one, and the projects that show it.</p></div>
+    <div data-skills></div>
+    <div class="explore"><h3>what I'm exploring next</h3><ul data-explore></ul></div>
+  </section>
+
+  <section class="section wrap" id="certifications" aria-labelledby="certs-title">
+    <div class="shead"><h2 id="certs-title">certifications</h2><p>Certifications and achievements, each with a way to check it.</p></div>
+    <div data-certs></div>
+  </section>
+
+  <section class="section wrap" id="garage" aria-labelledby="garage-title" data-inspect="photos: metadata stripped before commit · GPS check fails the build">
+    <div class="shead"><h2 id="garage-title">garage</h2><p>Cars, trucks and tractors: photos from shows and meets.</p></div>
+    <div class="garage-wheel"><pre data-wheel aria-hidden="true"></pre><p><b>fig.01 · wheel.</b> Off the clock it's cars, trucks and tractors: the machines that got me interested in how things work. Below, photos from shows and meets.</p></div>
+    <div class="garage" data-garage></div>
+  </section>
+
+  <section class="section wrap" id="contact" aria-labelledby="contact-title" data-inspect="mailto only · no forms, no backend, no cookies">
+    <div class="shead"><h2 id="contact-title">contact</h2><p>About a role, a project, or just a conversation.</p></div>
+    <a class="mail" href="mailto:hello@louislawson.co.uk">hello@<wbr>louislawson.co.uk</a>
+    <div class="contact__btns">
+      <a class="btn" href="#contact">linkedin <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      <a class="btn" href="#contact">github <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      <a class="btn btn--hv when-real" href="#contact">download cv <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
+      <span class="btn when-ph" aria-disabled="true">cv not added yet</span>
+    </div>
+    <dl class="facts">
+      <div><dt>availability</dt><dd class="when-real">Example: open to new roles from spring 2027</dd><dd class="when-ph"><span class="ph"><span class="vh">Placeholder: </span>Availability, with an expiry date</span></dd></div>
+      <div><dt>based in</dt><dd class="when-real">Example: North West England</dd><dd class="when-ph"><span class="ph"><span class="vh">Placeholder: </span>Region</span></dd></div>
+    </dl>
+  </section>
+</main>
+
+<footer class="foot" data-inspect="served by Azure Static Web Apps · HTML revalidated, assets cached for a year">
+  <div class="wrap foot__mark" aria-hidden="true">LAWSON</div>
+  <div class="wrap foot__row">
+    <span>updated October 2026</span>
+    <span>built with Astro, hosted on Azure Static Web Apps · <a href="#top">source on GitHub</a></span>
+    <span>cookieless, anonymous visit counts via Cloudflare Web Analytics. no tracking.</span>
+  </div>
+</footer>
+
+<aside class="inspect-note" aria-live="polite"><b>Inspect mode.</b> Every outlined part says how it's built and served. Press <b>i</b> to leave.</aside>
+<script src="data.js"></script>
+<script src="mock.js"></script>
+</body>
+</html>
