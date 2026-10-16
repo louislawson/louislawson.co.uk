@@ -5,18 +5,26 @@ on:
     paths:
       - infra/**
       - .github/workflows/infra.yml
-  # Workflow-only changes are validated on the pull request; they must not trigger an apply.
+  # Only changes that can alter the site stack's plan trigger a push run, and so a production
+  # approval: not the workflow itself (validated on its pull request), bootstrap, Markdown or tests.
   push:
     branches: [main]
     paths:
-      - infra/**
+      - infra/site/**
+      - "!infra/site/**/*.md"
+      - "!infra/site/tests/**"
+  # Checks and plan only, never apply. Run it from main, where the plan identity is trusted.
+  workflow_dispatch:
 
 permissions: {}
 
-# Nothing is cancelled: a plan or apply killed mid-run can leave the state blob lease held, which
-# blocks every later run until someone breaks it by hand. Superseded runs queue instead.
+# In-flight runs are never cancelled: a plan or apply killed mid-run can leave the state blob
+# lease held, which blocks every later run until someone breaks it by hand. GitHub keeps one
+# running and one pending run per group, so a newer pending run replaces an older pending one
+# (it never started, so nothing is interrupted). This group is also what serialises applies on
+# main: a second push waits for the first run, apply included, to finish.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: false
 
 env:
@@ -79,12 +87,16 @@ jobs:
     name: Terraform plan
     needs: checks
     # Pushes to main plan too, so the plan is on screen while the production approval is pending.
-    # Fork pull requests get no OIDC token and no access to the plan identity.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Fork pull requests get no OIDC token and no access to the plan identity, and a dispatch
+    # from any other ref would present a subject the plan identity does not trust.
+    if: >-
+      github.event_name == 'push'
+      || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No `environment:` here: that would change the OIDC subject, and the plan identity is
-    # trusted only for pull_request and ref:refs/heads/main (the two events this job runs on).
+    # trusted only for pull_request and ref:refs/heads/main (what this job runs on).
     permissions:
       contents: read
       id-token: write
@@ -98,7 +110,9 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
     steps:
-      - name: Check and mask Azure IDs
+      # The apply job reuses this step through the YAML anchor.
+      - &mask_azure_ids
+        name: Check and mask Azure IDs
         run: |
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
             if [ -z "${!name}" ]; then
@@ -147,7 +161,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-            --jq '.[] | select(.body | startswith("<!-- terraform-plan:site -->")) | .id' | head -n 1)"
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- terraform-plan:site -->"))) | .id' | head -n 1)"
           if [ -n "${id}" ]; then
             gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@plan-comment.md > /dev/null
           else
@@ -163,9 +177,7 @@ jobs:
     # Louis approves the production environment before this job starts. The apply identity is
     # trusted only for that environment's OIDC subject.
     environment: production
-    concurrency:
-      group: tf-site-prod
-      cancel-in-progress: false
+    # No job-level concurrency group: the workflow-level one already serialises runs on main.
     permissions:
       contents: read
       id-token: write
@@ -175,15 +187,7 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
     steps:
-      - name: Check and mask Azure IDs
-        run: |
-          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
-            if [ -z "${!name}" ]; then
-              echo "::error::${name} is empty: the matching repository variable is not set or not readable by this run"
-              exit 1
-            fi
-            echo "::add-mask::${!name}"
-          done
+      - *mask_azure_ids
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -196,6 +200,9 @@ jobs:
       - name: Plan
         run: terraform -chdir=infra/site plan -input=false -lock-timeout=10m -out=tfplan
       # If the first apply hangs after the Static Web App is created (a reported provider issue),
-      # re-run with TF_LOG=DEBUG and -parallelism=1 before changing anything else.
+      # re-run with -parallelism=1. Do not set TF_LOG here: this log is public, and debug output
+      # includes full response bodies, among them the listSecrets response that carries the
+      # deployment token, which add-mask does not cover. To see more, reproduce locally, or set
+      # TF_LOG_PATH to a file that is never uploaded.
       - name: Apply
         run: terraform -chdir=infra/site apply -input=false -lock-timeout=10m tfplan

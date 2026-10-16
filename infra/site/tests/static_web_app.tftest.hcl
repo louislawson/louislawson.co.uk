@@ -46,8 +46,10 @@ run "configuration" {
 run "invalid_sku_rejected" {
   command = plan
 
+  # Match the size so the only rule that can fail is the tier's allowed values.
   variables {
     sku_tier = "Premium"
+    sku_size = "Premium"
   }
 
   expect_failures = [var.sku_tier]
