@@ -137,12 +137,15 @@ jobs:
       - &mask_azure_ids
         name: Check and mask Azure IDs
         run: |
-          # Mask every value first, so one that fails the check below is still masked. Never echo
-          # a value: report only which one is wrong.
+          # Mask every value first, so one that fails the check below is still masked. Masking is
+          # case-sensitive and Azure prints IDs in lowercase, so mask the lower and upper case
+          # forms as well as the value as stored. Never echo a value: report only which one is wrong.
           failed=0
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
             if [ -n "${!name}" ]; then
               echo "::add-mask::${!name}"
+              echo "::add-mask::${!name,,}"
+              echo "::add-mask::${!name^^}"
             fi
           done
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
@@ -219,6 +222,37 @@ jobs:
             gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@plan-comment.md > /dev/null
           else
             gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body-file plan-comment.md
+          fi
+
+  # The plan job is skipped when the checks fail, so a plan comment from an earlier push would
+  # stay on show. Replace it (only if one exists) with a notice. This job needs no Azure access.
+  stale-plan-notice:
+    name: Mark plan comment stale
+    needs: checks
+    if: ${{ always() && needs.checks.result == 'failure' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write # edits the sticky plan comment; no checkout, no Azure access
+    steps:
+      - name: Replace the sticky plan comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- terraform-plan:site -->"))) | .id' | head -n 1)"
+          if [ -n "${id}" ]; then
+            {
+              echo '<!-- terraform-plan:site -->'
+              echo '### Terraform plan: infra/site'
+              echo
+              echo "The checks for ${HEAD_SHA:0:7} failed, so no plan ran and any plan shown earlier is out of date. See the run: ${RUN_URL}"
+            } > notice.md
+            gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@notice.md > /dev/null
           fi
 
   apply:
