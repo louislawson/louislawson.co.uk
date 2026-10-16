@@ -17,11 +17,32 @@ npm run dev
 | `npm run build`        | Build the site into `dist/`     |
 | `npm run preview`      | Serve the built site locally    |
 | `npm run check`        | Type-check with `astro check`   |
+| `npm test`             | Unit tests (Vitest)             |
 | `npm run lint`         | ESLint and markdownlint         |
 | `npm run format:check` | Check formatting with Prettier  |
 | `npm run format`       | Format everything with Prettier |
 
 `.npmrc` sets `min-release-age=7`, so installs only resolve package versions published more than a week ago.
+
+## Deploying
+
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds the site and deploys it to Azure Static Web Apps. [`infra.yml`](.github/workflows/infra.yml) manages the Static Web App itself (see [`infra/site`](infra/site/README.md)).
+
+| Event                                      | What happens                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Push to `main` that changes the site       | Builds with `DEPLOY_CONTEXT=production` and deploys to production                                  |
+| Pull request that changes the site         | Builds with `DEPLOY_CONTEXT=preview`, deploys to a preview environment and comments the URL        |
+| Pull request closed                        | Removes its preview environment                                                                    |
+| Dependabot or fork pull request            | No deploy: neither can reach the Azure identity. CI still builds and tests                         |
+| Pull request that changes only docs, infra | No preview (`docs/`, `infra/`, `.github/` apart from the deploy workflow, Markdown outside `src/`) |
+
+- **Previews are public** and served from `*.azurestaticapps.net`. The Free plan allows 3 at a time, so merge or close pull requests promptly; a fourth fails at the upload step.
+- **noindex.** Every page carries `<meta name="robots" content="noindex">` and every response carries `X-Robots-Tag: noindex` while `launch` in [`src/config/site.ts`](src/config/site.ts) is `false`. After launch, production is indexable and previews still send noindex.
+- **`SITE_URL`** is plain configuration: set a `SITE_URL` repository variable when the domain is connected. Unset, the site uses the default in `src/config/site.ts`.
+- **Headers** come from [`public/staticwebapp.config.json`](public/staticwebapp.config.json), plus the build-dependent robots header added at build time. Edit the committed file for a policy change.
+- **Azure access** is OIDC through the plan identity, with the IDs read from Actions secrets only. The deploy token is fetched at run time with `az staticwebapp secrets list`, masked, and never stored or printed. The deploy job installs nothing from npm: it downloads the build artifact.
+- **Third-party action.** `Azure/static-web-apps-deploy` is pinned to the head of its maintained `v1` branch (its `v1` tag points at a 2021 commit) and builds a container from a floating Microsoft image at run time. It is the one component that handles the deployment token, so Dependabot is told to leave it alone and it is bumped by hand.
+- **Local action.** [`.github/actions/mask-azure-ids`](.github/actions/mask-azure-ids/action.yml) masks and validates the Azure IDs for both workflows. It is referenced with `./` because actionlint does not yet accept GitHub's `$/` syntax.
 
 ## Licence
 
