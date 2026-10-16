@@ -45,6 +45,11 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false # cone mode would also check out every root-level file
+      - name: TEMP list the workspace (removed before merge)
+        run: |
+          ls -A
+          echo "--- files outside .git:"
+          find . -path ./.git -prune -o -type f -print
       - name: Sign in and fetch the deployment token
         id: swa
         uses: ./.github/actions/swa-deployment-token # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
