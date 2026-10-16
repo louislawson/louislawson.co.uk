@@ -134,7 +134,30 @@ resource "azurerm_federated_identity_credential" "apply" {
 
 # Role assignments. Nothing is granted at subscription scope.
 
-# Plan identity: read the site resource group, and fetch the Static Web App deployment token.
+# Plan identity: read the site resource group, and read the Static Web App including its secrets.
+#
+# Reader covers the GETs (`*/read`), but azurerm_static_web_app's Read also POSTs to listSecrets
+# (the `api_key` attribute) and listAppSettings, which are separate actions Reader does not hold.
+# The built-in Website Contributor role does not help: it grants Microsoft.Web/sites/*, not
+# Microsoft.Web/staticSites/*. This custom role adds just those two actions; the provider's other
+# reads (the site itself and basicAuth/default) are GETs that Reader already covers. The same
+# listSecrets action lets the deploy workflows fetch the deployment token.
+resource "azurerm_role_definition" "plan_static_web_app" {
+  name        = "Static Web App Reader (louislawson web)"
+  scope       = azurerm_resource_group.site.id
+  description = "Read a Static Web App including its deployment token and app settings. Add to Reader for terraform plan and deploys."
+
+  permissions {
+    actions = [
+      "Microsoft.Web/staticSites/read",
+      "Microsoft.Web/staticSites/listSecrets/action",
+      "Microsoft.Web/staticSites/listAppSettings/action",
+    ]
+  }
+
+  assignable_scopes = [azurerm_resource_group.site.id]
+}
+
 resource "azurerm_role_assignment" "plan_site_reader" {
   scope                = azurerm_resource_group.site.id
   role_definition_name = "Reader"
@@ -142,11 +165,11 @@ resource "azurerm_role_assignment" "plan_site_reader" {
   principal_type       = "ServicePrincipal"
 }
 
-resource "azurerm_role_assignment" "plan_site_website_contributor" {
-  scope                = azurerm_resource_group.site.id
-  role_definition_name = "Website Contributor"
-  principal_id         = azurerm_user_assigned_identity.plan.principal_id
-  principal_type       = "ServicePrincipal"
+resource "azurerm_role_assignment" "plan_site_static_web_app" {
+  scope              = azurerm_resource_group.site.id
+  role_definition_id = azurerm_role_definition.plan_static_web_app.role_definition_resource_id
+  principal_id       = azurerm_user_assigned_identity.plan.principal_id
+  principal_type     = "ServicePrincipal"
 }
 
 # Apply identity: manage the site resource group.
