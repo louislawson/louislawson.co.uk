@@ -19,6 +19,11 @@ Creates the pieces the rest of the infrastructure depends on. It is applied **on
 | apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container                    |
 | you      | the signed-in user                       | Storage Blob Data Contributor on the `tfstate` container (Owner covers the control plane only)                      |
 
+Notes on the plan identity:
+
+- It is trusted for every `pull_request` run in this repository and holds write access to the state container and the Static Web App deployment token, so treat who can open pull requests and run workflows as part of the trust boundary. In the repository's Actions settings, require approval for workflows from outside collaborators.
+- Its credentials match `pull_request` and `ref:refs/heads/main` only. A job that declares `environment:` gets a different subject, so plan, preview and production-deploy jobs must not use an `environment`. Only the apply job uses `environment: production`.
+
 Federated credentials use GitHub's **immutable subject** format, `repo:<owner>@<ownerId>/<repo>@<repoId>:<context>`. The older `repo:<owner>/<repo>:<context>` form silently fails to match and surfaces as `AADSTS700213`.
 
 ## Requirements
@@ -64,7 +69,7 @@ The first apply uses local state, because the storage account does not exist yet
 
    Bootstrap only ever runs locally, so Azure CLI authentication is fixed in the block. The tenant comes from the signed-in CLI session.
 
-3. Run `terraform init -migrate-state` and answer `yes`.
+3. Wait a few minutes after the apply, then run `terraform init -migrate-state` and answer `yes`. Your new Storage Blob Data Contributor assignment can take a while to propagate; a `403 AuthorizationPermissionMismatch` means wait and retry.
 4. Run `terraform plan`; it should report no changes. Then delete the local `terraform.tfstate*` files.
 5. Commit `backend.tf` in a follow-up pull request. It holds placement only, nothing sensitive.
 
@@ -109,7 +114,7 @@ tflint --config=../.tflint.hcl --init
 tflint --config=../.tflint.hcl
 ```
 
-`.terraform.lock.hcl` is committed and locked for `windows_amd64` and `linux_amd64`. After a provider upgrade, refresh it with:
+`.terraform.lock.hcl` is committed and locked for `windows_amd64` and `linux_amd64`. After a provider upgrade, including a Dependabot one that drops a platform's hashes, refresh it with:
 
 ```sh
 terraform providers lock -platform=windows_amd64 -platform=linux_amd64

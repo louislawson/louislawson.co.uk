@@ -12,12 +12,10 @@ resource "azurerm_resource_group" "state" {
 # - AZU-0012: public network access is deliberate. GitHub-hosted runners have no stable IPs, so
 #   Entra-only auth (shared keys off) and RBAC on the container are the access control.
 # - AZU-0057: no Storage Analytics logging; the state is low-volume and every change is versioned.
-# - AZU-0058: LRS rather than GRS; blob versioning and 30-day soft delete cover accidental loss.
 # - AZU-0060: no customer-managed key; that needs a Key Vault, and infrastructure (double)
 #   encryption with platform-managed keys is enabled.
 #trivy:ignore:AZU-0012
 #trivy:ignore:AZU-0057
-#trivy:ignore:AZU-0058
 #trivy:ignore:AZU-0060
 resource "azurerm_storage_account" "state" {
   name                = "stlouislawsontfstate"
@@ -26,7 +24,7 @@ resource "azurerm_storage_account" "state" {
 
   account_kind             = "StorageV2"
   account_tier             = "Standard"
-  account_replication_type = "LRS"
+  account_replication_type = "GRS"
 
   # Entra ID only: no shared keys, and so no SAS tokens signed with them.
   shared_access_key_enabled       = false
@@ -159,5 +157,4 @@ resource "azurerm_role_assignment" "state_operator" {
   scope                = azurerm_storage_container.state.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = data.azurerm_client_config.current.object_id
-  principal_type       = "User"
 }
