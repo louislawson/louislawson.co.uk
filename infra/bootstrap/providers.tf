@@ -9,5 +9,12 @@ provider "azurerm" {
     "Microsoft.Web",
   ]
 
-  features {}
+  features {
+    # The state account has shared keys disabled and the signed-in Owner has no data-plane role
+    # until this apply creates it, so stop the provider reading the storage data plane while
+    # creating or refreshing the account. The account uses no queue_properties or static_website.
+    storage {
+      data_plane_available = false
+    }
+  }
 }

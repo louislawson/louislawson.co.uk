@@ -42,6 +42,8 @@ updates:
           - patch
 
   - package-ecosystem: terraform
+    # PR 1.4 adds /infra/site to these directories; do not add a second terraform entry.
+    # group-by only takes effect across several directories.
     directories:
       - /infra/bootstrap
     schedule:

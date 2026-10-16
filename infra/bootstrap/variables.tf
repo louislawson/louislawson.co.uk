@@ -35,13 +35,3 @@ variable "location" {
   type        = string
   default     = "westeurope"
 }
-
-variable "tags" {
-  description = "Tags applied to every resource"
-  type        = map(string)
-  default = {
-    managed_by = "terraform"
-    project    = "louislawson-co-uk"
-    stack      = "bootstrap"
-  }
-}

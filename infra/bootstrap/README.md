@@ -2,29 +2,35 @@
 
 Creates the pieces the rest of the infrastructure depends on. It is applied **once, locally, by Louis**; CI never runs it.
 
-| Resource                                   | Purpose                                                         |
-| ------------------------------------------ | --------------------------------------------------------------- |
-| `rg-louislawson-tfstate-weu`               | Holds the state storage account and the two CI identities       |
-| `stlouislawsontfstate` and `tfstate`       | Terraform state: Entra-only auth, versioned, 30-day soft delete |
-| `rg-louislawson-web-prod-weu`              | Empty resource group the site stack deploys into                |
-| `id-louislawson-web-plan`                  | CI identity for plan, PR previews and production deploys        |
-| `id-louislawson-web-apply`                 | CI identity for apply, trusted only for `production`            |
-| Role assignments and federated credentials | See below; nothing is granted at subscription scope             |
+| Resource                                   | Purpose                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------- |
+| `rg-louislawson-tfstate-weu`               | Holds the state storage account and the two CI identities             |
+| `stlouislawsontfstate`                     | Terraform state: Entra-only auth, ZRS, versioned, 30-day soft delete  |
+| `tfstate-bootstrap` container              | State of this stack; only you have access                             |
+| `tfstate` container                        | State of the site stack (`infra/site`); the CI identities have access |
+| `rg-louislawson-web-prod-weu`              | Empty resource group the site stack deploys into                      |
+| `id-louislawson-web-plan`                  | CI identity for plan, PR previews and production deploys              |
+| `id-louislawson-web-apply`                 | CI identity for apply, trusted only for `production`                  |
+| Role assignments and federated credentials | See below; nothing is granted at subscription scope                   |
 
 ## Access model
 
-| Identity | Trusted for                              | Roles                                                                                                               |
-| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| plan     | `pull_request` and `ref:refs/heads/main` | Reader and Website Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container |
-| apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container                    |
-| you      | the signed-in user                       | Storage Blob Data Contributor on the `tfstate` container (Owner covers the control plane only)                      |
+| Identity | Trusted for                              | Roles                                                                                                                        |
+| -------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| plan     | `pull_request` and `ref:refs/heads/main` | Reader and Website Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container only     |
+| apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container only                        |
+| you      | the signed-in user                       | Storage Blob Data Contributor on both the `tfstate-bootstrap` and `tfstate` containers (Owner covers the control plane only) |
+
+The CI identities have **no access to `tfstate-bootstrap`**. The plan identity is trusted for every pull-request run, so if it could write this stack's state, a pull request could tamper with the stack that owns the identities and role assignments.
 
 Notes on the plan identity:
 
-- It is trusted for every `pull_request` run in this repository and holds write access to the state container and the Static Web App deployment token, so treat who can open pull requests and run workflows as part of the trust boundary. In the repository's Actions settings, require approval for workflows from outside collaborators.
+- It is trusted for every `pull_request` run in this repository and holds write access to the site state container and the Static Web App deployment token, so treat who can open pull requests and run workflows as part of the trust boundary. In the repository's Actions settings, require approval for workflows from outside collaborators.
 - Its credentials match `pull_request` and `ref:refs/heads/main` only. A job that declares `environment:` gets a different subject, so plan, preview and production-deploy jobs must not use an `environment`. Only the apply job uses `environment: production`.
 
 Federated credentials use GitHub's **immutable subject** format, `repo:<owner>@<ownerId>/<repo>@<repoId>:<context>`. The older `repo:<owner>/<repo>:<context>` form silently fails to match and surfaces as `AADSTS700213`.
+
+Replication is ZRS: the state is a few KB, versioned and soft-deleted, and zone redundancy covers a datacentre failure. A second-region copy (GRS) would add cost with no stated need. Trivy and Snyk both flag the lack of geo-replication; switch `account_replication_type` to `GRS` if you ever want it.
 
 ## Requirements
 
@@ -48,6 +54,8 @@ terraform apply
 
 Both IDs are required inputs with no default, so they never appear in a committed file. You can also put them in a `terraform.tfvars` file, which is gitignored. Do not commit values.
 
+The provider is configured with `storage { data_plane_available = false }`. The state account has shared keys disabled, and you have no storage data-plane role until this apply creates your assignments, so the provider must not read the storage data plane while creating the account. Nothing else is needed from you for this, but if the first apply still fails with `403` on a storage call, wait a few minutes and re-run `terraform apply`; it resumes where it stopped.
+
 ### 2. Move the state into the new storage account
 
 The first apply uses local state, because the storage account does not exist yet. Move it as soon as the apply succeeds.
@@ -59,7 +67,7 @@ The first apply uses local state, because the storage account does not exist yet
    terraform {
      backend "azurerm" {
        storage_account_name = "stlouislawsontfstate"
-       container_name       = "tfstate"
+       container_name       = "tfstate-bootstrap"
        key                  = "bootstrap.tfstate"
        use_azuread_auth     = true
        use_cli              = true

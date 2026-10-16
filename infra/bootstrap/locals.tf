@@ -1,4 +1,13 @@
 locals {
+  # The tag keys are shared with infra/site; keep the two stacks in step.
+  tags = {
+    project      = "personal-website"
+    env          = "prod"
+    "managed-by" = "terraform"
+    repo         = "${var.github_owner}/${var.github_repo}"
+    stack        = "bootstrap"
+  }
+
   github_oidc_issuer   = "https://token.actions.githubusercontent.com"
   github_oidc_audience = "api://AzureADTokenExchange"
 
