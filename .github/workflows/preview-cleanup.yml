@@ -44,6 +44,7 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false # cone mode would also check out every root-level file
       - name: Sign in and fetch the deployment token
         id: swa
         uses: ./.github/actions/swa-deployment-token # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax

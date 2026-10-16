@@ -1,11 +1,14 @@
 name: Sign in and fetch the Static Web Apps deployment token
 description: >-
   Masks and validates the Azure IDs (through the mask-azure-ids action, which needs the
-  repository checked out with .github/actions), signs in to Azure with OIDC and reads the Static Web App's deployment token at run time,
-  masking it. The caller must hold id-token: write and pass the Azure IDs from secrets (never
-  repository variables, which print unmasked in a public log). The token is never a GitHub
-  secret and is never printed. Do not enable debug logging in a job that uses this action: debug
-  output can include the listSecrets response, which carries the token.
+  repository checked out with .github/actions), signs in to Azure with OIDC, and reads the
+  Static Web App's deployment token at run time, masking it. The caller must hold id-token:
+  write. The IDs arrive as inputs ("with:") and are safe in the log only because the caller
+  feeds them from secrets.*, which the runner masks from the first log line. Every input or
+  environment variable that carries them must come from secrets.* and never from vars.* or a
+  literal, which would print unmasked in a public log. The token is never a GitHub secret and
+  is never printed. Do not enable debug logging in a job that uses this action: debug output can
+  include the listSecrets response, which carries the token.
 
 inputs:
   client-id:

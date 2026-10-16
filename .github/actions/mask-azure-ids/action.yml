@@ -1,11 +1,12 @@
 name: Check and mask Azure IDs
 description: >-
-  Masks, then validates, the Azure client, tenant and subscription IDs that the calling job
-  provides as the environment variables ARM_CLIENT_ID, ARM_TENANT_ID and ARM_SUBSCRIPTION_ID.
-  The calling job must set them from secrets (never repository variables, which print unmasked
-  in a public log). They are read from the environment, not from inputs, so the values never
-  appear in a "with:" block. Fails naming the variable if one is empty or not a GUID; never
-  prints a value.
+  Masks, then validates, the Azure client, tenant and subscription IDs that the caller provides
+  as the environment variables ARM_CLIENT_ID, ARM_TENANT_ID and ARM_SUBSCRIPTION_ID. The log
+  stays clean only because those values come from secrets, which the runner masks from the first
+  log line: every environment variable or input that carries them, here and in any caller, must
+  be fed from secrets.* and never from vars.* or a literal, because a variable or literal would
+  print unmasked in a public log, including in the header of the step that sets it. Fails naming
+  the variable if one is empty or not a GUID; never prints a value.
 
 runs:
   using: composite
