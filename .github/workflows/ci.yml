@@ -9,7 +9,7 @@ permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   lint:
@@ -109,6 +109,7 @@ jobs:
           persist-credentials: false
       - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
         with:
+          # Not tracked by Dependabot: bump by hand.
           version: 1.30.1
           advanced-security: false
           annotations: true
@@ -120,6 +121,7 @@ jobs:
     permissions:
       contents: read
     env:
+      # Not tracked by Dependabot: bump both by hand (checksum is in the release's checksums.txt).
       ACTIONLINT_VERSION: 1.7.12
       ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
     steps:
