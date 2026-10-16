@@ -23,13 +23,20 @@ Creates the pieces the rest of the infrastructure depends on. It is applied **on
 
 The custom role exists because Reader is not enough for `azurerm_static_web_app`. Its read also POSTs `listSecrets` (the `api_key` attribute) and `listAppSettings`, and the same `listSecrets` action is how the deploy workflows fetch the deployment token. The built-in Website Contributor role does not help: it covers `Microsoft.Web/sites/*`, not `Microsoft.Web/staticSites/*`. The role, scoped to the site resource group only, adds `staticSites/read`, `staticSites/listSecrets/action` and `staticSites/listAppSettings/action`; the provider's other reads (the site and `basicAuth/default`) are GETs that Reader already covers.
 
-This means the plan identity can read the production Static Web App deployment token, which can publish to the live site without the `production` approval. That is inherent rather than a choice: the provider's own refresh calls `listSecrets`, and PR previews deploy with this identity. The control is who can run `pull_request` workflows in this repository (see the notes below), not a narrower role.
+This means the plan identity can read the production Static Web App deployment token, which can publish to the live site. That is inherent rather than a choice: the provider's own refresh calls `listSecrets`, and PR previews deploy with this identity. The `production` approval gates Terraform **applies** only. Site content deploys from `main` also use the plan identity and were never approval-gated by design (BUILD-PLAN PR 1.3 and 1.5); putting them behind `environment: production` would change their OIDC subject and break them. The control is who can run `pull_request` and `main` workflows in this repository (see the notes below), not a narrower role.
 
 The CI identities have **no access to `tfstate-bootstrap`**. The plan identity is trusted for every pull-request run, so if it could write this stack's state, a pull request could tamper with the stack that owns the identities and role assignments.
 
 Notes on the plan identity:
 
 - It is trusted for every `pull_request` run in this repository and holds write access to the site state container and the Static Web App deployment token, so treat who can open pull requests and run workflows as part of the trust boundary. In the repository's Actions settings, require approval for workflows from outside collaborators.
+- **The Dependabot path.** Terraform Dependabot pull requests (provider bumps in `infra/bootstrap` and `infra/site`) run the `infra.yml` plan job under this identity, so a compromised provider release could read the deployment token and publish to the live site. Mitigations, none of them complete:
+  - the 7-day `cooldown` in `.github/dependabot.yml` gives the community time to spot and pull a bad release before Dependabot proposes it;
+  - Terraform verifies the registry's signature on every provider it downloads;
+  - the committed lock-file hashes pin the exact provider build, but a provider-bump PR rewrites the lock file itself, so they protect everything except the version the PR proposes.
+
+  So Louis should read provider bumps (changelog, publisher, release date) and be ready to close the pull request, because the plan job starts as soon as Dependabot opens it. If Dependabot runs turn out not to receive an OIDC token, the plan job simply fails on those pull requests and this path does not exist; the advice stands until that is seen.
+
 - Its credentials match `pull_request` and `ref:refs/heads/main` only. A job that declares `environment:` gets a different subject, so plan, preview and production-deploy jobs must not use an `environment`. Only the apply job uses `environment: production`.
 
 Federated credentials use GitHub's **immutable subject** format, `repo:<owner>@<ownerId>/<repo>@<repoId>:<context>`. The older `repo:<owner>/<repo>:<context>` form silently fails to match and surfaces as `AADSTS700213`.
