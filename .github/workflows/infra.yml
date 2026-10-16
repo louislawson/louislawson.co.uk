@@ -103,24 +103,35 @@ jobs:
       pull-requests: write
     env:
       ARM_USE_OIDC: "true"
-      # A secret is masked by the runner from the first log line, a variable only once the mask
-      # step below has run, so prefer the secret. Dependabot-triggered runs cannot read Actions
-      # variables and get its same-named secrets instead.
-      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID || vars.AZURE_PLAN_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
+      # Secrets only: the runner masks a secret from the first log line, but a variable would be
+      # printed in the env header of the step that masks it. Dependabot-triggered runs read the
+      # same-named Dependabot secrets.
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       # The apply job reuses this step through the YAML anchor.
       - &mask_azure_ids
         name: Check and mask Azure IDs
         run: |
+          # Mask every value first, so one that fails the check below is still masked. Never echo
+          # a value: report only which one is wrong.
+          failed=0
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+            if [ -n "${!name}" ]; then
+              echo "::add-mask::${!name}"
+            fi
+          done
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
             if [ -z "${!name}" ]; then
-              echo "::error::${name} is empty: the matching repository variable is not set or not readable by this run"
-              exit 1
+              echo "::error::${name} is empty: the matching Actions secret (Dependabot secret for Dependabot runs) is not set"
+              failed=1
+            elif ! [[ "${!name}" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+              echo "::error::${name} is not a GUID (check the secret for whitespace)"
+              failed=1
             fi
-            echo "::add-mask::${!name}"
           done
+          exit "${failed}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -183,9 +194,9 @@ jobs:
       id-token: write
     env:
       ARM_USE_OIDC: "true"
-      ARM_CLIENT_ID: ${{ secrets.AZURE_APPLY_CLIENT_ID || vars.AZURE_APPLY_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_APPLY_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - *mask_azure_ids
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
