@@ -15,11 +15,13 @@ Creates the pieces the rest of the infrastructure depends on. It is applied **on
 
 ## Access model
 
-| Identity | Trusted for                              | Roles                                                                                                                        |
-| -------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| plan     | `pull_request` and `ref:refs/heads/main` | Reader and Website Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container only     |
-| apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container only                        |
-| you      | the signed-in user                       | Storage Blob Data Contributor on both the `tfstate-bootstrap` and `tfstate` containers (Owner covers the control plane only) |
+| Identity | Trusted for                              | Roles                                                                                                                                      |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| plan     | `pull_request` and `ref:refs/heads/main` | Reader and the custom Static Web App Reader role on the site resource group; Storage Blob Data Contributor on the `tfstate` container only |
+| apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container only                                      |
+| you      | the signed-in user                       | Storage Blob Data Contributor on both the `tfstate-bootstrap` and `tfstate` containers (Owner covers the control plane only)               |
+
+The custom role exists because Reader is not enough for `azurerm_static_web_app`. Its read also POSTs `listSecrets` (the `api_key` attribute) and `listAppSettings`, and the same `listSecrets` action is how the deploy workflows fetch the deployment token. The built-in Website Contributor role does not help: it covers `Microsoft.Web/sites/*`, not `Microsoft.Web/staticSites/*`. The role, scoped to the site resource group only, adds `staticSites/read`, `staticSites/listSecrets/action` and `staticSites/listAppSettings/action`; the provider's other reads (the site and `basicAuth/default`) are GETs that Reader already covers.
 
 The CI identities have **no access to `tfstate-bootstrap`**. The plan identity is trusted for every pull-request run, so if it could write this stack's state, a pull request could tamper with the stack that owns the identities and role assignments.
 
