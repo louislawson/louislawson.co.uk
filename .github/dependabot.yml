@@ -18,6 +18,12 @@ updates:
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
+      # The majors of @types/node follow the Node version in .nvmrc, not the latest Node: types for
+      # a newer major would describe APIs the runtime does not have. Bump them by hand, together
+      # with .nvmrc and engines.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       minor-patch:
         update-types:

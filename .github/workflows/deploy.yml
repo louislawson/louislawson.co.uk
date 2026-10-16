@@ -1,12 +1,27 @@
 name: Deploy
 
 on:
-  # Every push to main builds and deploys production. There is no paths filter here on purpose: an
-  # allow-list of build inputs fails open, so a build input added later and missing from it would
-  # leave production serving an old build. A redundant deploy only publishes the same output.
+  # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
+  # and deploys production, so a build input added later can never leave production on an old
+  # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
+  # folders, Markdown outside src/, and the workflows other than this one and the local actions),
+  # because each production deploy hands the job's OIDC request token to a third-party container.
+  # Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
-  # Pull requests get a preview only for changes the build reads: an allow-list of the source
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!infra/**"
+      - "!.impeccable/**"
+      - "!.claude/**"
+      - "!.github/**"
+      - .github/workflows/deploy.yml
+      - .github/actions/**
+      - "!**/*.md"
+      - src/**/*.md
+  # Pull requests use an allow-list instead, because there a wrong guess only costs a preview, not
+  # a production deploy. They get a preview only for changes the build reads: the source
   # (Markdown under src/ is content; tests, specs and fixtures are not), static files, and the
   # files the build or install reads. Tests, lint and format configs, docs, infrastructure and
   # tooling folders are not on it, so they would only produce a preview identical to production
