@@ -1,13 +1,15 @@
 name: Preview cleanup
 
-# Removes a pull request's preview environment when the pull request closes. This is its own
-# workflow, with no paths filter, so it runs for every closed pull request: the deploy workflow's
-# paths filter is evaluated on the final diff and would miss one that deployed a preview and was
-# later reduced to a docs-only diff, leaving the preview public and holding one of the 3 free
-# slots. It checks that a preview exists first, so a pull request that never had one succeeds.
+# Removes a pull request's preview environment when the pull request closes, or goes back to
+# draft (a draft gets no preview, so it should not keep one of the 3 free slots).
+#
+# This is its own workflow, with no paths filter, so it runs for every such pull request: the
+# deploy workflow's paths filter is evaluated on the final diff and would miss one that deployed a
+# preview and was later reduced to a docs-only diff, leaving the preview public. It checks that a
+# preview exists first, so a pull request that never had one succeeds.
 on:
   pull_request:
-    types: [closed]
+    types: [closed, converted_to_draft]
 
 permissions: {}
 

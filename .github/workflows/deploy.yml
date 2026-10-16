@@ -1,31 +1,37 @@
 name: Deploy
 
 on:
+  # Every push to main builds and deploys production. There is no paths filter here on purpose: an
+  # allow-list of build inputs fails open, so a build input added later and missing from it would
+  # leave production serving an old build. A redundant deploy only publishes the same output.
   push:
     branches: [main]
-    # An allow-list of what can change the built site: the source (Markdown under src/ is
-    # content), static files, and the files the build reads. Tests, lint and format configs, docs,
-    # infrastructure and tooling folders are not on it, so they would only produce a preview
-    # identical to production and use up one of the Free plan's 3 slots.
-    paths: &site_paths
+  # Pull requests get a preview only for changes the build reads: an allow-list of the source
+  # (Markdown under src/ is content; tests, specs and fixtures are not), static files, and the
+  # files the build or install reads. Tests, lint and format configs, docs, infrastructure and
+  # tooling folders are not on it, so they would only produce a preview identical to production
+  # and use up one of the Free plan's 3 slots. Such pull requests still build and test in CI.
+  # A draft pull request builds in CI but gets no preview until it is marked ready for review.
+  # Removing a preview (on close, or when a pull request goes back to draft) is a separate
+  # workflow, preview-cleanup.yml, because this paths filter is evaluated on the final diff and
+  # would miss a pull request that was reduced to a docs-only diff after it had deployed one.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
       - src/**
-      - "!src/**/*.test.ts"
+      - "!src/**/*.test.*"
+      - "!src/**/*.spec.*"
+      - "!src/**/__tests__/**"
+      - "!src/**/__fixtures__/**"
       - public/**
       - astro.config.mjs
       - package.json
       - package-lock.json
+      - .npmrc
       - .nvmrc
       - tsconfig.json
       - .github/workflows/deploy.yml
       - .github/actions/**
-  # Pull requests that change none of the site paths get no preview, but still build and test in
-  # CI. Removing a preview when its pull request closes is a separate workflow
-  # (preview-cleanup.yml), because the paths filter here is evaluated on the final diff and would
-  # miss a pull request that was reduced to a docs-only diff after it had deployed a preview.
-  # A draft pull request builds in CI but gets no preview until it is marked ready for review.
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths: *site_paths
 
 permissions: {}
 
