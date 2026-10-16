@@ -28,6 +28,7 @@ The plan comment never contains GUIDs: the repository is public, so subscription
 
 ## Notes
 
+- **Azure IDs in public logs.** The repository is public, so the workflow reads each ID from an Actions **secret** first and falls back to the repository **variable**. The runner masks a secret from the first log line. A variable is masked only once the "Check and mask Azure IDs" step has run, and that one step prints its own `env:` block first, so with variables only the three IDs appear once per job in the log. To close that gap, add the four values as Actions secrets with the same names (`AZURE_PLAN_CLIENT_ID`, `AZURE_APPLY_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`).
 - **No deployment token output.** The resource exports `api_key`, so the token exists in the (Entra-only, private) state. It is never output; the deploy workflow fetches it at run time with `az staticwebapp secrets list`.
 - **Ignored fields.** Deploying with the API key makes Azure record `repository_branch` and `repository_url`; `ignore_changes` stops the provider planning to blank them on every run. `terraform test` cannot observe lifecycle rules, so a CI step greps for this and for `prevent_destroy`.
 - **Deletion protection** is `prevent_destroy`, because a management lock would need Owner-level rights the apply identity does not have.

@@ -91,10 +91,12 @@ jobs:
       pull-requests: write
     env:
       ARM_USE_OIDC: "true"
-      # Dependabot-triggered runs cannot read Actions variables, so fall back to its secrets.
-      ARM_CLIENT_ID: ${{ vars.AZURE_PLAN_CLIENT_ID || secrets.AZURE_PLAN_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+      # A secret is masked by the runner from the first log line, a variable only once the mask
+      # step below has run, so prefer the secret. Dependabot-triggered runs cannot read Actions
+      # variables and get its same-named secrets instead.
+      ARM_CLIENT_ID: ${{ secrets.AZURE_PLAN_CLIENT_ID || vars.AZURE_PLAN_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
     steps:
       - name: Check and mask Azure IDs
         run: |
@@ -169,9 +171,9 @@ jobs:
       id-token: write
     env:
       ARM_USE_OIDC: "true"
-      ARM_CLIENT_ID: ${{ vars.AZURE_APPLY_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_APPLY_CLIENT_ID || vars.AZURE_APPLY_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
     steps:
       - name: Check and mask Azure IDs
         run: |
