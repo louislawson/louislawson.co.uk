@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -27,7 +27,10 @@ afterAll(() => {
 });
 
 describe.each(["preview", "production"])("a %s build", (deployContext) => {
-  const dir = build({ DEPLOY_CONTEXT: deployContext });
+  let dir = "";
+  beforeAll(() => {
+    dir = build({ DEPLOY_CONTEXT: deployContext });
+  });
 
   it("sends noindex in the generated config while the site is not launched", () => {
     const config = JSON.parse(read(dir, "staticwebapp.config.json"));
@@ -50,10 +53,24 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       '<meta name="robots" content="noindex">',
     );
   });
+
+  it("inlines no stylesheet or script, which the content security policy would block", () => {
+    for (const page of ["index.html", "404.html"]) {
+      const html = read(dir, page);
+      expect(html).not.toMatch(/<style[\s>]/);
+      expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/);
+    }
+  });
 });
 
 describe("a build with an unknown DEPLOY_CONTEXT", () => {
   it("fails, naming the value", () => {
-    expect(() => build({ DEPLOY_CONTEXT: "staging" })).toThrow();
+    let stderr = "";
+    try {
+      build({ DEPLOY_CONTEXT: "staging" });
+    } catch (error) {
+      stderr = String((error as { stderr?: Buffer }).stderr ?? "");
+    }
+    expect(stderr).toContain("staging");
   });
 });

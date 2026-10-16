@@ -1,0 +1,53 @@
+name: Sign in and fetch the Static Web Apps deployment token
+description: >-
+  Signs in to Azure with OIDC and reads the Static Web App's deployment token at run time,
+  masking it. The caller must hold id-token: write and pass the Azure IDs from secrets (never
+  repository variables, which print unmasked in a public log). The token is never a GitHub
+  secret and is never printed. Do not enable debug logging in a job that uses this action: debug
+  output can include the listSecrets response, which carries the token.
+
+inputs:
+  client-id:
+    description: Client ID of the Azure identity to sign in as. Pass it from a secret.
+    required: true
+  tenant-id:
+    description: Microsoft Entra tenant ID. Pass it from a secret.
+    required: true
+  subscription-id:
+    description: Azure subscription ID. Pass it from a secret.
+    required: true
+  name:
+    description: Name of the Static Web App.
+    required: true
+  resource-group:
+    description: Resource group of the Static Web App.
+    required: true
+
+outputs:
+  token:
+    description: The masked deployment token. Pass it only to the step that uploads or closes.
+    value: ${{ steps.token.outputs.token }}
+
+runs:
+  using: composite
+  steps:
+    - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+    - name: Fetch the deployment token
+      id: token
+      shell: bash
+      env:
+        SWA_NAME: ${{ inputs.name }}
+        SWA_RESOURCE_GROUP: ${{ inputs.resource-group }}
+      run: |
+        token="$(az staticwebapp secrets list --name "${SWA_NAME}" --resource-group "${SWA_RESOURCE_GROUP}" \
+          --query properties.apiKey --output tsv)"
+        if [ -z "${token}" ]; then
+          echo "::error::Could not read the deployment token for ${SWA_NAME}"
+          exit 1
+        fi
+        echo "::add-mask::${token}"
+        echo "token=${token}" >> "${GITHUB_OUTPUT}"
