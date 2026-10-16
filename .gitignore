@@ -23,3 +23,5 @@ dist/
 *.tfstate*
 *.tfplan
 crash.log
+*.tfvars
+*.tfvars.json

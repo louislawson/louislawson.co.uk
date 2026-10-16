@@ -40,3 +40,24 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: terraform
+    # PR 1.4 adds /infra/site to these directories; do not add a second terraform entry.
+    # group-by only takes effect across several directories.
+    directories:
+      - /infra/bootstrap
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      minor-patch:
+        group-by: dependency-name
+        update-types:
+          - minor
+          - patch
