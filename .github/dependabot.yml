@@ -40,3 +40,22 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: terraform
+    directories:
+      - /infra/bootstrap
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      minor-patch:
+        group-by: dependency-name
+        update-types:
+          - minor
+          - patch

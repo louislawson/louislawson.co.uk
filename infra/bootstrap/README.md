@@ -1,0 +1,116 @@
+# Bootstrap
+
+Creates the pieces the rest of the infrastructure depends on. It is applied **once, locally, by Louis**; CI never runs it.
+
+| Resource                                   | Purpose                                                         |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `rg-louislawson-tfstate-weu`               | Holds the state storage account and the two CI identities       |
+| `stlouislawsontfstate` and `tfstate`       | Terraform state: Entra-only auth, versioned, 30-day soft delete |
+| `rg-louislawson-web-prod-weu`              | Empty resource group the site stack deploys into                |
+| `id-louislawson-web-plan`                  | CI identity for plan, PR previews and production deploys        |
+| `id-louislawson-web-apply`                 | CI identity for apply, trusted only for `production`            |
+| Role assignments and federated credentials | See below; nothing is granted at subscription scope             |
+
+## Access model
+
+| Identity | Trusted for                              | Roles                                                                                                               |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| plan     | `pull_request` and `ref:refs/heads/main` | Reader and Website Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container |
+| apply    | `environment:production` only            | Contributor on the site resource group; Storage Blob Data Contributor on the `tfstate` container                    |
+| you      | the signed-in user                       | Storage Blob Data Contributor on the `tfstate` container (Owner covers the control plane only)                      |
+
+Federated credentials use GitHub's **immutable subject** format, `repo:<owner>@<ownerId>/<repo>@<repoId>:<context>`. The older `repo:<owner>/<repo>:<context>` form silently fails to match and surfaces as `AADSTS700213`.
+
+## Requirements
+
+- Terraform 1.15 or later (1.16 is fine) and the Azure CLI.
+- An Azure account with **Owner** on the subscription, because the bootstrap creates role assignments.
+- The GitHub CLI, to read the numeric account and repository IDs.
+
+## Steps
+
+### 1. Apply
+
+```powershell
+az login
+$env:TF_VAR_github_owner_id = gh api users/louislawson --jq .id
+$env:TF_VAR_github_repo_id  = gh api repos/louislawson/louislawson.co.uk --jq .id
+
+terraform init
+terraform plan
+terraform apply
+```
+
+Both IDs are required inputs with no default, so they never appear in a committed file. You can also put them in a `terraform.tfvars` file, which is gitignored. Do not commit values.
+
+### 2. Move the state into the new storage account
+
+The first apply uses local state, because the storage account does not exist yet. Move it as soon as the apply succeeds.
+
+1. Back up the local state: copy `terraform.tfstate` somewhere outside the repository.
+2. Add `backend.tf` next to `main.tf`:
+
+   ```hcl
+   terraform {
+     backend "azurerm" {
+       storage_account_name = "stlouislawsontfstate"
+       container_name       = "tfstate"
+       key                  = "bootstrap.tfstate"
+       use_azuread_auth     = true
+       use_cli              = true
+     }
+   }
+   ```
+
+   Bootstrap only ever runs locally, so Azure CLI authentication is fixed in the block. The tenant comes from the signed-in CLI session.
+
+3. Run `terraform init -migrate-state` and answer `yes`.
+4. Run `terraform plan`; it should report no changes. Then delete the local `terraform.tfstate*` files.
+5. Commit `backend.tf` in a follow-up pull request. It holds placement only, nothing sensitive.
+
+### 3. Set the GitHub variables and Dependabot secrets
+
+Dependabot-triggered runs cannot read Actions variables or secrets reliably, so each ID is stored in both places under the same name. These IDs never go into committed files.
+
+```powershell
+$values = @{
+  AZURE_PLAN_CLIENT_ID    = (terraform output -raw plan_client_id)
+  AZURE_APPLY_CLIENT_ID   = (terraform output -raw apply_client_id)
+  AZURE_TENANT_ID         = (terraform output -raw tenant_id)
+  AZURE_SUBSCRIPTION_ID   = (terraform output -raw subscription_id)
+}
+foreach ($name in $values.Keys) {
+  gh variable set $name --body $values[$name]
+  gh secret set $name --app dependabot --body $values[$name]
+}
+```
+
+### 4. Create the `production` environment
+
+In the repository settings, go to Environments, create `production` and add yourself as a required reviewer. The apply identity is only trusted for this environment, so a workflow that does not use it cannot apply.
+
+### 5. Wait for propagation
+
+Federated credentials can take a few minutes to propagate. An `AADSTS70021` error on the first workflow run usually means waiting and retrying.
+
+## Confirming the OIDC subject
+
+If a run fails with `AADSTS700213`, the subject Azure received differs from the credential. The first `azure/login` run prints the subject on its "Federated token details" line. Compare it with the credential's subject in the Azure portal, under the identity's Federated credentials.
+
+## Checks
+
+Run from this directory before pushing:
+
+```sh
+terraform fmt -check
+terraform init -backend=false
+terraform validate
+tflint --config=../.tflint.hcl --init
+tflint --config=../.tflint.hcl
+```
+
+`.terraform.lock.hcl` is committed and locked for `windows_amd64` and `linux_amd64`. After a provider upgrade, refresh it with:
+
+```sh
+terraform providers lock -platform=windows_amd64 -platform=linux_amd64
+```
