@@ -78,10 +78,25 @@ jobs:
       # repository_* fields Azure records on API-key deploys, and deletion protection.
       - name: Static Web App lifecycle guard
         run: |
-          code="$(grep -Ev '^[[:space:]]*#' infra/site/main.tf | tr -d '[:space:]')"
-          grep -Eq 'ignore_changes=\[[^]]*repository_branch[^]]*\]' <<< "${code}"
-          grep -Eq 'ignore_changes=\[[^]]*repository_url[^]]*\]' <<< "${code}"
-          grep -Eq 'prevent_destroy=true' <<< "${code}"
+          # Only the Static Web App resource block, with comment lines removed and whitespace stripped.
+          block="$(awk '/^resource "azurerm_static_web_app" "site" \{/ {on=1} on {print} on && /^\}/ {exit}' infra/site/main.tf \
+            | grep -Ev '^[[:space:]]*#' | sed -E 's/#.*$//' | tr -d '[:space:]')"
+          if [ -z "${block}" ]; then
+            echo "::error::azurerm_static_web_app.site not found in infra/site/main.tf"
+            exit 1
+          fi
+          failed=0
+          for field in repository_branch repository_url; do
+            if ! grep -Eq "ignore_changes=\[[^]]*${field}[^]]*\]" <<< "${block}"; then
+              echo "::error::${field} is not in the Static Web App's ignore_changes"
+              failed=1
+            fi
+          done
+          if ! grep -Eq 'prevent_destroy=true' <<< "${block}"; then
+            echo "::error::the Static Web App is missing prevent_destroy = true"
+            failed=1
+          fi
+          exit "${failed}"
 
   plan:
     name: Terraform plan
@@ -142,8 +157,10 @@ jobs:
       - name: Init
         run: terraform -chdir=infra/site init -lockfile=readonly -input=false
       - name: Plan
-        run: terraform -chdir=infra/site plan -input=false -lock-timeout=5m -out=tfplan
+        run: terraform -chdir=infra/site plan -input=false -lock-timeout=10m -out=tfplan
       - name: Render plan
+        # Explicit bash enables pipefail, so a failed `terraform show` cannot publish an empty plan.
+        shell: bash
         run: |
           fence="$(printf '\140\140\140')"
           {

@@ -31,15 +31,25 @@ run "configuration" {
     error_message = "The Static Web App must deploy into the resource group created by the bootstrap stack."
   }
 
+  # The keys are shared with the bootstrap stack (infra/bootstrap/locals.tf); only stack differs.
   assert {
-    condition = azurerm_static_web_app.site.tags == tomap({
-      project      = "personal-website"
-      env          = "prod"
-      "managed-by" = "terraform"
-      repo         = "${var.github_owner}/${var.github_repo}"
-      stack        = "site"
-    })
-    error_message = "The Static Web App must carry the shared tag keys with stack = site."
+    condition     = toset(keys(azurerm_static_web_app.site.tags)) == toset(["project", "env", "managed-by", "repo", "stack"])
+    error_message = "The Static Web App must carry exactly the shared tag keys: project, env, managed-by, repo, stack."
+  }
+
+  assert {
+    condition = (
+      azurerm_static_web_app.site.tags["stack"] == "site"
+      && azurerm_static_web_app.site.tags["managed-by"] == "terraform"
+      && azurerm_static_web_app.site.tags["project"] == "personal-website"
+      && azurerm_static_web_app.site.tags["env"] == "prod"
+    )
+    error_message = "The Static Web App's tags must say stack = site, managed-by = terraform, project = personal-website and env = prod."
+  }
+
+  assert {
+    condition     = azurerm_static_web_app.site.tags["repo"] == "${var.github_owner}/${var.github_repo}"
+    error_message = "The repo tag must be <owner>/<repo>."
   }
 }
 
