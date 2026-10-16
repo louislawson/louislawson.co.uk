@@ -46,6 +46,10 @@ describe("public/staticwebapp.config.json", () => {
     expect(header("X-Content-Type-Options")).toBe("nosniff");
   });
 
+  it("turns the legacy XSS filter off instead of inheriting the platform's block mode", () => {
+    expect(header("X-XSS-Protection")).toBe("0");
+  });
+
   it("leaves the robots header to the build", () => {
     expect(header("X-Robots-Tag")).toBeUndefined();
   });
