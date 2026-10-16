@@ -13,10 +13,14 @@ State lives in the `tfstate` container (key `site.tfstate`) of the bootstrap-cre
 
 The workflow is [`.github/workflows/infra.yml`](../../.github/workflows/infra.yml).
 
-| Event                         | Jobs                                                                                                        | Identity                                                           |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Pull request touching `infra` | Terraform checks, then Terraform plan (posted as a sticky pull-request comment)                             | Plan identity, `pull_request` subject                              |
-| Push to `main`                | Terraform checks, then Terraform apply, which waits for Louis to approve the `production` environment first | Apply identity, `environment:production` subject, no other trigger |
+| Event                                         | Jobs                                                                                                                 | Identity                                                     |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Pull request touching `infra` or the workflow | Terraform checks, then Terraform plan (posted as a sticky pull-request comment)                                      | Plan identity, `pull_request` subject                        |
+| Push to `main` touching `infra`               | Terraform checks and plan, then Terraform apply, which waits for Louis to approve the `production` environment first | Plan: `ref:refs/heads/main`. Apply: `environment:production` |
+
+The apply job re-plans before applying. A saved plan cannot be handed between jobs as an artifact: it embeds the Static Web App's `api_key`, and artifacts on a public repository are downloadable. The plan job on `main` runs first so the plan is visible in its job summary while the approval is pending.
+
+Nothing in this workflow is cancelled mid-run, because a killed plan or apply can leave the state blob lease held. Superseded runs queue instead. The path filters mean these checks do not report on pull requests that touch neither `infra` nor the workflow, so do not mark them as required status checks without handling that.
 
 The plan and apply jobs must keep to those subjects. A job that declares `environment:` presents the environment subject, so only the apply job may. See the [bootstrap access model](../bootstrap/README.md#access-model).
 

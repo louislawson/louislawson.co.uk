@@ -36,7 +36,7 @@ run "configuration" {
       project      = "personal-website"
       env          = "prod"
       "managed-by" = "terraform"
-      repo         = "louislawson/louislawson.co.uk"
+      repo         = "${var.github_owner}/${var.github_repo}"
       stack        = "site"
     })
     error_message = "The Static Web App must carry the shared tag keys with stack = site."
@@ -51,4 +51,15 @@ run "invalid_sku_rejected" {
   }
 
   expect_failures = [var.sku_tier]
+}
+
+run "mismatched_sku_rejected" {
+  command = plan
+
+  variables {
+    sku_tier = "Standard"
+    sku_size = "Free"
+  }
+
+  expect_failures = [var.sku_size]
 }

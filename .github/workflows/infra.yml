@@ -5,19 +5,19 @@ on:
     paths:
       - infra/**
       - .github/workflows/infra.yml
+  # Workflow-only changes are validated on the pull request; they must not trigger an apply.
   push:
     branches: [main]
     paths:
       - infra/**
-      - .github/workflows/infra.yml
 
 permissions: {}
 
-# Pull-request runs cancel when superseded. Pushes to main never cancel, so an apply is not
-# interrupted half-way (the apply job also holds its own state-lock group).
+# Nothing is cancelled: a plan or apply killed mid-run can leave the state blob lease held, which
+# blocks every later run until someone breaks it by hand. Superseded runs queue instead.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 env:
   TERRAFORM_VERSION: 1.16.2 # Not tracked by Dependabot: bump by hand.
@@ -70,18 +70,21 @@ jobs:
       # repository_* fields Azure records on API-key deploys, and deletion protection.
       - name: Static Web App lifecycle guard
         run: |
-          grep -Eq 'ignore_changes *= *\[repository_branch, *repository_url\]' infra/site/main.tf
-          grep -Eq 'prevent_destroy *= *true' infra/site/main.tf
+          code="$(grep -Ev '^[[:space:]]*#' infra/site/main.tf | tr -d '[:space:]')"
+          grep -Eq 'ignore_changes=\[[^]]*repository_branch[^]]*\]' <<< "${code}"
+          grep -Eq 'ignore_changes=\[[^]]*repository_url[^]]*\]' <<< "${code}"
+          grep -Eq 'prevent_destroy=true' <<< "${code}"
 
   plan:
     name: Terraform plan
     needs: checks
+    # Pushes to main plan too, so the plan is on screen while the production approval is pending.
     # Fork pull requests get no OIDC token and no access to the plan identity.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No `environment:` here: that would change the OIDC subject, and the plan identity is
-    # trusted only for pull_request and ref:refs/heads/main.
+    # trusted only for pull_request and ref:refs/heads/main (the two events this job runs on).
     permissions:
       contents: read
       id-token: write
@@ -93,11 +96,15 @@ jobs:
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
-      - name: Mask Azure IDs in logs
+      - name: Check and mask Azure IDs
         run: |
-          echo "::add-mask::${ARM_CLIENT_ID}"
-          echo "::add-mask::${ARM_TENANT_ID}"
-          echo "::add-mask::${ARM_SUBSCRIPTION_ID}"
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} is empty: the matching repository variable is not set or not readable by this run"
+              exit 1
+            fi
+            echo "::add-mask::${!name}"
+          done
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -119,15 +126,19 @@ jobs:
             echo "${fence}text"
             # The repository is public: never publish GUIDs (subscription, tenant, principal IDs).
             terraform -chdir=infra/site show -no-color tfplan \
-              | sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<guid>/g' \
-              | head -c 60000
+              | sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<guid>/g' > plan-body.txt
+            head -c 60000 plan-body.txt
             echo
             echo "${fence}"
+            if [ "$(wc -c < plan-body.txt)" -gt 60000 ]; then
+              echo
+              echo '_The plan was truncated at 60000 bytes; see the job log for the rest._'
+            fi
           } > plan-comment.md
           cat plan-comment.md >> "${GITHUB_STEP_SUMMARY}"
       # Dependabot's token is read-only, so it gets the step summary only.
       - name: Post plan comment
-        if: github.actor != 'dependabot[bot]'
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -143,7 +154,7 @@ jobs:
 
   apply:
     name: Terraform apply
-    needs: checks
+    needs: [checks, plan]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -162,11 +173,15 @@ jobs:
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     steps:
-      - name: Mask Azure IDs in logs
+      - name: Check and mask Azure IDs
         run: |
-          echo "::add-mask::${ARM_CLIENT_ID}"
-          echo "::add-mask::${ARM_TENANT_ID}"
-          echo "::add-mask::${ARM_SUBSCRIPTION_ID}"
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} is empty: the matching repository variable is not set or not readable by this run"
+              exit 1
+            fi
+            echo "::add-mask::${!name}"
+          done
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
