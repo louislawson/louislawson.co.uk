@@ -1,0 +1,9 @@
+{
+  "config": {
+    "extends": "markdownlint/style/prettier",
+    "MD013": false,
+  },
+  "gitignore": true,
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules/**", ".impeccable/**", "dist/**", "CHANGELOG.md"],
+}

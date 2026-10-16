@@ -6,6 +6,7 @@ PRIVATE-NOTES.md
 .impeccable/questions/
 .impeccable/review/
 .impeccable/hook.cache.json
+.impeccable/config.json
 .impeccable/config.local.json
 
 # Dependencies and build output
