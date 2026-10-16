@@ -79,7 +79,7 @@ The first apply uses local state, because the storage account does not exist yet
 
 3. Wait a few minutes after the apply, then run `terraform init -migrate-state` and answer `yes`. Your new Storage Blob Data Contributor assignment can take a while to propagate; a `403 AuthorizationPermissionMismatch` means wait and retry.
 4. Run `terraform plan`; it should report no changes. Then delete the local `terraform.tfstate*` files.
-5. Commit `backend.tf` in a follow-up pull request. It holds placement only, nothing sensitive.
+5. Commit `backend.tf`. It holds placement only, nothing sensitive; it is already in the repository.
 
 ### 3. Set the GitHub variables and Dependabot secrets
 
