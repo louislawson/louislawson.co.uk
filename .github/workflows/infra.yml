@@ -1,0 +1,184 @@
+name: Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - infra/**
+      - .github/workflows/infra.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/**
+      - .github/workflows/infra.yml
+
+permissions: {}
+
+# Pull-request runs cancel when superseded. Pushes to main never cancel, so an apply is not
+# interrupted half-way (the apply job also holds its own state-lock group).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TERRAFORM_VERSION: 1.16.2 # Not tracked by Dependabot: bump by hand.
+  TFLINT_VERSION: v0.64.0 # Not tracked by Dependabot: bump by hand.
+
+jobs:
+  checks:
+    name: Terraform checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+      # Trivy runs before any `terraform init`, so it scans only committed files.
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (0.35.0 or later: earlier tags were compromised, CVE-2026-33634)
+        with:
+          scan-type: config
+          scan-ref: infra
+          severity: MEDIUM,HIGH,CRITICAL
+          exit-code: "1"
+          hide-progress: true
+      - name: Format
+        run: terraform fmt -check -recursive -diff infra
+      - name: Validate and lint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # tflint --init downloads the azurerm ruleset
+        run: |
+          tflint --config="${GITHUB_WORKSPACE}/infra/.tflint.hcl" --chdir=infra/site --init
+          for dir in infra/bootstrap infra/site; do
+            echo "::group::${dir}"
+            terraform -chdir="${dir}" init -backend=false -lockfile=readonly -input=false
+            terraform -chdir="${dir}" validate
+            tflint --config="${GITHUB_WORKSPACE}/infra/.tflint.hcl" --chdir="${dir}"
+            echo "::endgroup::"
+          done
+      - name: terraform test
+        run: terraform -chdir=infra/site test
+      # terraform test cannot observe lifecycle rules, so guard the two that matter here: the
+      # repository_* fields Azure records on API-key deploys, and deletion protection.
+      - name: Static Web App lifecycle guard
+        run: |
+          grep -Eq 'ignore_changes *= *\[repository_branch, *repository_url\]' infra/site/main.tf
+          grep -Eq 'prevent_destroy *= *true' infra/site/main.tf
+
+  plan:
+    name: Terraform plan
+    needs: checks
+    # Fork pull requests get no OIDC token and no access to the plan identity.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No `environment:` here: that would change the OIDC subject, and the plan identity is
+    # trusted only for pull_request and ref:refs/heads/main.
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    env:
+      ARM_USE_OIDC: "true"
+      # Dependabot-triggered runs cannot read Actions variables, so fall back to its secrets.
+      ARM_CLIENT_ID: ${{ vars.AZURE_PLAN_CLIENT_ID || secrets.AZURE_PLAN_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Mask Azure IDs in logs
+        run: |
+          echo "::add-mask::${ARM_CLIENT_ID}"
+          echo "::add-mask::${ARM_TENANT_ID}"
+          echo "::add-mask::${ARM_SUBSCRIPTION_ID}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: Init
+        run: terraform -chdir=infra/site init -lockfile=readonly -input=false
+      - name: Plan
+        run: terraform -chdir=infra/site plan -input=false -lock-timeout=5m -out=tfplan
+      - name: Render plan
+        run: |
+          fence="$(printf '\140\140\140')"
+          {
+            echo '<!-- terraform-plan:site -->'
+            echo '### Terraform plan: infra/site'
+            echo
+            echo "${fence}text"
+            # The repository is public: never publish GUIDs (subscription, tenant, principal IDs).
+            terraform -chdir=infra/site show -no-color tfplan \
+              | sed -E 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<guid>/g' \
+              | head -c 60000
+            echo
+            echo "${fence}"
+          } > plan-comment.md
+          cat plan-comment.md >> "${GITHUB_STEP_SUMMARY}"
+      # Dependabot's token is read-only, so it gets the step summary only.
+      - name: Post plan comment
+        if: github.actor != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- terraform-plan:site -->")) | .id' | head -n 1)"
+          if [ -n "${id}" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@plan-comment.md > /dev/null
+          else
+            gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body-file plan-comment.md
+          fi
+
+  apply:
+    name: Terraform apply
+    needs: checks
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Louis approves the production environment before this job starts. The apply identity is
+    # trusted only for that environment's OIDC subject.
+    environment: production
+    concurrency:
+      group: tf-site-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_APPLY_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Mask Azure IDs in logs
+        run: |
+          echo "::add-mask::${ARM_CLIENT_ID}"
+          echo "::add-mask::${ARM_TENANT_ID}"
+          echo "::add-mask::${ARM_SUBSCRIPTION_ID}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: Init
+        run: terraform -chdir=infra/site init -lockfile=readonly -input=false
+      - name: Plan
+        run: terraform -chdir=infra/site plan -input=false -lock-timeout=10m -out=tfplan
+      # If the first apply hangs after the Static Web App is created (a reported provider issue),
+      # re-run with TF_LOG=DEBUG and -parallelism=1 before changing anything else.
+      - name: Apply
+        run: terraform -chdir=infra/site apply -input=false -lock-timeout=10m tfplan
