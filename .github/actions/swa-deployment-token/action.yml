@@ -1,6 +1,7 @@
 name: Sign in and fetch the Static Web Apps deployment token
 description: >-
-  Signs in to Azure with OIDC and reads the Static Web App's deployment token at run time,
+  Masks and validates the Azure IDs (through the mask-azure-ids action, which needs the
+  repository checked out with .github/actions), signs in to Azure with OIDC and reads the Static Web App's deployment token at run time,
   masking it. The caller must hold id-token: write and pass the Azure IDs from secrets (never
   repository variables, which print unmasked in a public log). The token is never a GitHub
   secret and is never printed. Do not enable debug logging in a job that uses this action: debug
@@ -31,6 +32,14 @@ outputs:
 runs:
   using: composite
   steps:
+    # Masks and validates the IDs first. They are set as environment variables on this step only,
+    # so no later step, including the caller's third-party upload action, receives them.
+    - name: Check and mask Azure IDs
+      uses: ./.github/actions/mask-azure-ids # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
+      env:
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
+        ARM_TENANT_ID: ${{ inputs.tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
     - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         client-id: ${{ inputs.client-id }}

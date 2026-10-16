@@ -1,0 +1,76 @@
+name: Preview cleanup
+
+# Removes a pull request's preview environment when the pull request closes. This is its own
+# workflow, with no paths filter, so it runs for every closed pull request: the deploy workflow's
+# paths filter is evaluated on the final diff and would miss one that deployed a preview and was
+# later reduced to a docs-only diff, leaving the preview public and holding one of the 3 free
+# slots. It checks that a preview exists first, so a pull request that never had one succeeds.
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+# The same group name as the deploy workflow's per-pull-request group ("Deploy-<number>"), so a
+# close never overlaps a deploy of the same pull request.
+concurrency:
+  group: Deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  # Not secrets: both names are committed in infra/site.
+  SWA_NAME: stapp-louislawson-web-prod-weu
+  SWA_RESOURCE_GROUP: rg-louislawson-web-prod-weu
+
+jobs:
+  remove_preview:
+    name: Remove preview
+    # Dependabot and fork pull requests never get a preview, and cannot reach the plan identity.
+    # The test is on the pull request's author, not the actor, which on this event is whoever
+    # closed or merged it.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # No `environment:` here: that would change the OIDC subject, and the plan identity is
+    # trusted only for pull_request and ref:refs/heads/main.
+    permissions:
+      contents: read # sparse checkout of the local actions only
+      id-token: write
+    steps:
+      # A local action needs the repository, but only the actions folder.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+      - name: Sign in and fetch the deployment token
+        id: swa
+        uses: ./.github/actions/swa-deployment-token # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
+        with:
+          client-id: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          name: ${{ env.SWA_NAME }}
+          resource-group: ${{ env.SWA_RESOURCE_GROUP }}
+      # A preview environment is named after its pull request number.
+      - name: Check whether a preview exists
+        id: exists
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          count="$(az staticwebapp environment list --name "${SWA_NAME}" --resource-group "${SWA_RESOURCE_GROUP}" \
+            --query "[?name=='${PR_NUMBER}'] | length(@)" --output tsv)"
+          if [ "${count:-0}" -gt 0 ]; then
+            echo "found=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "found=false" >> "${GITHUB_OUTPUT}"
+            echo "No preview environment for pull request ${PR_NUMBER}; nothing to remove."
+          fi
+      - name: Close the preview environment
+        if: steps.exists.outputs.found == 'true'
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1 branch, 2024-09-11
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          action: close
+          app_location: dist

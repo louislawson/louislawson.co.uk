@@ -18,6 +18,12 @@ function parseSiteUrl(value: string | undefined): string {
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error(`SITE_URL must be an absolute http(s) URL, got "${raw}"`);
   }
+  // Only the origin is used (canonical URLs, the sitemap), so a path would be dropped silently.
+  if (url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+    throw new Error(
+      `SITE_URL must be an origin with no path, query or fragment, got "${raw}"`,
+    );
+  }
   return url.origin;
 }
 

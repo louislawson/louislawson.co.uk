@@ -77,6 +77,18 @@ describe("resolveSite", () => {
     );
   });
 
+  it("fails the build on a SITE_URL with a path, query or fragment, which would be dropped", () => {
+    expect(() =>
+      resolveSite({ SITE_URL: "https://example.test/base" }),
+    ).toThrow(/SITE_URL/);
+    expect(() =>
+      resolveSite({ SITE_URL: "https://example.test/?a=1" }),
+    ).toThrow(/SITE_URL/);
+    expect(() =>
+      resolveSite({ SITE_URL: "https://example.test/#top" }),
+    ).toThrow(/SITE_URL/);
+  });
+
   it("fails the build on a bad DEPLOY_CONTEXT", () => {
     expect(() => resolveSite({ DEPLOY_CONTEXT: "staging" })).toThrow(/staging/);
   });
