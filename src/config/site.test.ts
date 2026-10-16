@@ -93,3 +93,4 @@ describe("resolveSite", () => {
     expect(() => resolveSite({ DEPLOY_CONTEXT: "staging" })).toThrow(/staging/);
   });
 });
+// throwaway: a test-only change must not deploy a preview
