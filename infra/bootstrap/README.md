@@ -42,6 +42,8 @@ Replication is ZRS: the state is a few KB, versioned and soft-deleted, and zone 
 
 ### 1. Apply
 
+`backend.tf` is committed, but its storage account and container do not exist until this stack creates them. For a first-ever apply, move it aside so Terraform uses local state: `Rename-Item backend.tf backend.tf.off`. (`backend.tf.off` is not committed; step 2 puts it back.) For routine changes to an already-applied stack, leave it in place.
+
 ```powershell
 az login
 $env:TF_VAR_github_owner_id = gh api users/louislawson --jq .id
@@ -61,7 +63,7 @@ The provider is configured with `storage { data_plane_available = false }`. The 
 The first apply uses local state, because the storage account does not exist yet. Move it as soon as the apply succeeds.
 
 1. Back up the local state: copy `terraform.tfstate` somewhere outside the repository.
-2. Add `backend.tf` next to `main.tf`:
+2. Restore `backend.tf` next to `main.tf` (`Rename-Item backend.tf.off backend.tf`). It contains:
 
    ```hcl
    terraform {
@@ -79,7 +81,7 @@ The first apply uses local state, because the storage account does not exist yet
 
 3. Wait a few minutes after the apply, then run `terraform init -migrate-state` and answer `yes`. Your new Storage Blob Data Contributor assignment can take a while to propagate; a `403 AuthorizationPermissionMismatch` means wait and retry.
 4. Run `terraform plan`; it should report no changes. Then delete the local `terraform.tfstate*` files.
-5. Commit `backend.tf` in a follow-up pull request. It holds placement only, nothing sensitive.
+5. `backend.tf` holds placement only, nothing sensitive, and is committed.
 
 ### 3. Set the GitHub variables and Dependabot secrets
 
