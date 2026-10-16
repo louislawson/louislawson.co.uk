@@ -1,0 +1,24 @@
+# Local-only notes and tooling
+PRIVATE-NOTES.md
+.claude/
+.impeccable/mocks/
+.impeccable/decision/
+.impeccable/questions/
+.impeccable/review/
+.impeccable/hook.cache.json
+.impeccable/config.local.json
+
+# Dependencies and build output
+node_modules/
+dist/
+.astro/
+
+# Environment files
+.env*
+!.env.example
+
+# Terraform
+**/.terraform/
+*.tfstate*
+*.tfplan
+crash.log
