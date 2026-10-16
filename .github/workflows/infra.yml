@@ -186,8 +186,11 @@ jobs:
               echo
               echo '_The plan was truncated at 60000 bytes; see the job log for the rest._'
             fi
-          } > plan-comment.md
-          cat plan-comment.md >> "${GITHUB_STEP_SUMMARY}"
+          } > plan-comment.tmp
+          cat plan-comment.tmp >> "${GITHUB_STEP_SUMMARY}"
+          # Last, so plan-comment.md exists only if every command above succeeded; the comment
+          # step posts a failure notice when it is missing, never a partial plan.
+          mv plan-comment.tmp plan-comment.md
       # A Dependabot pull request's token is read-only, and a re-run by Louis keeps it, so
       # `github.actor` (the original actor, unlike `triggering_actor`) is the right test here.
       # Such runs get the step summary only.
@@ -238,22 +241,26 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - *mask_azure_ids
-      # A re-run, or a stale run left waiting for approval, would otherwise apply an older commit
-      # and revert infrastructure to it. Re-run the workflow for the latest commit instead.
-      - name: Refuse a commit that is no longer the head of main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          RUN_SHA: ${{ github.sha }}
-        run: |
-          head="$(gh api "repos/${REPO}/commits/main" --jq .sha)"
-          if [ "${head}" != "${RUN_SHA}" ]; then
-            echo "::error::This run is for ${RUN_SHA:0:7} but main is now at ${head:0:7}; cancel it and use the run for the latest commit"
-            exit 1
-          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the guard below compares this commit with origin/main
+      # A re-run, or a stale run left waiting for approval, would otherwise apply an older commit
+      # and revert infrastructure to it. Refuse only when a later commit on main changed the site
+      # stack in a way that triggers a run of its own (the same paths as the push trigger), since
+      # that run applies the newer state. A later docs-only merge, which starts no run, must not
+      # strand this one. Keep these pathspecs in step with `on.push.paths`.
+      - name: Refuse a commit superseded by a later infrastructure change
+        env:
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          later="$(git log --format=%H "${RUN_SHA}..origin/main" -- \
+            ':(glob)infra/site/**' ':(exclude,glob)infra/site/**/*.md' ':(exclude,glob)infra/site/tests/**')"
+          if [ -n "${later}" ]; then
+            newest="$(head -n 1 <<< "${later}")"
+            echo "::error::This run is for ${RUN_SHA:0:7}, but ${newest:0:7} on main changed infra/site after it. Cancel this run and approve the one for ${newest:0:7}"
+            exit 1
+          fi
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
