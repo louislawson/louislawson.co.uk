@@ -5,6 +5,7 @@ on:
     paths:
       - infra/**
       - .github/workflows/infra.yml
+      - .github/actions/mask-azure-ids/**
   # Only changes that can alter the site stack's plan trigger a push run, and so a production
   # approval: not the workflow itself (validated on its pull request), bootstrap, Markdown or tests.
   push:
@@ -133,34 +134,13 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
-      # The apply job reuses this step through the YAML anchor.
-      - &mask_azure_ids
-        name: Check and mask Azure IDs
-        run: |
-          # Mask every value first, so one that fails the check below is still masked. Masking is
-          # case-sensitive and Azure prints IDs in lowercase, so mask the lower and upper case
-          # forms as well as the value as stored. Never echo a value: report only which one is wrong.
-          failed=0
-          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
-            if [ -n "${!name}" ]; then
-              echo "::add-mask::${!name}"
-              echo "::add-mask::${!name,,}"
-              echo "::add-mask::${!name^^}"
-            fi
-          done
-          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
-            if [ -z "${!name}" ]; then
-              echo "::error::${name} is empty: the matching Actions secret (Dependabot secret for Dependabot runs) is not set"
-              failed=1
-            elif ! [[ "${!name}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-              echo "::error::${name} is not a GUID (check the secret for whitespace)"
-              failed=1
-            fi
-          done
-          exit "${failed}"
+      # A local action needs the repository, so check out first. The IDs are secrets, which the
+      # runner masks from the first log line, so nothing is printed before the action runs.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Check and mask Azure IDs
+        uses: ./.github/actions/mask-azure-ids # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
@@ -274,11 +254,12 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
-      - *mask_azure_ids
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0 # the guard below compares this commit with origin/main
+      - name: Check and mask Azure IDs
+        uses: ./.github/actions/mask-azure-ids # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
       # A re-run, or a stale run left waiting for approval, would otherwise apply an older commit
       # and revert infrastructure to it. Refuse only when a later commit on main changed the site
       # stack in a way that triggers a run of its own (the same paths as the push trigger), since

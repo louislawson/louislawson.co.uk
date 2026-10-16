@@ -35,6 +35,11 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # Pinned to the head of the action's maintained `v1` branch, because its `v1` tag still
+      # points at a 2021 commit without the inputs this site uses. Dependabot would propose
+      # moving back to that tag. Bump by hand after reading the changes.
+      - dependency-name: Azure/static-web-apps-deploy
     groups:
       minor-patch:
         update-types:
