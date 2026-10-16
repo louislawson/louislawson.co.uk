@@ -28,10 +28,10 @@ The guardrails, definition of done and conventions every PR follows live in [`CL
 
 ## Phase 0 · Louis's prep (no agent PRs)
 
-- [ ] Create the **empty** public repo `louislawson/louislawson.co.uk` (no README, licence or `.gitignore` from GitHub).
+- [x] Create the **empty** public repo `louislawson/louislawson.co.uk` (no README, licence or `.gitignore` from GitHub).
 - [x] GitHub email privacy settings ("Keep my email addresses private", "Block command line pushes that expose my email").
-- [ ] Install the Microsoft **Playwright MCP** plugin for agent sessions.
-- [ ] Confirm `PRIVATE-NOTES.md` is present in the working folder.
+- [x] Install the Microsoft **Playwright MCP** plugin for agent sessions.
+- [x] Confirm `PRIVATE-NOTES.md` is present in the working folder.
 - Branch protection on `main` is set **after PR 1.2 merges**, because required status checks can only be selected once they have run.
 
 ## Phase 1a · Scaffold and bootstrap code
