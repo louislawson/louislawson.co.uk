@@ -1,0 +1,40 @@
+---
+import { site, type DeployContext } from "../config/site";
+import { placeholderHint } from "../content/todo";
+import { renderDecision } from "../content/visibility";
+
+interface Props {
+  /** A content value: real text, or a placeholder that starts with "TODO:". */
+  value: string;
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { value, context = site.deployContext } = Astro.props;
+const decision = renderDecision(value, context);
+// The template is one expression, with nothing but the markup in it, so text and punctuation can
+// sit against the component: compressHTML keeps a line break as a space, and none may be added.
+---
+
+{decision === "hatch" ? (
+  <span class="ph"
+    ><span class="vh">Placeholder: </span>{placeholderHint(value)}</span
+  >
+) : decision === "show" ? (
+  value
+) : null}
+
+<style>
+  .ph {
+    background: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--hivis) 16%, transparent) 0 5px,
+      transparent 5px 10px
+    );
+    outline: 1px dashed var(--hivis);
+    outline-offset: 1px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding-inline: 0.2em;
+  }
+</style>

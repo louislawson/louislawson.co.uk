@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { containsTodo, isPlaceholder } from "./todo";
+import { containsTodo, isPlaceholder, placeholderHint } from "./todo";
 import { todo } from "./schema";
 
 describe("placeholders", () => {
@@ -53,5 +53,25 @@ describe("placeholders", () => {
         expect(containsTodo(body), body).toBe(false);
       }
     });
+  });
+});
+
+describe("placeholderHint", () => {
+  // The hatched placeholder on a preview shows what is missing, not the marker.
+  it("is the text after the TODO: prefix, trimmed", () => {
+    expect(placeholderHint("TODO: add the real title")).toBe(
+      "add the real title",
+    );
+    expect(placeholderHint("TODO:   spaced out  ")).toBe("spaced out");
+    expect(placeholderHint("TODO:no space")).toBe("no space");
+  });
+
+  it("keeps the whole marker when nothing follows it, so something still shows", () => {
+    expect(placeholderHint("TODO:")).toBe("TODO:");
+    expect(placeholderHint("TODO:   ")).toBe("TODO:");
+  });
+
+  it("leaves a real value as it is", () => {
+    expect(placeholderHint("A real title")).toBe("A real title");
   });
 });

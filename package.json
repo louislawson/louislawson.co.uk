@@ -29,6 +29,7 @@
     "metadata:check": "node scripts/check-metadata.ts"
   },
   "dependencies": {
+    "@fontsource-variable/martian-mono": "^5.3.0",
     "astro": "^7.4.0"
   },
   "devDependencies": {

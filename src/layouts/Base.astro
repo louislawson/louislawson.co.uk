@@ -1,5 +1,9 @@
 ---
+// The font comes from the @fontsource package through global.css, with a preload for the Latin
+// file. Astro's <Font /> is not used: it writes an inline style, which the site's policy blocks.
+import latinFont from "@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url";
 import { site } from "../config/site";
+import "../styles/global.css";
 
 interface Props {
   title: string;
@@ -13,7 +17,15 @@ const { title } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
     {site.noindex && <meta name="robots" content="noindex" />}
+    <link
+      rel="preload"
+      href={latinFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <title>{title}</title>
   </head>
   <body>
