@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-16): **Phases 0, 1a and 1b approved for build.** Phases 2–8 are a draft: they will be reviewed, and may change substantially, after Phase 1b is complete. Sessions working on 1a or 1b treat later phases as context only.
+Status (2026-10-17): **Phases 0, 1a and 1b are built.** Phase 2 has been reviewed with Louis but is **not yet approved for build**. Phases 3–8 are a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -128,27 +128,102 @@ The guardrails, definition of done and conventions every PR follows live in [`CL
 
 ## Phase 2 · Content model and gates
 
+Reviewed with Louis on 2026-10-17 against the Astro 7 docs and four Astro 7 sites with public source (Astro's own `examples/portfolio` and `examples/blog`, and three personal portfolios). New logic in every PR is test-first (Vitest).
+
 ### PR 2.1 · `feat(content): content schema and placeholder content`
 
-- Projects collection (`src/content.config.ts`): `code`, `title`, `summary`, `status` (in-service / commissioning / complete / archived), `period`, `featured`, `descriptor` **or** `org` (org only for personal/open-source work), `headline` (2–5 words), `setup`, `change`, `result`, `measurements` (optional, real only), `stack`, `links`, `order`.
-- `src/data/profile.ts`: role line, intro, career line, region, availability `{ text, until }`, email, links, skills `[{ group, context, tools, runs }]`, exploring list, certifications, garage `[{ name, note, photo, alt, caption }]`.
-- Placeholder convention: strings starting `TODO:`. Placeholder entries for everything except R04 (real).
-- Vitest, test-first: invalid entries fail the build; exactly one featured project; `descriptor` xor `org`; every skill `runs` code exists; availability past `until` is dropped.
+- **Astro 7 collections API.** `src/content.config.ts` imports `defineCollection` from `astro:content`, `z` from `astro/zod` and `glob` from `astro/loaders`. Zod is version 4: use `z.httpUrl()`, `z.email()`, `z.iso.date()`, and `{ error: … }` for custom messages. Every collection needs a loader. No field may be named `slug`. `getCollection()` returns entries in no fixed order, so always sort by `order`.
+- **Schemas live in `src/content/schema.ts`**, which imports only `astro/zod`, so Vitest can test them directly. `content.config.ts` only connects the loaders to them.
+- **Placeholders.**
+  - A shared `todo` schema (`z.string().startsWith("TODO:")`) that any field may accept instead of a real value, for example `z.httpUrl().or(todo)`.
+  - An `isPlaceholder()` helper for PR 2.2 to build on.
+  - `measurements` never accept `todo`: a measurement is real or absent.
+- **Projects:** one Markdown file per project in `src/content/projects/`.
+  - **File:** the frontmatter holds the fields and the body is the run-sheet write-up.
+  - **URL:** the slug is the filename (`/projects/this-website`); `code` is only a label.
+  - **Fields:**
+    - `code` (`R` and two digits), `title`, `summary`, `headline` (2–5 words)
+    - `status` (in-service / commissioning / complete / archived), `period` (free text, e.g. "2024 – 2025"), `featured`, `order`
+    - `kind`, `setup`, `change`, `result`, `measurements` (optional), `stack`
+    - `links` (`{ label, url }`)
+  - **`kind`** is a discriminated union, so naming an employer on a work project is a build error:
+    - `work` requires an anonymised `descriptor` and forbids `org`.
+    - `personal` and `open-source` allow `org` and forbid `descriptor`.
+  - **`measurements`:** `[{ label, before, after?, unit? }]`.
+- **Profile:** `src/data/profile.ts` stays TypeScript, so garage photos are typed imports. A Zod schema parses it when it is imported, so bad data fails `npm run build` and not just `astro check`.
+  - **Fields:**
+    - role line, intro, career line, region
+    - availability `{ text, until }`
+    - email (`hello@louislawson.co.uk`, real), links, `cv`
+    - skills `[{ group, context, tools, runs }]`, exploring
+    - certifications `[{ title, issuer, date, verify? }]`
+    - garage `[{ name, note, photo, alt, caption }]`
+  - **Links:** `z.httpUrl()`, never `z.url()`, which accepts `javascript:` URLs.
+  - **`cv`:** the fixed path `/cv.pdf` (the file is `public/cv.pdf`) or `todo`.
+  - **Dates:**
+    - `availability.until` is an ISO date (`z.iso.date()`), shown until the end of that day, UK time.
+    - A certification `date` is `YYYY` or `YYYY-MM`, shown as written.
+    - Never use `z.coerce.date()`, which reads a plain date as UTC midnight.
+- **Checks across entries.** A pure `validateContent(projects, profile)` returns every problem: exactly one featured project, a unique `code` and `order` for each project, and an existing project for every skill's `runs` code. A single loader, `getSiteContent()`, calls it and throws one error that lists them all, and pages read content only through that loader. The skeleton index page calls it in this PR, so bad content already fails the build.
+- **No `draft` flag.** A project that is still being written carries `TODO:` values, and production omits it (PR 2.2).
+- **Content.**
+  - R01–R03 are placeholders, with `TODO:` titles rather than the mock's examples.
+  - R04, "This website", is the one real write-up.
+  - The profile is all placeholders except the email.
+  - Four projects exercise the compact-row layout.
+- **Tests:**
+  - schema unit tests for every rule above
+  - availability past `until` is dropped
+  - one real-build test, in the style of `src/build.test.ts`, proving an invalid entry fails `astro build` with the field named
 - **Acceptance:** Louis can start writing content and the build says exactly what is wrong.
 
-### PR 2.2 · `feat(content): placeholder gate and launch switch`
+### PR 2.2 · `feat(content): placeholder rendering and launch gate`
 
-- `npm run placeholders` lists every remaining placeholder.
-- Preview builds render placeholders hatched and announced; production builds omit optional placeholders and hide any section left empty (and its nav link and number key).
-- Required set for launch: intro with career line, role line, ≥2 real projects, email, LinkedIn, CV.
-- CI: PRs get a warning annotation listing placeholders; with `launch: true`, a production deploy fails if any required item is missing.
-- **Acceptance:** tests cover preview vs production rendering decisions and the gate.
+- **Rendering follows the deploy context, not `launch`.** Local and preview builds render placeholders hatched, with a visually hidden "Placeholder:" for screen readers. Production omits them, before and after launch.
+- **What production omits.** It leaves out the smallest unit that would otherwise look unfinished:
+  - A placeholder in an optional field drops just that field.
+  - A placeholder in a required field drops the whole item: the project, skill row, certification or garage entry.
+  - A project is **real** only when it has no placeholder anywhere, including the body.
+- **Empty sections.** A tested `visibleSections()` returns the sections that have content. A hidden section loses its nav link, and the rest renumber 1 to _n_. Phase 3 renders from it.
+- **Featured.** Before launch, if the featured project is a placeholder, production shows no `featured` tag; no other project is promoted.
+- **Launch gate.** Any build with `LAUNCH = true` (in `src/config/site.ts`) fails while the required set is incomplete, so the launch PR goes red before it merges. The required set is:
+  - intro, career line and role line
+  - at least two real projects, with the featured project real
+  - email and LinkedIn
+  - CV: the `cv` field is real and `public/cv.pdf` exists
+- **`npm run placeholders`** lists every `TODO:` in the content files (`src/content/**` and `src/data/profile.ts`) as `file:line`. On pull requests, CI adds one warning annotation with the count and writes the full list to the job summary. GitHub shows at most 10 annotations per step.
+- **Acceptance:** tests cover the preview and production rendering decisions, `visibleSections()` and the gate.
 
-### PR 2.3 · `ci(privacy): photo location and PDF metadata checks`
+### PR 2.3 · `ci(privacy): photo and PDF metadata checks`
 
-- Script and CI job: fail on any committed image with GPS metadata; fail on any committed PDF with author, creator-path or similar metadata. Fixtures for both.
-- README section: how to strip metadata before committing.
-- **Acceptance:** fixtures with metadata fail, clean fixtures pass.
+- **The check script.** A Node script, tested in Vitest, checks every tracked file (`git ls-files`) with an image or PDF extension, with no exclusions.
+- **Images** (jpg, jpeg, png, webp, avif, heic, heif, tif, tiff, gif): fail on any EXIF, XMP or IPTC block except orientation and the colour profile. Use `exifr`, a devDependency.
+- **PDFs fail on any of:**
+  - more than one revision (more than one `%%EOF`), because an incremental update keeps the old metadata readable
+  - any XMP creator or tool field
+  - any document-info key other than `Title` and `Producer`
+  - a path-like string (`C:\`, `/Users/`, `/home/`) in the metadata
+
+  The PDF-parsing devDependency is chosen in the PR, after a Snyk package-health check.
+
+- **Fixtures** are generated in memory by the tests, a bad and a clean one of each type. No file carrying metadata is committed.
+- **CI:** its own **Metadata check** job in `ci.yml`. After its first run, Louis adds it to the "Protect main" required checks, along with **Unit tests** if that is still missing.
+- **README:** how to strip metadata before committing. Use exiftool for images, keeping only orientation and the colour profile. A PDF needs a clean rewrite (qpdf, or print to PDF), because exiftool's PDF edits can be undone.
+- **Acceptance:** generated fixtures with metadata fail, clean ones pass, and the job covers the whole repository.
+
+### PR 2.4 · `ci(deploy): daily production rebuild`
+
+- **Schedule.** `deploy.yml` gains `schedule: - cron: '17 4 * * *'`, so availability expires without a push. The odd minute avoids GitHub's top-of-the-hour delays.
+- **Runs as production.** The run is on `main`: it builds with `DEPLOY_CONTEXT=production`, the plan identity already trusts it (no Azure change), and it joins the production ordering group. It always deploys; redeploying identical output is harmless.
+- **Artifact retention:** `${{ github.event_name == 'schedule' && 1 || 7 }}` days.
+- **Footer date.** The footer's "updated" date (Phase 3) comes from the last commit, not the build date.
+- **Cost:** none.
+  - Standard GitHub-hosted runners are free for public repositories.
+  - The Static Web Apps Free plan has no limit on deployments and cannot incur bandwidth overage.
+- **Auto-disable.** GitHub turns off schedules in a public repository after 60 days without activity. Louis's Dependabot merges keep the repository active. The runbook (PR 7.2) says how to spot a disabled schedule and re-enable it with `gh workflow enable`.
+- **Acceptance:**
+  - the first scheduled run after merge deploys production (checked and reported)
+  - `src/workflows.test.ts` pins the cron and the retention expression
 
 ## Phase 3 · Design system and shell
 
