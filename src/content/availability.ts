@@ -1,11 +1,18 @@
 import { isPlaceholder, type Profile } from "./schema";
 
-const ukDate = new Intl.DateTimeFormat("en-CA", {
+const ukDate = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 });
+
+/** Today's date in the UK as YYYY-MM-DD, which sorts as a string in date order. */
+function ukDay(now: Date): string {
+  const part = (type: string) =>
+    ukDate.formatToParts(now).find((p) => p.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
 
 /**
  * The availability statement while it is still true, otherwise nothing. It is shown until the end
@@ -18,6 +25,5 @@ export function currentAvailability(
   now: Date,
 ): Profile["availability"] | undefined {
   if (isPlaceholder(availability.until)) return availability;
-  // en-CA formats as YYYY-MM-DD, which sorts as a string in date order.
-  return ukDate.format(now) <= availability.until ? availability : undefined;
+  return ukDay(now) <= availability.until ? availability : undefined;
 }

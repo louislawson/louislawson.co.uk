@@ -1,5 +1,6 @@
 import { getCollection } from "astro:content";
 import { profile } from "../data/profile";
+import { currentAvailability } from "./availability";
 import { validateContent } from "./validate";
 
 /**
@@ -18,5 +19,13 @@ export async function getSiteContent() {
       `The content has ${problems.length} ${problems.length === 1 ? "problem" : "problems"}:\n${problems.map((p) => `- ${p}`).join("\n")}`,
     );
   }
-  return { projects, profile };
+  // Availability expires on its date, so pages never see a statement that is no longer true. The
+  // daily production rebuild (PR 2.4) is what makes the expiry happen without a push.
+  return {
+    projects,
+    profile: {
+      ...profile,
+      availability: currentAvailability(profile.availability, new Date()),
+    },
+  };
 }

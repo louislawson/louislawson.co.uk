@@ -14,7 +14,10 @@ interface ProfileLike {
 function shared<K>(projects: ProjectEntry[], key: (p: ProjectEntry) => K) {
   const groups = new Map<K, string[]>();
   for (const project of projects) {
-    groups.set(key(project), [...(groups.get(key(project)) ?? []), project.id]);
+    const k = key(project);
+    const ids = groups.get(k) ?? [];
+    ids.push(project.id);
+    groups.set(k, ids);
   }
   return [...groups].filter(([, ids]) => ids.length > 1);
 }

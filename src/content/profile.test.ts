@@ -242,6 +242,26 @@ describe("the profile", () => {
     });
   });
 
+  describe("garage photo identity", () => {
+    it("keeps the imported image object itself, with properties Astro hides on it", () => {
+      const imported = { ...photo };
+      Object.defineProperty(imported, "fsPath", {
+        value: "/project/src/assets/car.jpg",
+        enumerable: false,
+      });
+      const parsed = parseProfile(withValue("garage.0.photo", imported));
+      expect(parsed.garage[0]?.photo).toBe(imported);
+    });
+
+    it("rejects an image object missing its dimensions", () => {
+      expect(
+        problems(
+          withValue("garage.0.photo", { src: "/a.jpg", format: "jpg" }),
+        ).join(" "),
+      ).toContain("garage.0.photo");
+    });
+  });
+
   describe("unexpected fields", () => {
     it("rejects a field that is not part of the profile", () => {
       expect(problems(withValue("phone", "07000 000000")).join("\n")).toContain(

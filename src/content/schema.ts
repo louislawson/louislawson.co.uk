@@ -1,3 +1,4 @@
+import type { ImageMetadata } from "astro";
 import { z } from "astro/zod";
 
 const PLACEHOLDER_PREFIX = "TODO:";
@@ -24,7 +25,7 @@ const url = orTodo(z.httpUrl(), "an http(s) URL");
 const headline = orTodo(
   z.string().refine((value) => {
     const words = value.trim().split(/\s+/).length;
-    return value.trim() !== "" && words >= 2 && words <= 5;
+    return words >= 2 && words <= 5;
   }),
   "a headline of 2 to 5 words",
 );
@@ -102,15 +103,29 @@ const certificationDate = orTodo(
   "a year (2025) or a year and month (2025-06)",
 );
 
-/** Astro's ImageMetadata, as a typed import of a photo produces it. */
+const isPositiveInt = (value: unknown) =>
+  Number.isInteger(value) && (value as number) > 0;
+
+/**
+ * An imported image (Astro's ImageMetadata). It is checked but never rebuilt: a parsed copy would
+ * lose the properties Astro hides on the object it tracks, and the image pipeline needs that one.
+ */
 const photo = orTodo(
-  z.looseObject({
-    src: text,
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-    format: text,
-  }),
-  "an imported image",
+  z.custom<ImageMetadata>(
+    (value) =>
+      typeof value === "object" &&
+      value !== null &&
+      "src" in value &&
+      typeof value.src === "string" &&
+      value.src !== "" &&
+      "width" in value &&
+      isPositiveInt(value.width) &&
+      "height" in value &&
+      isPositiveInt(value.height) &&
+      "format" in value &&
+      typeof value.format === "string",
+  ),
+  "an imported image with src, width, height and format",
 );
 
 export const profileSchema = z.strictObject({

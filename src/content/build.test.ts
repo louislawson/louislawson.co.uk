@@ -78,6 +78,8 @@ describe("a build with an invalid project entry", () => {
           cwd: dir,
           env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "" },
           stdio: "pipe",
+          // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
+          timeout: 50_000,
         },
       );
     } catch (error) {

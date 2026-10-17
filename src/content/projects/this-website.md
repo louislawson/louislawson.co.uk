@@ -10,7 +10,7 @@ order: 4
 kind: open-source
 setup: A personal site needed to show how I build and ship things, rather than only say so.
 change: A static Astro site on Azure Static Web Apps, defined in Terraform and delivered by GitHub Actions with OIDC instead of stored cloud credentials.
-result: Every pull request that changes the site is checked and previewed, and every merge to main deploys through the same pipeline.
+result: Every pull request is checked, one that changes the site gets a preview, and a merge to main that changes the site deploys through the same pipeline.
 stack:
   - Astro
   - Azure Static Web Apps
@@ -29,7 +29,7 @@ The site is static Astro, hosted on Azure Static Web Apps on the Free plan. The 
 
 ## how it ships
 
-GitHub Actions builds the site and deploys it. Access to Azure is OIDC through two managed identities, so no long-lived cloud credential is stored. One identity plans and deploys with read access; the other applies and only runs from the `production` environment. Pull requests that change the site get a preview environment, and merges to `main` deploy production.
+GitHub Actions builds the site and deploys it. Access to Azure is OIDC through two managed identities, so no long-lived cloud credential is stored. One identity plans and deploys with read access; the other applies and only runs from the `production` environment. Pull requests that change the site get a preview environment, and merges to `main` that change the site deploy production.
 
 ## what runs before it merges
 
