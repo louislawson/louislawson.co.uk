@@ -1,25 +1,11 @@
 import type { ImageMetadata } from "astro";
 import { z } from "astro/zod";
-
-const PLACEHOLDER_PREFIX = "TODO:";
+import { PLACEHOLDER_PREFIX, containsTodo, isPlaceholder } from "./todo.ts";
 
 /** A value Louis hasn't supplied yet. Any field that can be unknown accepts this instead. */
 export const todo = z.string().startsWith(PLACEHOLDER_PREFIX, {
   error: `A placeholder must start with "${PLACEHOLDER_PREFIX}"`,
 });
-
-export function isPlaceholder(value: unknown): boolean {
-  return typeof value === "string" && value.startsWith(PLACEHOLDER_PREFIX);
-}
-
-/**
- * True when the text mentions TODO as a word anywhere, in any case. The schemas allow that only
- * when the whole value is a placeholder; a project's Markdown body is not covered by a schema, so
- * PR 2.2 must apply this to the body when it decides whether a project is real.
- */
-export function containsTodo(value: string): boolean {
-  return /\btodo\b/i.test(value);
-}
 
 /** The value a field takes when it is known, or a placeholder when it is not. */
 function orTodo<T extends z.ZodType>(schema: T, expected: string) {

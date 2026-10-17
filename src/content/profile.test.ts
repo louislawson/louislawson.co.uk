@@ -273,6 +273,7 @@ describe("the profile", () => {
       ["exploring", ["Platform engineering", "todo: pick one"]],
       ["certifications.0.title", "A certification TODO: exact name"],
       ["garage.0.caption", "Event, vehicle TODO"],
+      ["intro", "An intro with TODOs left"],
     ])("rejects %s = %j", (path, value) => {
       expect(problems(withValue(path, value)).join("\n")).toContain(path);
     });

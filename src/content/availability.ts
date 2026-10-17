@@ -1,4 +1,5 @@
-import { isPlaceholder, type Profile } from "./schema";
+import type { Profile } from "./schema";
+import { isPlaceholder } from "./todo.ts";
 
 const ukDate = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",

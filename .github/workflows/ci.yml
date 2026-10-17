@@ -97,6 +97,25 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  # A warning, not a gate: one annotation with the count and the full list in the job summary
+  # (GitHub shows at most 10 annotations per step). The script reads only the repository, so
+  # nothing is installed. The launch gate in the build is what blocks production.
+  placeholders:
+    name: Placeholders
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: npm run placeholders -- --github
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest

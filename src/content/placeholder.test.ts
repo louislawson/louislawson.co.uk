@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { containsTodo, isPlaceholder, todo } from "./schema";
+import { containsTodo, isPlaceholder } from "./todo";
+import { todo } from "./schema";
 
 describe("placeholders", () => {
   it("accepts a string that starts with TODO:", () => {
@@ -26,26 +27,30 @@ describe("placeholders", () => {
     expect(isPlaceholder(["TODO: x"])).toBe(false);
   });
 
-  // PR 2.2: a project is real only if it has no placeholder anywhere. The body is Markdown, which
-  // no schema covers, so apply containsTodo() to it: a body with TODO anywhere is not real.
-  it.todo("treats a project whose Markdown body contains TODO as not real");
-
   describe("containsTodo", () => {
-    it("finds TODO as a word, in any case, anywhere in the text", () => {
-      for (const value of [
-        "TODO: later",
-        "Faster deploys. TODO: add the figure",
-        "todo write this",
+    // One rule for every text field and for a Markdown body, which no schema covers.
+    it("finds TODO and TODOs as words, in any case, anywhere in the text", () => {
+      for (const body of [
+        "TODO: write the result section",
+        "Some prose.\n\nTODO write more",
+        "Still to do: see the TODOs below",
+        "- todos remain",
         "(Todo)",
+        "Faster deploys. TODO: add the figure",
         "line one\nTODO line two",
       ]) {
-        expect(containsTodo(value), value).toBe(true);
+        expect(containsTodo(body), body).toBe(true);
       }
     });
 
-    it("leaves words that merely contain it alone", () => {
-      for (const value of ["Todoist", "autodoc", "mastodon", "A to-do list"]) {
-        expect(containsTodo(value), value).toBe(false);
+    it("leaves ordinary words alone", () => {
+      for (const body of [
+        "A Todoist-style board and autodoc output.",
+        "Nothing left to do here.",
+        "mastodon, A to-do list",
+        "",
+      ]) {
+        expect(containsTodo(body), body).toBe(false);
       }
     });
   });

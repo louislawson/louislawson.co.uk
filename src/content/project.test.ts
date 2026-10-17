@@ -286,6 +286,8 @@ describe("a project", () => {
       ["summary", "TODO write this"],
       ["title", "Landing zone (todo)"],
       ["descriptor", "A UK body, TODO check wording"],
+      ["result", "Cut deploy time. Fix the TODOs"],
+      ["setup", "todos remain here"],
     ])("rejects %s = %j", (field, value) => {
       expect(problems({ ...work, [field]: value }).join("\n")).toContain(field);
     });

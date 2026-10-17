@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import {
   cpSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -34,6 +35,27 @@ function copyOfProject(): string {
     "junction",
   );
   return dir;
+}
+
+/** Builds the copy and returns what a failed build printed ("" if it succeeded). */
+function failedBuildOutput(dir: string): string {
+  try {
+    execFileSync(
+      process.execPath,
+      [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
+      {
+        cwd: dir,
+        env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "" },
+        stdio: "pipe",
+        // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
+        timeout: 50_000,
+      },
+    );
+    return "";
+  } catch (error) {
+    const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+    return `${stdout ?? ""}${stderr ?? ""}`;
+  }
 }
 
 afterAll(() => {
@@ -69,26 +91,37 @@ describe("a build with an invalid project entry", () => {
       ].join("\n"),
     );
 
-    let output = "";
-    try {
-      execFileSync(
-        process.execPath,
-        [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
-        {
-          cwd: dir,
-          env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "" },
-          stdio: "pipe",
-          // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
-          timeout: 50_000,
-        },
-      );
-    } catch (error) {
-      const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-      output = `${stdout ?? ""}${stderr ?? ""}`;
-    }
+    const output = failedBuildOutput(dir);
 
     expect(output).toContain("bad-entry");
     expect(output).toContain("org");
     expect(output).toContain("anonymised");
+  });
+});
+
+// The launch PR flips LAUNCH to true in src/config/site.ts, and its build must go red while the
+// required set is incomplete. This works in both states: it sets LAUNCH to true whether or not it
+// already is, and removes public/cv.pdf so the CV is missing however the content looks by then.
+describe("a build with LAUNCH = true and no CV file", () => {
+  it("fails at the launch gate, naming the CV", () => {
+    const dir = copyOfProject();
+    const siteConfig = join(dir, "src", "config", "site.ts");
+    const source = readFileSync(siteConfig, "utf-8");
+    expect(
+      source,
+      "the LAUNCH constant in src/config/site.ts changed: update this test",
+    ).toMatch(/const LAUNCH = (true|false);/);
+    writeFileSync(
+      siteConfig,
+      source.replace(/const LAUNCH = (true|false);/, "const LAUNCH = true;"),
+    );
+    rmSync(join(dir, "public", "cv.pdf"), { force: true });
+
+    const output = failedBuildOutput(dir);
+
+    expect(output).toContain("launch gate");
+    expect(output).toMatch(
+      /cv field is still a placeholder|public\/cv\.pdf does not exist/,
+    );
   });
 });

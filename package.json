@@ -24,7 +24,8 @@
     "lint:js": "eslint .",
     "lint:md": "markdownlint-cli2",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "placeholders": "node scripts/placeholders.ts"
   },
   "dependencies": {
     "astro": "^7.4.0"

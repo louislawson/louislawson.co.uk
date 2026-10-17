@@ -18,11 +18,25 @@ npm run dev
 | `npm run preview`      | Serve the built site locally    |
 | `npm run check`        | Type-check with `astro check`   |
 | `npm test`             | Unit tests (Vitest)             |
+| `npm run placeholders` | List every `TODO` placeholder   |
 | `npm run lint`         | ESLint and markdownlint         |
 | `npm run format:check` | Check formatting with Prettier  |
 | `npm run format`       | Format everything with Prettier |
 
 `.npmrc` sets `min-release-age=7`, so installs only resolve package versions published more than a week ago.
+
+## Content and placeholders
+
+Content is a Markdown file per project in [`src/content/projects`](src/content/projects) plus [`src/data/profile.ts`](src/data/profile.ts). A value Louis has not supplied yet is a placeholder: a string that starts with `TODO:`. A `TODO` or `TODOs` inside otherwise real text fails the build, so a half-finished sentence cannot be published.
+
+- **Local and preview builds** keep placeholders, so they can be seen and filled in.
+- **Production** leaves them out, before and after launch, and omits the smallest unit that would otherwise look unfinished:
+  - a placeholder in an optional part drops just that part: a link, an organisation name, a tool, an exploring item, a verify link;
+  - a placeholder in a required part drops the whole item: the project, skill row, certification or garage entry;
+  - a project is real only if it has no placeholder left, including a `TODO` or `TODOs` in its Markdown body;
+  - a section with nothing left disappears with its nav link, and the rest renumber from 1.
+- **`npm run placeholders`** lists every placeholder as `file:line`. On pull requests, CI adds one warning with the count and the full list in the job summary.
+- **The launch gate.** While `LAUNCH` in [`src/config/site.ts`](src/config/site.ts) is `true`, any build fails until the intro, career line, role line, email, LinkedIn link and CV are real, `public/cv.pdf` exists, and there are at least two real projects with the featured one real.
 
 ## Deploying
 

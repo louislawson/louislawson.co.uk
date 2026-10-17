@@ -104,3 +104,31 @@ describe("the deploy and cleanup workflows' shared strings", () => {
     expect(cleanup).toContain(marker);
   });
 });
+
+// The placeholder warning is for pull requests only: GitHub shows at most 10 annotations per step,
+// so the script prints one with the count and puts the full list in the job summary.
+describe("the placeholders job in ci.yml", () => {
+  const ci = read(new URL(".github/workflows/ci.yml", root));
+  const job = ci.match(/^ {2}placeholders:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+
+  it("exists", () => {
+    expect(job).not.toBe("");
+  });
+
+  it("runs on pull requests only", () => {
+    expect(job).toMatch(/if: github\.event_name == 'pull_request'/);
+  });
+
+  it("only reads the repository and installs nothing", () => {
+    expect(job).toMatch(/permissions:\n\s+contents: read/);
+    expect(job).not.toMatch(/npm ci|npm install/);
+  });
+
+  it("asks the script for the annotation and summary", () => {
+    expect(job).toContain("npm run placeholders -- --github");
+  });
+
+  it("is not a failing check: a placeholder is a warning", () => {
+    expect(job).not.toMatch(/continue-on-error|exit 1/);
+  });
+});
