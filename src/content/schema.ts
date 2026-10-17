@@ -12,6 +12,15 @@ export function isPlaceholder(value: unknown): boolean {
   return typeof value === "string" && value.startsWith(PLACEHOLDER_PREFIX);
 }
 
+/**
+ * True when the text mentions TODO as a word anywhere, in any case. The schemas allow that only
+ * when the whole value is a placeholder; a project's Markdown body is not covered by a schema, so
+ * PR 2.2 must apply this to the body when it decides whether a project is real.
+ */
+export function containsTodo(value: string): boolean {
+  return /\btodo\b/i.test(value);
+}
+
 /** The value a field takes when it is known, or a placeholder when it is not. */
 function orTodo<T extends z.ZodType>(schema: T, expected: string) {
   return z.union([schema, todo], {
@@ -19,14 +28,30 @@ function orTodo<T extends z.ZodType>(schema: T, expected: string) {
   });
 }
 
-const text = z.string().min(1);
+/**
+ * Text is real or a whole placeholder. A TODO inside otherwise real text ("Faster deploys. TODO:
+ * add the figure", "todo: write this", "TODO write this") would pass for finished content and be
+ * published, so it is an error. The word boundary leaves words like "Todoist" alone.
+ */
+const wholeOrNoTodo = {
+  error: `A placeholder must be the whole value and start with "${PLACEHOLDER_PREFIX}"`,
+};
+const noPartialTodo = (value: string) =>
+  !containsTodo(value) || isPlaceholder(value);
+
+const plainText = z.string().trim().min(1);
+const text = plainText.refine(noPartialTodo, wholeOrNoTodo);
 const url = orTodo(z.httpUrl(), "an http(s) URL");
 
 const headline = orTodo(
-  z.string().refine((value) => {
-    const words = value.trim().split(/\s+/).length;
-    return words >= 2 && words <= 5;
-  }),
+  z
+    .string()
+    .trim()
+    .refine((value) => {
+      const words = value.split(/\s+/).length;
+      return words >= 2 && words <= 5;
+    })
+    .refine(noPartialTodo, wholeOrNoTodo),
   "a headline of 2 to 5 words",
 );
 
@@ -36,7 +61,7 @@ const status = orTodo(
 );
 
 /** A measurement is real or absent, so unlike every other field it takes no placeholder. */
-const real = text.refine((value) => !isPlaceholder(value), {
+const real = plainText.refine((value) => !containsTodo(value), {
   error:
     "A measurement is real or absent: remove it rather than use a placeholder",
 });
@@ -133,11 +158,13 @@ export const profileSchema = z.strictObject({
   intro: text,
   careerLine: text,
   region: text,
-  /** Shown until the end of `until`, UK time. */
-  availability: z.strictObject({
-    text,
-    until: orTodo(z.iso.date(), "a date as YYYY-MM-DD"),
-  }),
+  /** Shown until the end of `until`, UK time. Leave it out for no statement. */
+  availability: z
+    .strictObject({
+      text,
+      until: orTodo(z.iso.date(), "a date as YYYY-MM-DD"),
+    })
+    .optional(),
   email: orTodo(z.email(), "an email address"),
   links: z.strictObject({ github: url, linkedin: url }),
   /** The file is `public/cv.pdf`. */
@@ -151,7 +178,8 @@ export const profileSchema = z.strictObject({
       runs: z.array(code),
     }),
   ),
-  exploring: z.array(text),
+  /** The design shows 3 to 5; the launch gate (PR 2.2) decides what production needs. */
+  exploring: z.array(text).max(5),
   certifications: z.array(
     z.strictObject({
       title: text,

@@ -277,6 +277,103 @@ describe("a project", () => {
     });
   });
 
+  describe("a placeholder that is only part of the value", () => {
+    // A half-finished sentence must never pass for real content: production publishes whatever
+    // is not a placeholder.
+    it.each([
+      ["result", "Faster deploys. TODO: add the real figure"],
+      ["summary", "todo: write this"],
+      ["summary", "TODO write this"],
+      ["title", "Landing zone (todo)"],
+      ["descriptor", "A UK body, TODO check wording"],
+    ])("rejects %s = %j", (field, value) => {
+      expect(problems({ ...work, [field]: value }).join("\n")).toContain(field);
+    });
+
+    it("rejects it in a measurement value", () => {
+      for (const field of ["label", "before", "after", "unit"]) {
+        const found = problems({
+          ...work,
+          measurements: [
+            { label: "Time", before: "3 wk", [field]: "3 wk TODO: check" },
+          ],
+        });
+        expect(found.join("\n"), field).toContain(`measurements.0.${field}`);
+      }
+    });
+
+    it("gives a measurement one message, never advice to start with TODO:", () => {
+      for (const value of ["3 wk TODO: check", "TODO: 3 wk"]) {
+        const found = problems({
+          ...work,
+          measurements: [{ label: "Time", before: value }],
+        });
+        expect(found.join("\n"), value).toContain("real or absent");
+        expect(found.join("\n"), value).not.toContain("whole value");
+      }
+    });
+
+    it("rejects it in a headline, a stack item and an organisation name", () => {
+      expect(
+        problems({ ...work, headline: "Faster todo deploys" }).join("\n"),
+      ).toContain("headline");
+      expect(
+        problems({ ...work, stack: ["Terraform", "TODO tools"] }).join("\n"),
+      ).toContain("stack.1");
+      expect(
+        problems({ ...personal, org: "Acme (todo: name)" }).join("\n"),
+      ).toContain("org");
+    });
+
+    it("says the placeholder must be the whole value and start with TODO:", () => {
+      const [message] = problems({ ...work, summary: "todo: write this" });
+      expect(message).toContain("whole value");
+      expect(message).toContain('"TODO:"');
+    });
+
+    it("still accepts a whole placeholder", () => {
+      expect(
+        problems({ ...work, summary: "TODO: write the real summary" }),
+      ).toEqual([]);
+    });
+
+    it("accepts words that merely contain todo", () => {
+      expect(
+        problems({
+          ...work,
+          title: "Todoist migration",
+          summary: "A todoist-style task board, and autodoc output.",
+          stack: ["Todoist"],
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  describe("blank text", () => {
+    it("rejects a value of only spaces in any text field", () => {
+      for (const field of [
+        "title",
+        "summary",
+        "period",
+        "setup",
+        "change",
+        "result",
+        "descriptor",
+      ]) {
+        expect(
+          problems({ ...work, [field]: "   " }).join("\n"),
+          field,
+        ).toContain(field);
+      }
+    });
+
+    it("trims the text it keeps", () => {
+      expect(
+        projectSchema.parse({ ...work, title: "  Landing zone " }).title,
+      ).toBe("Landing zone");
+    });
+  });
+
   describe("unexpected fields", () => {
     it("rejects slug, which Astro would use to rename the entry", () => {
       expect(problems({ ...work, slug: "custom" }).join("\n")).toContain(

@@ -262,6 +262,65 @@ describe("the profile", () => {
     });
   });
 
+  describe("a placeholder that is only part of the value", () => {
+    it.each([
+      ["intro", "Ten years in cloud. TODO: check the number"],
+      ["roleLine", "todo: role"],
+      ["careerLine", "TODO years in sectors"],
+      ["availability.text", "Open to work (todo)"],
+      ["skills.0.context", "Used on Azure, TODO anonymise"],
+      ["skills.0.tools", ["Azure", "TODO tools"]],
+      ["exploring", ["Platform engineering", "todo: pick one"]],
+      ["certifications.0.title", "A certification TODO: exact name"],
+      ["garage.0.caption", "Event, vehicle TODO"],
+    ])("rejects %s = %j", (path, value) => {
+      expect(problems(withValue(path, value)).join("\n")).toContain(path);
+    });
+
+    it("accepts words that merely contain todo", () => {
+      expect(problems(withValue("exploring", ["Todoist workflows"]))).toEqual(
+        [],
+      );
+      expect(problems(withValue("skills.0.tools", ["Todoist"]))).toEqual([]);
+    });
+  });
+
+  describe("blank text", () => {
+    it("rejects a value of only spaces", () => {
+      expect(problems(withValue("intro", "   ")).join("\n")).toContain("intro");
+      expect(problems(withValue("exploring", [" "])).join("\n")).toContain(
+        "exploring.0",
+      );
+    });
+  });
+
+  describe("availability", () => {
+    it("is optional: leaving it out means no statement", () => {
+      const without = structuredClone(valid) as Record<string, unknown>;
+      delete without.availability;
+      expect(problems(without)).toEqual([]);
+      expect(parseProfile(without).availability).toBeUndefined();
+    });
+
+    it("still needs both its text and its date when it is given", () => {
+      expect(
+        problems(withValue("availability", { text: "Open to work" })).join(
+          "\n",
+        ),
+      ).toContain("availability.until");
+    });
+  });
+
+  describe("exploring", () => {
+    it("holds at most five items, the design's maximum", () => {
+      const five = ["a", "b", "c", "d", "e"];
+      expect(problems(withValue("exploring", five))).toEqual([]);
+      expect(
+        problems(withValue("exploring", [...five, "f"])).join("\n"),
+      ).toContain("exploring");
+    });
+  });
+
   describe("unexpected fields", () => {
     it("rejects a field that is not part of the profile", () => {
       expect(problems(withValue("phone", "07000 000000")).join("\n")).toContain(

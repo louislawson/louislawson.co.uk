@@ -84,6 +84,29 @@ describe("validateContent", () => {
     });
   });
 
+  describe("project count", () => {
+    const many = (count: number) =>
+      Array.from({ length: count }, (_, i) =>
+        project(
+          `project-${i + 1}`,
+          `R${String(i + 1).padStart(2, "0")}`,
+          i + 1,
+          i === 0,
+        ),
+      );
+
+    it("allows twelve projects, the design's maximum", () => {
+      expect(validateContent(many(12), profile([[]]))).toEqual([]);
+    });
+
+    it("reports more than twelve", () => {
+      const found = validateContent(many(13), profile([[]]));
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain("13");
+      expect(found[0]).toContain("12");
+    });
+  });
+
   it("reports every problem at once, not just the first", () => {
     const projects = [project("one", "R01", 1), project("two", "R01", 1)];
     const found = validateContent(projects, profile([["R09"]]));

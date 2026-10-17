@@ -29,7 +29,7 @@ The site is static Astro, hosted on Azure Static Web Apps on the Free plan. The 
 
 ## how it ships
 
-GitHub Actions builds the site and deploys it. Access to Azure is OIDC through two managed identities, so no long-lived cloud credential is stored. One identity plans and deploys with read access; the other applies and only runs from the `production` environment. Pull requests that change the site get a preview environment, and merges to `main` that change the site deploy production.
+GitHub Actions builds the site and deploys it. Access to Azure is OIDC through two managed identities, so no long-lived cloud credential is stored. One identity plans and deploys but cannot change the Azure resources; the other applies changes and only runs from the `production` environment. Pull requests that change the site get a preview environment, and merges to `main` that change the site deploy production.
 
 ## what runs before it merges
 

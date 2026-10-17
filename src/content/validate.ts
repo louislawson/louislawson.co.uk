@@ -1,12 +1,15 @@
 import type { Profile, Project } from "./schema";
 
-interface ProjectEntry {
+/** The design shows 2 to 12 projects; the launch gate (PR 2.2) decides the minimum. */
+const MAX_PROJECTS = 12;
+
+export interface ProjectEntry {
   /** The file name without its extension, which is also the page's URL. */
   id: string;
   data: Pick<Project, "code" | "order" | "featured">;
 }
 
-interface ProfileLike {
+export interface ProfileLike {
   skills: Pick<Profile["skills"][number], "group" | "runs">[];
 }
 
@@ -31,6 +34,12 @@ export function validateContent(
   profile: ProfileLike,
 ): string[] {
   const problems: string[] = [];
+
+  if (projects.length > MAX_PROJECTS) {
+    problems.push(
+      `Found ${projects.length} projects, but the design shows at most ${MAX_PROJECTS}`,
+    );
+  }
 
   const featured = projects.filter((p) => p.data.featured).map((p) => p.id);
   if (featured.length !== 1) {

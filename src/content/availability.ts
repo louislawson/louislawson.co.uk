@@ -9,9 +9,10 @@ const ukDate = new Intl.DateTimeFormat("en-GB", {
 
 /** Today's date in the UK as YYYY-MM-DD, which sorts as a string in date order. */
 function ukDay(now: Date): string {
-  const part = (type: string) =>
-    ukDate.formatToParts(now).find((p) => p.type === type)?.value;
-  return `${part("year")}-${part("month")}-${part("day")}`;
+  const parts = Object.fromEntries(
+    ukDate.formatToParts(now).map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 /**
@@ -23,7 +24,8 @@ function ukDay(now: Date): string {
 export function currentAvailability(
   availability: Profile["availability"],
   now: Date,
-): Profile["availability"] | undefined {
+): Profile["availability"] {
+  if (availability === undefined) return undefined;
   if (isPlaceholder(availability.until)) return availability;
   return ukDay(now) <= availability.until ? availability : undefined;
 }
