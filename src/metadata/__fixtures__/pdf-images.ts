@@ -71,26 +71,51 @@ export async function pdfWithJpeg(
   return doc.save({ useObjectStreams: false });
 }
 
+export interface ImageStream {
+  filter: string[];
+  contents: Uint8Array;
+}
+
+/**
+ * A PDF holding image streams with the given filters and bytes, placed on no page, and an author
+ * in the info dictionary if one is given.
+ */
+export async function pdfWithImageStreams(
+  streams: ImageStream[],
+  options: { author?: string } = {},
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  doc.addPage([200, 200]);
+  if (options.author) doc.setAuthor(options.author);
+  for (const { filter, contents } of streams) {
+    doc.context.register(
+      PDFRawStream.of(
+        doc.context.obj({
+          Type: "XObject",
+          Subtype: "Image",
+          Width: 1,
+          Height: 1,
+          ColorSpace: "DeviceGray",
+          BitsPerComponent: 8,
+          Filter: filter,
+        }) as never,
+        contents,
+      ),
+    );
+  }
+  return doc.save({ useObjectStreams: false });
+}
+
 /** A PDF holding one image stream with the given filters and bytes, placed on no page. */
-export async function pdfWithImageStream(
-  filter: string[],
+export const pdfWithImageStream = (filter: string[], contents: Uint8Array) =>
+  pdfWithImageStreams([{ filter, contents }]);
+
+/** A PDF with a file attached to it (an /EmbeddedFile stream), as a CV might attach a photo. */
+export async function pdfWithAttachment(
   contents: Uint8Array,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create({ updateMetadata: false });
   doc.addPage([200, 200]);
-  doc.context.register(
-    PDFRawStream.of(
-      doc.context.obj({
-        Type: "XObject",
-        Subtype: "Image",
-        Width: 1,
-        Height: 1,
-        ColorSpace: "DeviceGray",
-        BitsPerComponent: 8,
-        Filter: filter,
-      }) as never,
-      contents,
-    ),
-  );
+  doc.context.register(doc.context.stream(contents, { Type: "EmbeddedFile" }));
   return doc.save({ useObjectStreams: false });
 }

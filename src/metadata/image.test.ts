@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ascii } from "./__fixtures__/bytes";
+import { ascii, concat } from "./__fixtures__/bytes";
 import { gif, heif, png, webp } from "./__fixtures__/containers";
 import { TAGS, tiff } from "./__fixtures__/exif";
 import { jpeg, xmpPacket } from "./__fixtures__/jpeg";
@@ -97,6 +97,16 @@ describe("a JPEG", () => {
     }
   });
 
+  it("finds a comment in a second image appended to the file, as multi-picture JPEGs have", async () => {
+    const found = await checkImage(concat(jpeg(), jpeg({ comment: "Louis" })));
+    expect(found.join("\n")).toContain("comment");
+  });
+
+  it("does not mistake trailing data that is not a JPEG for a comment", async () => {
+    const trailer = new Uint8Array([0xff, 0xfe, 0x00, 0x05, 1, 2, 3]);
+    expect(await checkImage(concat(jpeg(), trailer))).toEqual([]);
+  });
+
   it("with a comment segment after an EXIF block reports both", async () => {
     const found = (
       await checkImage(jpeg({ exif: camera, comment: "Louis" }))
@@ -154,6 +164,27 @@ describe("a PNG", () => {
       }),
     );
     expect(found).toEqual([]);
+  });
+
+  describe("raw profile text chunks", () => {
+    const rawProfile = (name: string) =>
+      png({
+        text: [
+          { type: "zTXt", keyword: `Raw profile type ${name}`, text: "x" },
+        ],
+      });
+
+    it("allows only a colour profile: icc, and icm which ImageMagick also uses for one", async () => {
+      expect(await checkImage(rawProfile("icc"))).toEqual([]);
+      expect(await checkImage(rawProfile("icm"))).toEqual([]);
+    });
+
+    it.each(["8bim", "generic", "APP1", "iptc", "exif", "xmp"])(
+      "fails on %s, which can hold anything",
+      async (name) => {
+        expect((await checkImage(rawProfile(name))).length).toBeGreaterThan(0);
+      },
+    );
   });
 
   describe("text chunks", () => {

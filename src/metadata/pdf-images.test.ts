@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { ascii, concat } from "./__fixtures__/bytes";
 import { TAGS, tiff } from "./__fixtures__/exif";
 import { jpeg, xmpPacket } from "./__fixtures__/jpeg";
-import { pdfWithImageStream, pdfWithJpeg } from "./__fixtures__/pdf-images";
+import {
+  pdfWithAttachment,
+  pdfWithImageStream,
+  pdfWithImageStreams,
+  pdfWithJpeg,
+} from "./__fixtures__/pdf-images";
 import { checkPdf } from "./pdf";
 
 // A JPEG inside a PDF keeps its own EXIF, so a CV with a headshot can carry the photo's location.
@@ -116,5 +121,46 @@ describe("XMP on an object other than the catalog", () => {
     expect(found.join("\n")).toMatch(
       /XMP metadata on an object other than the catalog \(object \d+\)/,
     );
+  });
+});
+
+describe("one bad embedded image does not hide the rest", () => {
+  const garbage = ascii("not a deflate stream at all");
+
+  it("reports an image whose filters cannot be undone, labelled with its object", async () => {
+    const found = await checkPdf(
+      await pdfWithImageStream(["FlateDecode", "DCTDecode"], garbage),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(
+      /an embedded image \(object \d+\): could not be read/,
+    );
+  });
+
+  it("still reports the other images and the rest of the document", async () => {
+    const found = (
+      await checkPdf(
+        await pdfWithImageStreams(
+          [
+            { filter: ["FlateDecode", "DCTDecode"], contents: garbage },
+            { filter: ["DCTDecode"], contents: jpeg({ exif: located }) },
+          ],
+          { author: "Louis Lawson" },
+        ),
+      )
+    ).join("\n");
+    expect(found).toContain("could not be read");
+    expect(found).toContain("GPS location data");
+    expect(found).toContain("Author");
+  });
+});
+
+describe("a file attached to the PDF", () => {
+  it("fails: an attachment is not checked, and could be a photo with a location", async () => {
+    const found = await checkPdf(
+      await pdfWithAttachment(jpeg({ exif: located })),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/an attached file \(object \d+\)/);
   });
 });

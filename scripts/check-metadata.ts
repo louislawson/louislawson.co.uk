@@ -1,4 +1,4 @@
-// Fails if any image or PDF tracked by git carries personal metadata: EXIF, XMP or IPTC in a photo,
+// Fails if any image, PDF or SVG tracked by git carries personal metadata: EXIF, XMP or IPTC in a photo,
 // an author, tool or file path in a PDF. Run it with `npm run metadata:check`; CI runs it on
 // every pull request and push as the "Metadata check" job. Node runs this TypeScript directly.
 //
@@ -34,7 +34,7 @@ for (const { file, problems } of failures) {
   for (const problem of problems) console.log(`  - ${problem}`);
 }
 
-const noun = checked === 1 ? "image or PDF" : "images and PDFs";
+const noun = checked === 1 ? "image, PDF or SVG" : "images, PDFs and SVGs";
 if (failures.length > 0) {
   console.log(
     `\nChecked ${checked} ${noun}: ${failures.length} carry metadata that must be removed. See "Photos and PDFs" in README.md.`,

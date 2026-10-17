@@ -76,7 +76,7 @@ export async function checkFiles(
       extension === "pdf"
         ? await checkPdf(bytes)
         : extension === "svg"
-          ? checkSvg(bytes)
+          ? await checkSvg(bytes)
           : await checkImage(bytes);
     if (problems.length > 0) failures.push({ file, problems });
   }

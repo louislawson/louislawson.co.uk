@@ -2,7 +2,7 @@
 // XMP or IPTC. Each walker only reads the container structure, and stops quietly at anything
 // malformed: checkImage's other checks, and exifr, are what report a file that cannot be read.
 
-const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+import { latin1 } from "./bytes.ts";
 
 export interface PngText {
   /** tEXt, zTXt or iTXt. */
@@ -60,7 +60,10 @@ export function hasJpegComment(bytes: Uint8Array): boolean {
     ) {
       i += 2;
     } else if (marker === 0xd9) {
-      return false;
+      // The end of an image. A multi-picture JPEG has another image straight after it; anything
+      // else after the end is trailing data, not worth reading as segments.
+      if (bytes[i + 2] !== 0xff || bytes[i + 3] !== 0xd8) return false;
+      i += 2;
     } else if (marker === 0xfe) {
       return true;
     } else {

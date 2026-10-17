@@ -51,7 +51,7 @@ afterAll(() => {
 });
 
 describe("npm run metadata:check", () => {
-  it("passes a repository whose images and PDFs are clean, and says how many it checked", () => {
+  it("passes a repository whose images, PDFs and SVGs are clean, and says how many it checked", () => {
     const dir = repoWith({
       "photo.jpg": jpeg(),
       "public/cv.pdf": pdf({ info: { Title: "CV", Producer: "qpdf" } }),
@@ -59,7 +59,7 @@ describe("npm run metadata:check", () => {
     });
     const result = run(dir);
     expect(result.status).toBe(0);
-    expect(result.output).toContain("Checked 2 images and PDFs");
+    expect(result.output).toContain("Checked 2 images, PDFs and SVGs");
   });
 
   it("passes a repository with nothing to check", () => {
@@ -67,7 +67,7 @@ describe("npm run metadata:check", () => {
       repoWith({ "README.md": new TextEncoder().encode("#") }),
     );
     expect(result.status).toBe(0);
-    expect(result.output).toContain("Checked 0 images and PDFs");
+    expect(result.output).toContain("Checked 0 images, PDFs and SVGs");
   });
 
   it("fails, naming the file and what is wrong, for a photo anywhere in the repository", () => {

@@ -49,7 +49,7 @@ The repository is public, so a photo or PDF must not carry the person behind it.
 exiftool -all= -tagsFromFile @ -Orientation -ICC_Profile -overwrite_original photo.jpg
 ```
 
-**SVGs** are text, and fail on a `<metadata>` element, on any `sodipodi:` or `inkscape:` attribute or namespace (Inkscape writes the file name, and often the full local path it was exported to), and on a path-like string anywhere in the file. In Inkscape, save as Plain SVG, which leaves its own data out, and delete by hand anything the check still reports.
+**SVGs** are text, and fail on a `<metadata>` element, on any `sodipodi:` or `inkscape:` attribute or namespace (Inkscape writes the file name, and often the full local path it was exported to), and on a path-like string anywhere in the file, and a photo pasted in as a `data:` URI is checked like any other image. In Inkscape, save as Plain SVG, which leaves its own data out, and delete by hand anything the check still reports.
 
 **PDFs** fail on any of:
 
@@ -58,7 +58,8 @@ exiftool -all= -tagsFromFile @ -Orientation -ICC_Profile -overwrite_original pho
 - any document-info key other than `Title` and `Producer`;
 - a path-like string (`C:\`, `/Users/`, `/home/`) in the metadata;
 - an embedded JPEG or JPEG 2000 image that carries any of the image metadata above, reported with its object number;
-- XMP metadata on any object other than the catalog, such as a page or an image.
+- XMP metadata on any object other than the catalog, such as a page or an image;
+- a file attached to the PDF, because an attachment is not checked.
 
 A PDF needs a clean rewrite, not an edit: exiftool's PDF edits are incremental updates, so the old metadata stays in the file and can be undone. Rewrite it with [qpdf](https://qpdf.sourceforge.io), which copies the pages and not the document-level metadata:
 

@@ -11,13 +11,13 @@ function pngChunk(type: string, data: Uint8Array): Uint8Array {
   return concat(u32(data.length), body, crc(body));
 }
 
-export interface PngText {
+export interface PngTextChunk {
   type: "tEXt" | "zTXt" | "iTXt";
   keyword: string;
   text: string;
 }
 
-function pngTextChunk({ type, keyword, text }: PngText): Uint8Array {
+function pngTextChunk({ type, keyword, text }: PngTextChunk): Uint8Array {
   const key = concat(ascii(keyword), new Uint8Array(1));
   if (type === "tEXt") return pngChunk(type, concat(key, ascii(text)));
   if (type === "zTXt") {
@@ -44,7 +44,7 @@ export function png(
     exif?: Uint8Array;
     xmp?: string;
     exifAfterData?: boolean;
-    text?: PngText[];
+    text?: PngTextChunk[];
   } = {},
 ): Uint8Array {
   const header = concat(u32(1), u32(1), new Uint8Array([8, 0, 0, 0, 0]));

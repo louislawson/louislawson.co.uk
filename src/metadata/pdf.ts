@@ -8,6 +8,7 @@ import {
   decodePDFRawStream,
   type PDFRef,
 } from "@cantoo/pdf-lib";
+import { decodeText, latin1 } from "./bytes.ts";
 import { checkImage } from "./image.ts";
 import { PATH_LIKE, PATH_LIKE_MESSAGE } from "./paths.ts";
 
@@ -27,8 +28,6 @@ const CREATOR_OR_TOOL = /creator|author|tool|softwareagent/i;
 /** Image filters that store a whole image file, header blocks included. */
 const FILE_FILTERS = ["DCTDecode", "JPXDecode"];
 
-const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
-
 const METADATA = PDFName.of("Metadata");
 const FILTER = PDFName.of("Filter");
 const DECODE_PARMS = PDFName.of("DecodeParms");
@@ -38,12 +37,8 @@ function xmpText(doc: PDFDocument): string | undefined {
   const reference = doc.catalog.get(METADATA);
   const stream = reference ? doc.context.lookup(reference) : undefined;
   if (!(stream instanceof PDFRawStream)) return undefined;
-  // An XMP packet may be UTF-16, which as UTF-8 has a NUL between every character and would hide
-  // every name from the checks below. Dropping the NULs and the byte-order mark undoes that.
-  return Buffer.from(decodePDFRawStream(stream).decode())
-    .toString("utf8")
-    .replaceAll("\0", "")
-    .replaceAll(/[\ufeff\ufffd]/g, "");
+  // XMP may be UTF-16, which decodeText undoes.
+  return decodeText(decodePDFRawStream(stream).decode());
 }
 
 /** The qualified names in an XMP packet that name a creator or a tool, such as dc:creator. */
@@ -54,6 +49,10 @@ function creatorAndToolFields(xmp: string): string[] {
   );
   return [...new Set(fields)];
 }
+
+/** The wording for a stream or file that cannot be read, which is never passed as clean. */
+const unreadable = (error: unknown, what: string) =>
+  `could not be read as ${what} (${error instanceof Error ? error.message : String(error)}), so it cannot be shown to be free of metadata`;
 
 function filterNames(dict: PDFDict): PDFName[] {
   const filter = dict.lookup(FILTER);
@@ -120,12 +119,26 @@ async function checkObjects(doc: PDFDocument): Promise<string[]> {
       const filters = filterNames(dict);
       const last = filters.at(-1)?.decodeText();
       if (last && FILE_FILTERS.includes(last)) {
-        for (const problem of await checkImage(
-          imageFile(doc, object, filters),
-        )) {
-          problems.push(`an embedded image (${where}): ${problem}`);
+        // Each image is judged alone, so one that cannot be read does not hide the others.
+        try {
+          for (const problem of await checkImage(
+            imageFile(doc, object, filters),
+          )) {
+            problems.push(`an embedded image (${where}): ${problem}`);
+          }
+        } catch (error) {
+          problems.push(
+            `an embedded image (${where}): ${unreadable(error, "an image")}`,
+          );
         }
       }
+    }
+
+    // A file attached to the PDF can be anything, a photo with a location included.
+    if (dict.lookup(PDFName.of("Type")) === PDFName.of("EmbeddedFile")) {
+      problems.push(
+        `an attached file (${where}): attachments are not checked, so remove it`,
+      );
     }
   }
   return problems;
@@ -191,9 +204,8 @@ export async function checkPdf(bytes: Uint8Array): Promise<string[]> {
 
     problems.push(...(await checkObjects(doc)));
   } catch (error) {
-    return [
-      `could not be read as a PDF (${error instanceof Error ? error.message : String(error)}), so it cannot be shown to be free of metadata`,
-    ];
+    // What was found before the file proved unreadable is still reported, with the failure last.
+    return [...problems, unreadable(error, "a PDF")];
   }
   return problems;
 }

@@ -1,4 +1,5 @@
 import exifr from "exifr";
+import { latin1, startsWith } from "./bytes.ts";
 import {
   hasGifComment,
   hasJpegComment,
@@ -76,12 +77,6 @@ const XMP_MARKERS = [
   "XML:com.adobe.xmp",
 ];
 
-const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
-
-function startsWith(bytes: Uint8Array, text: string, at = 0): boolean {
-  return latin1(bytes.subarray(at, at + text.length)) === text;
-}
-
 const isTiff = (bytes: Uint8Array) =>
   startsWith(bytes, "II*\0") || startsWith(bytes, "MM\0*");
 const isWebp = (bytes: Uint8Array) =>
@@ -144,10 +139,11 @@ export async function checkImage(bytes: Uint8Array): Promise<string[]> {
   }
   if (isPng(bytes)) {
     for (const { type, keyword } of pngTextChunks(bytes)) {
-      // The raw profiles are judged above by what they carry (a colour profile is allowed), and
-      // the XMP chunk is the XMP block.
+      // Skipped here: a colour profile, which is allowed; the raw profiles that carry EXIF, IPTC or
+      // XMP, which are reported above; and the XMP chunk, which is the XMP block. Every other raw
+      // profile (8bim, generic, ...) can hold anything, so it is reported like any text chunk.
       if (
-        /^Raw profile type /i.test(keyword) ||
+        /^Raw profile type (?:icc|icm|exif|iptc|xmp|APP1)$/i.test(keyword) ||
         keyword === "XML:com.adobe.xmp"
       ) {
         continue;
