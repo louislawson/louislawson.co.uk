@@ -20,6 +20,16 @@ describe("<Placeholder>", () => {
     expect(html).not.toContain("TODO:");
   });
 
+  it("adds no whitespace of its own, so text and punctuation can sit against it", async () => {
+    const html = await render({
+      value: "TODO: Two sentences in your own words",
+      context: "preview",
+    });
+    expect(html).toMatch(
+      /^<span class="ph"[^>]*><span class="vh"[^>]*>Placeholder: <\/span>Two sentences in your own words<\/span>$/,
+    );
+  });
+
   it("hatches a placeholder in a local build too", async () => {
     const html = await render({ value: "TODO: a title", context: "local" });
     expect(html).toMatch(/class="ph[ "]/);
@@ -30,27 +40,24 @@ describe("<Placeholder>", () => {
       value: "TODO: a title",
       context: "production",
     });
-    expect(html.trim()).toBe("");
+    expect(html).toBe("");
   });
 
   it.each(["local", "preview", "production"])(
     "shows a real value as plain text on %s",
     async (context) => {
       const html = await render({ value: "A real title", context });
-      expect(html.trim()).toBe("A real title");
+      expect(html).toBe("A real title");
     },
   );
 
-  it("hides its own label, so it does not depend on a layout's stylesheet", () => {
+  it("hides its label with the shared .vh class from global.css, and defines no copy of it", () => {
     const source = readFileSync(
       new URL("./Placeholder.astro", import.meta.url),
       "utf-8",
     );
     const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
-    const hidden = /\.vh\s*\{([^}]*)\}/.exec(style)?.[1] ?? "";
-    expect(hidden).toContain("position: absolute");
-    expect(hidden).toContain("clip-path: inset(50%)");
-    expect(hidden).toContain("overflow: hidden");
+    expect(style).not.toMatch(/\.vh\b/);
   });
 
   it("escapes what it shows", async () => {

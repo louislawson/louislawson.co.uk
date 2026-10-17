@@ -1,0 +1,15 @@
+---
+import Placeholder from "../Placeholder.astro";
+// Prose with its line breaks where a hand-wrapped paragraph has them: each one is a space.
+---
+
+<p>Text <Placeholder value="TODO: x" context="preview" /> more</p>
+<p>
+  Wrapped across lines, with a
+  <a href="/somewhere">link</a>
+  in the middle, a
+  <Placeholder value="TODO: y" context="preview" />
+  placeholder, and a
+  <kbd>1</kbd>
+  key hint.
+</p>

@@ -6,6 +6,10 @@ import { staticWebAppConfig } from "./src/integrations/staticwebapp-config.ts";
 // https://astro.build/config
 export default defineConfig({
   site: site.url,
+  // Astro 7 defaults to "jsx", which drops the line break between text and an inline element. The
+  // pages are prose with inline links, placeholders and key hints, so wrapped text would lose its
+  // spaces. `true` compresses the HTML and keeps the single space the browser would show.
+  compressHTML: true,
   // The content security policy in public/staticwebapp.config.json allows no inline styles.
   build: { inlineStylesheets: "never" },
   // Nor may an asset be inlined: Vite turns any asset under this size into a data: URL, and Astro

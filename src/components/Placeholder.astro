@@ -12,15 +12,17 @@ interface Props {
 
 const { value, context = site.deployContext } = Astro.props;
 const decision = renderDecision(value, context);
+// The template is one expression, with nothing but the markup in it, so text and punctuation can
+// sit against the component: compressHTML keeps a line break as a space, and none may be added.
 ---
 
-{decision === "hatch" && (
-  <span class="ph">
-    <span class="vh">Placeholder: </span>
-    {placeholderHint(value)}
-  </span>
-)}
-{decision === "show" && value}
+{decision === "hatch" ? (
+  <span class="ph"
+    ><span class="vh">Placeholder: </span>{placeholderHint(value)}</span
+  >
+) : decision === "show" ? (
+  value
+) : null}
 
 <style>
   .ph {
@@ -34,15 +36,5 @@ const decision = renderDecision(value, context);
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     padding-inline: 0.2em;
-  }
-
-  /* Text for screen readers only. The component carries it, so it works inside any layout. */
-  .vh {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 </style>

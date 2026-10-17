@@ -89,6 +89,19 @@ a:hover {
   outline-offset: 3px;
 }
 
+/* Text for screen readers only: the placeholder label, the skip link, the number-key hints. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The browser sets controls in its own font, not the page's. */
 button,
 input,

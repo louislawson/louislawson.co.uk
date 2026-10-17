@@ -170,6 +170,23 @@ describe("the browser surfaces", () => {
     expect(css).not.toMatch(/transition: none/);
   });
 
+  it("has one visually hidden utility with the full pattern, for the placeholder label, the skip link and key hints", () => {
+    const hidden = rule(".vh");
+    for (const declaration of [
+      "position: absolute",
+      "width: 1px",
+      "height: 1px",
+      "margin: -1px",
+      "padding: 0",
+      "border: 0",
+      "overflow: hidden",
+      "clip-path: inset(50%)",
+      "white-space: nowrap",
+    ]) {
+      expect(hidden).toContain(declaration);
+    }
+  });
+
   it("sets controls in the page font instead of the browser's", () => {
     const controls = rule("button,\ninput,\ntextarea,\nselect");
     expect(controls).toContain("font: inherit");
