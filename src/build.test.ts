@@ -42,6 +42,44 @@ function pagesAndStyles(dir: string): Record<string, string> {
   return files;
 }
 
+// What the content security policy refuses is a style attribute in a tag, and a data: URL where a
+// URL is expected. The checks look for those, not for the words in prose or in an attribute value.
+const STYLE_ATTRIBUTE = /<[a-z][^>]*\sstyle\s*=/i;
+const DATA_URL =
+  /(?:url\(\s*|\b(?:src|href|srcset|poster|action)\s*=\s*)["']?data:/i;
+// A request for something the page needs to render: a stylesheet or font in a link, or a CSS
+// import or url(). A link to another site (an anchor, a canonical URL) is not one.
+const EXTERNAL_RESOURCE =
+  /<link\b[^>]*\brel="(?:stylesheet|preload|preconnect|dns-prefetch|prefetch|modulepreload)"[^>]*\bhref="https?:\/\/|<link\b[^>]*\bhref="https?:\/\/[^>]*\brel="(?:stylesheet|preload|preconnect|dns-prefetch|prefetch|modulepreload)"|(?:@import\s+(?:url\()?|url\(\s*)["']?https?:\/\//i;
+
+describe("the checks on a build", () => {
+  it("flag a style attribute, a data: URL and an external resource", () => {
+    expect('<p style="color:red">x</p>').toMatch(STYLE_ATTRIBUTE);
+    expect('<p class="a" style = "x">x</p>').toMatch(STYLE_ATTRIBUTE);
+    expect("a{background:url(data:image/png;base64,AAAA)}").toMatch(DATA_URL);
+    expect('<img src="data:image/png;base64,AAAA">').toMatch(DATA_URL);
+    expect(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2">',
+    ).toMatch(EXTERNAL_RESOURCE);
+    expect('<link href="https://fonts.gstatic.com" rel="preconnect">').toMatch(
+      EXTERNAL_RESOURCE,
+    );
+    expect('@import url("https://example.com/a.css");').toMatch(
+      EXTERNAL_RESOURCE,
+    );
+    expect("src:url(https://example.com/a.woff2)").toMatch(EXTERNAL_RESOURCE);
+  });
+
+  it("leave prose, ordinary links and the site's own files alone", () => {
+    const page =
+      '<p>data: this is prose, and so is style = this</p><a href="https://github.com/louislawson/louislawson.co.uk">source</a><link rel="canonical" href="https://louislawson.co.uk/"><link rel="preload" href="/_astro/a.woff2" as="font"><link rel="stylesheet" href="/_astro/a.css"><div data-style="x" aria-label="style">y</div>';
+    expect(page).not.toMatch(STYLE_ATTRIBUTE);
+    expect(page).not.toMatch(DATA_URL);
+    expect(page).not.toMatch(EXTERNAL_RESOURCE);
+    expect("src:url(a.woff2) format('woff2')").not.toMatch(EXTERNAL_RESOURCE);
+  });
+});
+
 describe.each(["preview", "production"])("a %s build", (deployContext) => {
   let dir = "";
   beforeAll(() => {
@@ -82,14 +120,14 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     const files = pagesAndStyles(dir);
     expect(Object.keys(files).some((name) => name.endsWith(".css"))).toBe(true);
     for (const [name, text] of Object.entries(files)) {
-      expect(text, name).not.toMatch(/\sstyle\s*=/);
-      expect(text, name).not.toMatch(/data:/i);
+      expect(text, name).not.toMatch(STYLE_ATTRIBUTE);
+      expect(text, name).not.toMatch(DATA_URL);
     }
   });
 
-  it("makes no external font request", () => {
+  it("makes no external font or stylesheet request", () => {
     for (const [name, text] of Object.entries(pagesAndStyles(dir))) {
-      expect(text, name).not.toMatch(/https?:\/\//);
+      expect(text, name).not.toMatch(EXTERNAL_RESOURCE);
       expect(text, name).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
     }
   });

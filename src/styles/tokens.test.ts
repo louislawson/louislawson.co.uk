@@ -84,8 +84,19 @@ describe("the design tokens", () => {
 
 describe("text contrast", () => {
   const colour = (name: string) => rgb(token(name));
-  // The hatch is a hi-vis stripe at 16% over whatever the placeholder sits on.
-  const hatch = (ground: string) => over(colour("hivis"), 0.16, colour(ground));
+  // The hatch is a hi-vis stripe over whatever the placeholder sits on. Its strength is read from
+  // the component that paints it, so changing it there changes what is measured here.
+  const placeholder = readFileSync(
+    new URL("../components/Placeholder.astro", import.meta.url),
+    "utf-8",
+  );
+  const stripe =
+    /color-mix\(in srgb, var\(--hivis\) (\d+)%, transparent\)/.exec(
+      placeholder,
+    );
+  if (!stripe) throw new Error("Placeholder.astro paints no hi-vis stripe");
+  const hatch = (ground: string) =>
+    over(colour("hivis"), Number(stripe[1]) / 100, colour(ground));
 
   // WCAG 1.4.3: 4.5:1 for text. Each pair is a text colour on a ground it is used on.
   const TEXT: [string, string, () => Rgb, () => Rgb][] = [
@@ -143,9 +154,25 @@ describe("the browser surfaces", () => {
     expect(css).toMatch(
       /@media \(prefers-reduced-motion: reduce\) \{[^@]*scroll-behavior: auto/,
     );
-    expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[^@]*animation: none/,
-    );
+    // Motion is cut short, not removed, so what an animation or a transition ends on still shows.
+    for (const declaration of [
+      "animation-duration: 0.01ms !important",
+      "animation-iteration-count: 1 !important",
+      "transition-duration: 0.01ms !important",
+    ]) {
+      expect(css).toMatch(
+        new RegExp(
+          `@media \\(prefers-reduced-motion: reduce\\) \\{[^@]*${declaration}`,
+        ),
+      );
+    }
+    expect(css).not.toMatch(/animation: none/);
+    expect(css).not.toMatch(/transition: none/);
+  });
+
+  it("sets controls in the page font instead of the browser's", () => {
+    const controls = rule("button,\ninput,\ntextarea,\nselect");
+    expect(controls).toContain("font: inherit");
   });
 });
 

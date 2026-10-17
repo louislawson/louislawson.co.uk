@@ -26,7 +26,7 @@ const decision = renderDecision(value, context);
   .ph {
     background: repeating-linear-gradient(
       -45deg,
-      rgb(255 107 26 / 0.16) 0 5px,
+      color-mix(in srgb, var(--hivis) 16%, transparent) 0 5px,
       transparent 5px 10px
     );
     outline: 1px dashed var(--hivis);
@@ -34,5 +34,15 @@ const decision = renderDecision(value, context);
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     padding-inline: 0.2em;
+  }
+
+  /* Text for screen readers only. The component carries it, so it works inside any layout. */
+  .vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>

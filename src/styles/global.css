@@ -89,16 +89,16 @@ a:hover {
   outline-offset: 3px;
 }
 
-/* Text for screen readers only. */
-.vh {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+/* The browser sets controls in its own font, not the page's. */
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
+/* Motion is cut short, not removed: an animation still runs to its end, so whatever it ends on
+   (a revealed element, a settled caret) shows without the movement. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -107,7 +107,8 @@ a:hover {
   *,
   *::before,
   *::after {
-    animation: none !important;
-    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

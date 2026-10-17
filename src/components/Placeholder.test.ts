@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import Placeholder from "./Placeholder.astro";
@@ -39,6 +40,18 @@ describe("<Placeholder>", () => {
       expect(html.trim()).toBe("A real title");
     },
   );
+
+  it("hides its own label, so it does not depend on a layout's stylesheet", () => {
+    const source = readFileSync(
+      new URL("./Placeholder.astro", import.meta.url),
+      "utf-8",
+    );
+    const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+    const hidden = /\.vh\s*\{([^}]*)\}/.exec(style)?.[1] ?? "";
+    expect(hidden).toContain("position: absolute");
+    expect(hidden).toContain("clip-path: inset(50%)");
+    expect(hidden).toContain("overflow: hidden");
+  });
 
   it("escapes what it shows", async () => {
     const html = await render({
