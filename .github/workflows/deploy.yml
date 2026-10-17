@@ -7,7 +7,7 @@ on:
   # folders, tests, the test, lint and format configs, editor and ignore files, the licence,
   # Markdown outside src/, and the workflows other than this one and the local actions;
   # .gitattributes is deliberately not excluded, since it controls line endings in the checkout),
-  # because each production deploy hands the job's OIDC request token to a third-party container.
+  # because each production deploy fetches the deployment token and runs Microsoft's client.
   # Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
@@ -159,7 +159,7 @@ jobs:
       id-token: write
       pull-requests: read # the guard step reads the pull request's state
     outputs:
-      url: ${{ steps.deploy.outputs.static_web_app_url }}
+      url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Check the pull request is still open and ready
         id: guard
@@ -195,7 +195,7 @@ jobs:
           name: site
           path: dist
       # Masks and validates the IDs, signs in and fetches the token. The IDs reach only that
-      # action's own steps, so the third-party upload action below never receives them.
+      # action's own steps, so the deployment client below never receives them.
       - name: Sign in and fetch the deployment token
         id: swa
         if: steps.guard.outputs.proceed == 'true'
@@ -206,21 +206,15 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           name: ${{ env.SWA_NAME }}
           resource-group: ${{ env.SWA_RESOURCE_GROUP }}
-      # Pinned to the head of the action's maintained `v1` branch (see .github/dependabot.yml).
-      # It builds a container from a floating Microsoft image at run time, so treat it as the
-      # one third-party component that handles the token.
+      # Microsoft's Static Web Apps client, from a digest-pinned image, given only the token and
+      # its settings: not this job's environment, its OIDC request token or the Docker socket.
       - name: Upload to Static Web Apps
         id: deploy
         if: steps.guard.outputs.proceed == 'true'
-        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1 branch, 2024-09-11
+        uses: ./.github/actions/swa-client # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
         with:
-          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          token: ${{ steps.swa.outputs.token }}
           action: upload
-          app_location: dist
-          output_location: ""
-          skip_app_build: true
-          skip_api_build: true
-          production_branch: main
 
   comment:
     name: Preview comment

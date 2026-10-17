@@ -46,20 +46,27 @@ updates:
     commit-message:
       prefix: chore
       include: scope
-    ignore:
-      # MANUALLY TRACKED: see "Manually tracked" in the README.
-      # The action is pinned to the head of its maintained `v1` branch, because its `v1` tag still
-      # points at a 2021 commit without the inputs this site uses, and Dependabot would propose
-      # moving back to that tag. The ignore is needed for that reason, but it also stops
-      # Dependabot proposing security updates for this action. It is the one third-party component
-      # that handles the deployment token and runs with the job's OIDC request token, so watch
-      # its advisories and its `v1` branch yourself, and bump it by hand after reading the changes.
-      - dependency-name: Azure/static-web-apps-deploy
     groups:
       minor-patch:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: docker
+    # Microsoft's Static Web Apps client image, pinned by digest in the local swa-client action.
+    # Its only tags are latest, prev and stable, so Dependabot proposes new digests of `stable`.
+    # Dependabot pull requests get no preview, so a new digest is first exercised by the
+    # production deploy after merge; a failure there leaves the last good build live.
+    directory: /.github/actions/swa-client
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
 
   - package-ecosystem: terraform
     # Keep every Terraform stack in this one entry: group-by only takes effect across several

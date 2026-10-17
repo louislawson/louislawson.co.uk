@@ -1,0 +1,96 @@
+name: Run the Static Web Apps deployment client
+description: >-
+  Uploads the built site in dist/, or closes this pull request's preview environment, with
+  Microsoft's Static Web Apps client (the code behind the Azure/static-web-apps-deploy action),
+  pinned by digest in this folder's Dockerfile. The container gets only the deployment token, the
+  client's settings and the job's public GitHub context. Unlike the Docker action, it is not handed
+  the job's environment (which holds the OIDC request and Actions runtime tokens) or the runner's
+  Docker socket. It writes its outputs to a file of its own, and only a validated site URL is
+  passed back. Needs the repository checked out with .github/actions.
+
+inputs:
+  token:
+    description: The masked deployment token, from the swa-deployment-token action.
+    required: true
+  action:
+    description: upload (the build in dist/) or close (this pull request's preview environment).
+    required: true
+
+outputs:
+  url:
+    description: The URL an upload was deployed to; empty for close.
+    value: ${{ steps.client.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run the Static Web Apps client
+      id: client
+      shell: bash
+      env:
+        SWA_ACTION: ${{ inputs.action }}
+        INPUT_AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        case "${SWA_ACTION}" in
+          upload | close) ;;
+          *)
+            echo "::error::action must be upload or close, got '${SWA_ACTION}'"
+            exit 1
+            ;;
+        esac
+
+        # Build from this folder's Dockerfile, whose FROM line pins the image by digest.
+        image="$(docker build --pull --quiet "${GITHUB_ACTION_PATH}")"
+
+        # The job's public context, which the client may use to tell production from a preview.
+        # Credentials, file-command paths and host paths are deliberately not on this list.
+        context=()
+        for name in GITHUB_EVENT_NAME GITHUB_REF GITHUB_REF_NAME GITHUB_REF_TYPE GITHUB_SHA \
+          GITHUB_HEAD_REF GITHUB_BASE_REF GITHUB_REPOSITORY GITHUB_REPOSITORY_ID \
+          GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_OWNER_ID GITHUB_RUN_ID GITHUB_RUN_NUMBER \
+          GITHUB_RUN_ATTEMPT GITHUB_ACTOR GITHUB_ACTOR_ID GITHUB_TRIGGERING_ACTOR GITHUB_WORKFLOW \
+          GITHUB_JOB GITHUB_SERVER_URL GITHUB_API_URL GITHUB_GRAPHQL_URL RUNNER_OS RUNNER_ARCH; do
+          context+=(--env "${name}")
+        done
+
+        # The client writes its outputs to a file of its own, not to this step's, so it cannot set
+        # outputs or environment variables for later steps. Its home directory is empty.
+        home="$(mktemp -d)"
+        out="$(mktemp -d)"
+        : > "${out}/output"
+
+        docker run --rm \
+          --volume "${GITHUB_WORKSPACE}:/github/workspace" \
+          --volume "${GITHUB_EVENT_PATH}:/github/workflow/event.json:ro" \
+          --volume "${home}:/github/home" \
+          --volume "${out}:/github/file_commands" \
+          --env HOME=/github/home \
+          --env GITHUB_WORKSPACE=/github/workspace \
+          --env GITHUB_EVENT_PATH=/github/workflow/event.json \
+          --env GITHUB_OUTPUT=/github/file_commands/output \
+          --env GITHUB_ACTIONS=true \
+          --env CI=true \
+          --env INPUT_AZURE_STATIC_WEB_APPS_API_TOKEN \
+          --env INPUT_ACTION="${SWA_ACTION}" \
+          --env INPUT_APP_LOCATION=dist \
+          --env INPUT_OUTPUT_LOCATION= \
+          --env INPUT_SKIP_APP_BUILD=true \
+          --env INPUT_SKIP_API_BUILD=true \
+          --env INPUT_PRODUCTION_BRANCH=main \
+          "${context[@]}" \
+          "${image}" "${SWA_ACTION}"
+
+        if [ "${SWA_ACTION}" = "upload" ]; then
+          # Accept both forms of a file-command output: name=value, and name<<delimiter.
+          url="$(awk '
+            index($0, "static_web_app_url<<") == 1 { getline; print; exit }
+            index($0, "static_web_app_url=") == 1 { print substr($0, 20); exit }
+          ' "${out}/output")"
+          url="${url%$'\r'}"
+          if [[ ! "${url}" =~ ^https://[a-z0-9-]+(\.[a-z0-9-]+)*\.azurestaticapps\.net/?$ ]]; then
+            echo "::error::The upload finished, but the client reported no *.azurestaticapps.net URL; check the log above"
+            exit 1
+          fi
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+        fi
