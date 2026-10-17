@@ -99,26 +99,29 @@ describe("a build with an invalid project entry", () => {
   });
 });
 
-// The launch PR flips LAUNCH to true in src/config/site.ts. That build must go red while the
-// required content is still placeholders, before the PR merges.
-describe("a build with LAUNCH = true and the placeholder content", () => {
-  it("fails, listing what the launch gate still needs", () => {
+// The launch PR flips LAUNCH to true in src/config/site.ts, and its build must go red while the
+// required set is incomplete. This works in both states: it sets LAUNCH to true whether or not it
+// already is, and removes public/cv.pdf so the CV is missing however the content looks by then.
+describe("a build with LAUNCH = true and no CV file", () => {
+  it("fails at the launch gate, naming the CV", () => {
     const dir = copyOfProject();
     const siteConfig = join(dir, "src", "config", "site.ts");
     const source = readFileSync(siteConfig, "utf-8");
     expect(
       source,
       "the LAUNCH constant in src/config/site.ts changed: update this test",
-    ).toContain("const LAUNCH = false;");
+    ).toMatch(/const LAUNCH = (true|false);/);
     writeFileSync(
       siteConfig,
-      source.replace("const LAUNCH = false;", "const LAUNCH = true;"),
+      source.replace(/const LAUNCH = (true|false);/, "const LAUNCH = true;"),
     );
+    rmSync(join(dir, "public", "cv.pdf"), { force: true });
 
     const output = failedBuildOutput(dir);
 
     expect(output).toContain("launch gate");
-    expect(output).toContain("intro is still a placeholder");
-    expect(output).toContain("cv field is still a placeholder");
+    expect(output).toMatch(
+      /cv field is still a placeholder|public\/cv\.pdf does not exist/,
+    );
   });
 });
