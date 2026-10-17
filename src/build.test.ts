@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -25,6 +25,22 @@ function read(dir: string, file: string): string {
 afterAll(() => {
   for (const dir of outDirs) rmSync(dir, { recursive: true, force: true });
 });
+
+/** The file names directly inside one folder of a build. */
+function listing(dir: string, folder: string): string[] {
+  return readdirSync(join(dir, folder));
+}
+
+/** Every page and stylesheet of a build: what the content security policy applies to. */
+function pagesAndStyles(dir: string): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (const page of ["index.html", "404.html"]) files[page] = read(dir, page);
+  for (const name of listing(dir, "_astro")) {
+    if (name.endsWith(".css"))
+      files[`_astro/${name}`] = read(dir, `_astro/${name}`);
+  }
+  return files;
+}
 
 describe.each(["preview", "production"])("a %s build", (deployContext) => {
   let dir = "";
@@ -60,6 +76,45 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(html).not.toMatch(/<style[\s>]/);
       expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/);
     }
+  });
+
+  it("has no style attribute and no data: URL in a page or a stylesheet", () => {
+    const files = pagesAndStyles(dir);
+    expect(Object.keys(files).some((name) => name.endsWith(".css"))).toBe(true);
+    for (const [name, text] of Object.entries(files)) {
+      expect(text, name).not.toMatch(/\sstyle\s*=/);
+      expect(text, name).not.toMatch(/data:/i);
+    }
+  });
+
+  it("makes no external font request", () => {
+    for (const [name, text] of Object.entries(pagesAndStyles(dir))) {
+      expect(text, name).not.toMatch(/https?:\/\//);
+      expect(text, name).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
+    }
+  });
+
+  it("serves Martian Mono from the site and preloads the Latin file the page needs", () => {
+    const css = Object.entries(pagesAndStyles(dir))
+      .filter(([name]) => name.endsWith(".css"))
+      .map(([, text]) => text)
+      .join("\n");
+    expect(css).toContain("Martian Mono Variable");
+
+    const html = read(dir, "index.html");
+    const preload = /<link rel="preload"[^>]*>/.exec(html)?.[0] ?? "";
+    expect(preload).toContain('as="font"');
+    expect(preload).toContain('type="font/woff2"');
+    // A font preload without crossorigin is fetched twice, because font requests are CORS-mode.
+    expect(preload).toContain("crossorigin");
+
+    const href = /href="([^"]+)"/.exec(preload)?.[1] ?? "";
+    expect(href).toMatch(
+      /^\/_astro\/martian-mono-latin-wdth-normal\.[\w-]+\.woff2$/,
+    );
+    // The preload names the very file the stylesheet loads, so it is used, not just fetched.
+    expect(css).toContain(href.replace("/_astro/", ""));
+    expect(listing(dir, "_astro")).toContain(href.replace("/_astro/", ""));
   });
 });
 

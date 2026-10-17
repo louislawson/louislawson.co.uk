@@ -1,0 +1,113 @@
+/* The design tokens and base styles for every page. The colours and the font are the direction
+   contract's OWN-WORLD block; the spacing and easing come from the reference mock. */
+@import "@fontsource-variable/martian-mono/wdth.css";
+
+:root {
+  --bg: #0d0e0c;
+  --panel: #151713;
+  --line: #2b2e28;
+  --line-strong: #4a4e45;
+  --bone: #e9e7e0;
+  --dim: #a3a59b;
+  --hivis: #ff6b1a;
+  /* Live and in-service state only. */
+  --ok: #9bdc6e;
+  --mono: "Martian Mono Variable", ui-monospace, monospace;
+  --gutter: clamp(16px, 3.2vw, 44px);
+  --col-gap: clamp(16px, 2vw, 32px);
+  --section: clamp(4.5rem, 3rem + 6vw, 9rem);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Room for the sticky navigation, so a link to a section does not land under it. */
+  scroll-padding-top: 96px;
+  scrollbar-color: var(--line-strong) var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--bone);
+  font-family: var(--mono);
+  font-size: clamp(0.9rem, 0.86rem + 0.15vw, 0.98rem);
+  font-stretch: 92%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--hivis);
+}
+
+::selection {
+  background: var(--hivis);
+  color: var(--bg);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: inherit;
+  line-height: 1.1;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  text-decoration-color: var(--line-strong);
+}
+
+a:hover {
+  color: var(--bone);
+  text-decoration-color: var(--hivis);
+}
+
+:focus-visible {
+  outline: 2px solid var(--hivis);
+  outline-offset: 3px;
+}
+
+/* Text for screen readers only. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

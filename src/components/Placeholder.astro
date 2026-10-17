@@ -1,0 +1,38 @@
+---
+import { site, type DeployContext } from "../config/site";
+import { placeholderHint } from "../content/todo";
+import { renderDecision } from "../content/visibility";
+
+interface Props {
+  /** A content value: real text, or a placeholder that starts with "TODO:". */
+  value: string;
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { value, context = site.deployContext } = Astro.props;
+const decision = renderDecision(value, context);
+---
+
+{decision === "hatch" && (
+  <span class="ph">
+    <span class="vh">Placeholder: </span>
+    {placeholderHint(value)}
+  </span>
+)}
+{decision === "show" && value}
+
+<style>
+  .ph {
+    background: repeating-linear-gradient(
+      -45deg,
+      rgb(255 107 26 / 0.16) 0 5px,
+      transparent 5px 10px
+    );
+    outline: 1px dashed var(--hivis);
+    outline-offset: 1px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding-inline: 0.2em;
+  }
+</style>
