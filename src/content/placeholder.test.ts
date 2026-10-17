@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { containsTodo, isPlaceholder, todo } from "./schema";
+import { bodyContainsTodo } from "./todo";
 
 describe("placeholders", () => {
   it("accepts a string that starts with TODO:", () => {
@@ -26,9 +27,30 @@ describe("placeholders", () => {
     expect(isPlaceholder(["TODO: x"])).toBe(false);
   });
 
-  // PR 2.2: a project is real only if it has no placeholder anywhere. The body is Markdown, which
-  // no schema covers, so apply containsTodo() to it: a body with TODO anywhere is not real.
-  it.todo("treats a project whose Markdown body contains TODO as not real");
+  describe("bodyContainsTodo", () => {
+    // A Markdown body has no schema, so this is what keeps a half-finished write-up out of production.
+    it("finds TODO and TODOs as words, in any case, anywhere in the body", () => {
+      for (const body of [
+        "TODO: write the result section",
+        "Some prose.\n\nTODO write more",
+        "Still to do: see the TODOs below",
+        "- todos remain",
+        "(Todo)",
+      ]) {
+        expect(bodyContainsTodo(body), body).toBe(true);
+      }
+    });
+
+    it("leaves ordinary words alone", () => {
+      for (const body of [
+        "A Todoist-style board and autodoc output.",
+        "Nothing left to do here.",
+        "",
+      ]) {
+        expect(bodyContainsTodo(body), body).toBe(false);
+      }
+    });
+  });
 
   describe("containsTodo", () => {
     it("finds TODO as a word, in any case, anywhere in the text", () => {

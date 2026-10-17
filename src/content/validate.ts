@@ -13,6 +13,12 @@ export interface ProfileLike {
   skills: Pick<Profile["skills"][number], "group" | "runs">[];
 }
 
+/** One error message for a list of problems: a heading with the count, then one line each. */
+export function problemsMessage(heading: string, problems: string[]): string {
+  const count = `${problems.length} ${problems.length === 1 ? "problem" : "problems"}`;
+  return `${heading} ${count}:\n${problems.map((p) => `- ${p}`).join("\n")}`;
+}
+
 /** Groups the ids of projects by a key, keeping only keys that more than one project has. */
 function shared<K>(projects: ProjectEntry[], key: (p: ProjectEntry) => K) {
   const groups = new Map<K, string[]>();

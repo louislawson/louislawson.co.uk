@@ -1,6 +1,7 @@
 import { currentAvailability } from "./availability";
 import type { Profile } from "./schema";
 import {
+  problemsMessage,
   validateContent,
   type ProfileLike,
   type ProjectEntry,
@@ -23,9 +24,7 @@ export function assembleSiteContent<
   const sorted = [...projects].sort((a, b) => a.data.order - b.data.order);
   const problems = validateContent(sorted, profile);
   if (problems.length > 0) {
-    throw new Error(
-      `The content has ${problems.length} ${problems.length === 1 ? "problem" : "problems"}:\n${problems.map((p) => `- ${p}`).join("\n")}`,
-    );
+    throw new Error(problemsMessage("The content has", problems));
   }
   return {
     projects: sorted,

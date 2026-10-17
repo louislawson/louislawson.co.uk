@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import {
   cpSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -34,6 +35,27 @@ function copyOfProject(): string {
     "junction",
   );
   return dir;
+}
+
+/** Builds the copy and returns what a failed build printed ("" if it succeeded). */
+function failedBuildOutput(dir: string): string {
+  try {
+    execFileSync(
+      process.execPath,
+      [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
+      {
+        cwd: dir,
+        env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "" },
+        stdio: "pipe",
+        // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
+        timeout: 50_000,
+      },
+    );
+    return "";
+  } catch (error) {
+    const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+    return `${stdout ?? ""}${stderr ?? ""}`;
+  }
 }
 
 afterAll(() => {
@@ -69,26 +91,31 @@ describe("a build with an invalid project entry", () => {
       ].join("\n"),
     );
 
-    let output = "";
-    try {
-      execFileSync(
-        process.execPath,
-        [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
-        {
-          cwd: dir,
-          env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "" },
-          stdio: "pipe",
-          // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
-          timeout: 50_000,
-        },
-      );
-    } catch (error) {
-      const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-      output = `${stdout ?? ""}${stderr ?? ""}`;
-    }
+    const output = failedBuildOutput(dir);
 
     expect(output).toContain("bad-entry");
     expect(output).toContain("org");
     expect(output).toContain("anonymised");
+  });
+});
+
+// The launch PR flips LAUNCH to true in src/config/site.ts. That build must go red while the
+// required content is still placeholders, before the PR merges.
+describe("a build with LAUNCH = true and the placeholder content", () => {
+  it("fails, listing what the launch gate still needs", () => {
+    const dir = copyOfProject();
+    const siteConfig = join(dir, "src", "config", "site.ts");
+    const source = readFileSync(siteConfig, "utf-8");
+    expect(source).toContain("const LAUNCH = false;");
+    writeFileSync(
+      siteConfig,
+      source.replace("const LAUNCH = false;", "const LAUNCH = true;"),
+    );
+
+    const output = failedBuildOutput(dir);
+
+    expect(output).toContain("launch gate");
+    expect(output).toContain("intro is still a placeholder");
+    expect(output).toContain("cv field is still a placeholder");
   });
 });
