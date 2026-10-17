@@ -97,19 +97,32 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
         run: |
-          id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate             --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- deploy-preview -->"))) | .id' | head -n 1)"
-          if [ -n "${id}" ]; then
-            if [ "${EVENT_ACTION}" = "closed" ]; then
-              reason="this pull request was closed"
-            else
-              reason="this pull request was converted to draft; a new one is built when it is marked ready for review"
-            fi
-            {
-              echo '<!-- deploy-preview -->'
-              echo '### Preview'
-              echo
-              echo "The preview was removed because ${reason}."
-            } > comment.md
-            gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@comment.md > /dev/null
+          id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- deploy-preview -->"))) | .id' | head -n 1)"
+          if [ -z "${id}" ]; then
+            exit 0
           fi
+          case "${EVENT_ACTION}" in
+            closed)
+              if [ "${MERGED}" = "true" ]; then
+                reason="this pull request was merged"
+              else
+                reason="this pull request was closed"
+              fi
+              ;;
+            converted_to_draft)
+              reason="this pull request was converted to draft; a new one is built when it is marked ready for review"
+              ;;
+            *)
+              reason="of a ${EVENT_ACTION} event"
+              ;;
+          esac
+          {
+            echo '<!-- deploy-preview -->'
+            echo '### Preview'
+            echo
+            echo "The preview was removed because ${reason}."
+          } > comment.md
+          gh api --method PATCH "repos/${REPO}/issues/comments/${id}" --field body=@comment.md > /dev/null

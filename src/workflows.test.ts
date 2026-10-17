@@ -12,11 +12,13 @@ const yamlFiles: URL[] = [
   ...readdirSync(new URL(".github/workflows/", root))
     .filter((name) => /\.ya?ml$/.test(name))
     .map((name) => new URL(`.github/workflows/${name}`, root)),
-  ...readdirSync(new URL(".github/actions/", root)).flatMap((dir) =>
-    readdirSync(new URL(`.github/actions/${dir}/`, root))
-      .filter((name) => /^action\.ya?ml$/.test(name))
-      .map((name) => new URL(`.github/actions/${dir}/${name}`, root)),
-  ),
+  ...readdirSync(new URL(".github/actions/", root), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((dir) =>
+      readdirSync(new URL(`.github/actions/${dir.name}/`, root))
+        .filter((name) => /^action\.ya?ml$/.test(name))
+        .map((name) => new URL(`.github/actions/${dir.name}/${name}`, root)),
+    ),
 ];
 
 const pins = yamlFiles.flatMap((url) =>
@@ -38,7 +40,8 @@ describe("the Azure/static-web-apps-deploy pin", () => {
   });
 
   it("is the commit the README names as manually tracked", () => {
-    expect(read(new URL("README.md", root))).toContain(pins[0]?.ref);
+    expect(pins.length).toBeGreaterThan(0);
+    expect(read(new URL("README.md", root))).toContain(String(pins[0]?.ref));
   });
 
   it("is on the ignore list of Dependabot's github-actions entry, as the README says", () => {
@@ -48,5 +51,30 @@ describe("the Azure/static-web-apps-deploy pin", () => {
       .find((block) => block.startsWith("github-actions"));
     expect(entry).toBeDefined();
     expect(entry).toMatch(/dependency-name:\s*Azure\/static-web-apps-deploy/);
+  });
+});
+
+// preview-cleanup.yml and deploy.yml cooperate through two strings that live in separate files.
+// Nothing else ties them together, so a rename in one would silently reopen a preview leak.
+describe("the deploy and cleanup workflows' shared strings", () => {
+  const deploy = read(new URL(".github/workflows/deploy.yml", root));
+  const cleanup = read(new URL(".github/workflows/preview-cleanup.yml", root));
+
+  it("use the same per-pull-request concurrency group, so a close never overlaps a deploy", () => {
+    const pattern = /group: Deploy-\$\{\{ github\.event\.pull_request\.number/;
+    expect(deploy).toMatch(pattern);
+    expect(cleanup).toMatch(pattern);
+  });
+
+  it("keep the workflow-level ordering group a different name from the shared one", () => {
+    // If they matched, a run would wait on itself.
+    expect(deploy).toMatch(/format\('Deploy-runs-\{0\}'/);
+    expect(deploy).toMatch(/'Deploy-production-runs'/);
+  });
+
+  it("use the same marker for the sticky preview comment", () => {
+    const marker = "<!-- deploy-preview -->";
+    expect(deploy).toContain(marker);
+    expect(cleanup).toContain(marker);
   });
 });

@@ -4,9 +4,10 @@ on:
   # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
-  # folders, tests, the test, lint and format configs, Markdown outside src/, and the workflows
-  # other than this one and the local actions), because each production deploy hands the job's
-  # OIDC request token to a third-party container.
+  # folders, tests, the test, lint and format configs, editor and ignore files, the licence,
+  # Markdown outside src/, and the workflows other than this one and the local actions;
+  # .gitattributes is deliberately not excluded, since it controls line endings in the checkout),
+  # because each production deploy hands the job's OIDC request token to a third-party container.
   # Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
@@ -25,6 +26,9 @@ on:
       - "!.prettierrc.json"
       - "!.prettierignore"
       - "!.markdownlint-cli2.jsonc"
+      - "!.editorconfig"
+      - "!.gitignore"
+      - "!LICENSE"
       - "!.github/**"
       - .github/workflows/deploy.yml
       - .github/actions/**
@@ -137,6 +141,11 @@ jobs:
     # close never overlaps a deploy. It is on this job, not the workflow, so a run whose jobs are
     # all skipped (a draft) never enters it and cannot displace a pending close. Run ordering is
     # the workflow-level group at the top of this file; this one is a different name on purpose.
+    # The group alone does not stop a run that was already building when its pull request was
+    # closed or converted to draft: cleanup would take the group first, find nothing, and the
+    # deploy would then upload a preview nobody removes. So the first step, which runs inside the
+    # group, checks that the pull request is still open and ready, and every later step is skipped
+    # if not.
     concurrency:
       group: Deploy-${{ github.event.pull_request.number || 'production' }}
       cancel-in-progress: false
@@ -148,18 +157,40 @@ jobs:
     permissions:
       contents: read # sparse checkout of the local actions only
       id-token: write
+      pull-requests: read # the guard step reads the pull request's state
     outputs:
       url: ${{ steps.deploy.outputs.static_web_app_url }}
     steps:
+      - name: Check the pull request is still open and ready
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" != "pull_request" ]; then
+            echo "proceed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          state="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '"\(.state) draft=\(.draft)"')"
+          if [ "${state}" = "open draft=false" ]; then
+            echo "proceed=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "proceed=false" >> "${GITHUB_OUTPUT}"
+            echo "Pull request ${PR_NUMBER} is now \"${state}\", so no preview is deployed."
+          fi
       # A local action needs the repository, but only the actions folder: this job holds the
       # identity, so it checks out nothing else. `$/` would avoid the checkout, but actionlint
       # 1.7.12 rejects it; switch when a release accepts it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.guard.outputs.proceed == 'true'
         with:
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false # cone mode would also check out every root-level file
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.guard.outputs.proceed == 'true'
         with:
           name: site
           path: dist
@@ -167,6 +198,7 @@ jobs:
       # action's own steps, so the third-party upload action below never receives them.
       - name: Sign in and fetch the deployment token
         id: swa
+        if: steps.guard.outputs.proceed == 'true'
         uses: ./.github/actions/swa-deployment-token # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
         with:
           client-id: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
@@ -179,6 +211,7 @@ jobs:
       # one third-party component that handles the token.
       - name: Upload to Static Web Apps
         id: deploy
+        if: steps.guard.outputs.proceed == 'true'
         uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1 branch, 2024-09-11
         with:
           azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
@@ -192,7 +225,8 @@ jobs:
   comment:
     name: Preview comment
     needs: deploy
-    if: github.event_name == 'pull_request'
+    # No URL means the guard skipped the upload, so there is nothing to announce.
+    if: github.event_name == 'pull_request' && needs.deploy.outputs.url != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -213,7 +247,7 @@ jobs:
             echo
             echo "${PREVIEW_URL} (built from ${HEAD_SHA:0:7})"
             echo
-            echo "Public, marked noindex, and removed when this pull request closes."
+            echo "Public, marked noindex, and removed when this pull request closes or goes back to draft."
           } > comment.md
           id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- deploy-preview -->"))) | .id' | head -n 1)"
