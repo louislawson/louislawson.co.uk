@@ -14,8 +14,11 @@ const ALLOWED_INFO_KEYS = ["Title", "Producer"];
 
 const PATH_LIKE = /[A-Za-z]:\\|\/Users\/|\/home\//;
 
-/** An XMP element or attribute that names a person or the software behind the file. */
-const CREATOR_OR_TOOL = /creator|tool|softwareagent/i;
+/**
+ * An XMP element or attribute that names a person or the software behind the file. "Author" is
+ * the XMP twin of the info dictionary's Author key, which is not allowed either.
+ */
+const CREATOR_OR_TOOL = /creator|author|tool|softwareagent/i;
 
 const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
 
@@ -24,7 +27,12 @@ function xmpText(doc: PDFDocument): string | undefined {
   const reference = doc.catalog.get(PDFName.of("Metadata"));
   const stream = reference ? doc.context.lookup(reference) : undefined;
   if (!(stream instanceof PDFRawStream)) return undefined;
-  return Buffer.from(decodePDFRawStream(stream).decode()).toString("utf8");
+  // An XMP packet may be UTF-16, which as UTF-8 has a NUL between every character and would hide
+  // every name from the checks below. Dropping the NULs and the byte-order mark undoes that.
+  return Buffer.from(decodePDFRawStream(stream).decode())
+    .toString("utf8")
+    .replaceAll("\0", "")
+    .replaceAll(/[\ufeff\ufffd]/g, "");
 }
 
 /** The qualified names in an XMP packet that name a creator or a tool, such as dc:creator. */
@@ -64,10 +72,14 @@ export async function checkPdf(bytes: Uint8Array): Promise<string[]> {
       for (const [key, value] of info.entries()) {
         const name = key.decodeText();
         if (!ALLOWED_INFO_KEYS.includes(name)) extra.push(name);
+        // A value may be stored as a separate object ("/Producer 14 0 R"); read what it points to.
+        const resolved = doc.context.lookup(value);
         metadata.push(
-          "decodeText" in value && typeof value.decodeText === "function"
-            ? String(value.decodeText())
-            : String(value),
+          resolved &&
+            "decodeText" in resolved &&
+            typeof resolved.decodeText === "function"
+            ? String(resolved.decodeText())
+            : String(resolved),
         );
       }
       if (extra.length > 0) {

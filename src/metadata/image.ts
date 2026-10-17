@@ -57,6 +57,8 @@ const TIFF_STRUCTURE = [
   "ICC",
 ];
 
+const XMP_BLOCK = "an XMP block";
+
 const XMP_MARKERS = [
   "<?xpacket",
   "<x:xmpmeta",
@@ -123,42 +125,42 @@ function webpChunks(bytes: Uint8Array) {
  * be read at all is reported too: a privacy check must not pass what it cannot see into.
  */
 export async function checkImage(bytes: Uint8Array): Promise<string[]> {
-  const problems: string[] = [];
+  // A set, so a problem found by two routes (the byte scan and a WebP chunk) is reported once.
+  const problems = new Set<string>();
   const text = latin1(bytes);
   if (XMP_MARKERS.some((marker) => text.includes(marker))) {
-    problems.push("an XMP block");
+    problems.add(XMP_BLOCK);
   }
   // ImageMagick and exiftool keep EXIF, IPTC and XMP in PNG text chunks as "raw profiles".
   if (/Raw profile type (exif|iptc|xmp|APP1)/i.test(text)) {
-    problems.push("a raw profile text chunk carrying EXIF, IPTC or XMP");
+    problems.add("a raw profile text chunk carrying EXIF, IPTC or XMP");
   }
   try {
     if (isWebp(bytes)) {
       for (const chunk of webpChunks(bytes)) {
-        if (chunk.type === "XMP " && !problems.includes("an XMP block")) {
-          problems.push("an XMP block");
-        }
+        if (chunk.type === "XMP ") problems.add(XMP_BLOCK);
         if (chunk.type === "EXIF") {
           // Some writers put the "Exif\0\0" header of a JPEG in front of the TIFF block.
           const tiffBlock = startsWith(chunk.data, "Exif\0\0")
             ? chunk.data.subarray(6)
             : chunk.data;
-          problems.push(
-            ...describeExif(await exifr.parse(tiffBlock, EXIFR_OPTIONS), false),
-          );
+          const parsed = await exifr.parse(tiffBlock, EXIFR_OPTIONS);
+          for (const problem of describeExif(parsed, false))
+            problems.add(problem);
         }
       }
     } else if (isGif(bytes)) {
       // A GIF has no EXIF or IPTC; the XMP scan above is the whole check.
     } else {
-      problems.push(
-        ...describeExif(await exifr.parse(bytes, EXIFR_OPTIONS), isTiff(bytes)),
-      );
+      const parsed = await exifr.parse(bytes, EXIFR_OPTIONS);
+      for (const problem of describeExif(parsed, isTiff(bytes))) {
+        problems.add(problem);
+      }
     }
   } catch (error) {
     return [
       `could not be read as an image (${error instanceof Error ? error.message : String(error)}), so it cannot be shown to be free of metadata`,
     ];
   }
-  return problems;
+  return [...problems];
 }

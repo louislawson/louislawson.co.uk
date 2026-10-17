@@ -20,7 +20,10 @@ const IMAGE_EXTENSIONS = [
 const extensionOf = (path: string) =>
   /\.([^./\\]+)$/.exec(path)?.[1]?.toLowerCase();
 
-/** Every image and PDF, wherever it is in the repository. There are no exclusions. */
+/**
+ * Every file with one of the image or PDF extensions above, wherever it is in the repository.
+ * There are no exclusions by folder. SVG is not on the list: it is text, and is not covered here.
+ */
 export function isCheckedPath(path: string): boolean {
   const extension = extensionOf(path);
   return extension === "pdf" || IMAGE_EXTENSIONS.includes(extension ?? "");

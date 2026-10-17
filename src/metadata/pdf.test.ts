@@ -84,6 +84,57 @@ describe("XMP creator and tool fields", () => {
   });
 });
 
+describe("what the first version missed", () => {
+  it("fails on an XMP author, the XMP twin of the info Author", async () => {
+    const found = await checkPdf(
+      pdf({ xmp: xmp("<pdf:Author>Louis Lawson</pdf:Author>") }),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain("pdf:Author");
+  });
+
+  it("fails on a creator in an XMP packet written as UTF-16", async () => {
+    const found = await checkPdf(
+      pdf({
+        xmp: xmp("<dc:creator>Louis</dc:creator>"),
+        xmpUtf16: true,
+      }),
+    );
+    expect(found.join("\n")).toContain("dc:creator");
+  });
+
+  it("fails on a path in an XMP packet written as UTF-16", async () => {
+    const found = await checkPdf(
+      pdf({
+        xmp: xmp("<dc:title>C:\\Users\\louis\\cv.docx</dc:title>"),
+        xmpUtf16: true,
+      }),
+    );
+    expect(found.join("\n")).toContain("path-like");
+  });
+
+  it("fails on a path in an info value stored as a separate object", async () => {
+    const found = await checkPdf(
+      pdf({
+        info: { Producer: "C:\\Users\\louis\\bin\\tool.exe" },
+        indirect: ["Producer"],
+      }),
+    );
+    expect(found.join("\n")).toContain("path-like");
+  });
+
+  it("still allows a clean Title and Producer stored as separate objects", async () => {
+    expect(
+      await checkPdf(
+        pdf({
+          info: { Title: "CV", Producer: "qpdf 12" },
+          indirect: ["Title", "Producer"],
+        }),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("revisions", () => {
   it("fails on an incremental update, which keeps the old metadata readable", async () => {
     const found = await checkPdf(

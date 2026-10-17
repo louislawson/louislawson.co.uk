@@ -103,6 +103,21 @@ describe("a JPEG", () => {
 });
 
 describe("a PNG", () => {
+  // The eXIf chunk is where modern tools put EXIF. It is found wherever it sits in the file.
+  it("with an eXIf chunk after the image data fails", async () => {
+    const found = await checkImage(png({ exif: located, exifAfterData: true }));
+    expect(found.join("\n")).toContain("Make");
+    expect(found.join("\n")).toContain("GPS");
+  });
+
+  it("with an eXIf chunk and a bad checksum still fails, rather than slipping past", async () => {
+    const bytes = png({ exif: camera });
+    // The checksum of the eXIf chunk is the last four bytes before IDAT's length field.
+    const at = Buffer.from(bytes).indexOf("IDAT") - 4 - 1;
+    bytes[at] = (bytes[at] ?? 0) ^ 0xff;
+    expect((await checkImage(bytes)).join("\n")).toContain("Make");
+  });
+
   it("with a raw profile text chunk that carries EXIF fails", async () => {
     const bytes = concat(png(), ascii("Raw profile type exif"));
     expect((await checkImage(bytes)).join("\n")).toContain("raw profile");
