@@ -2,8 +2,6 @@ import type { ImageMetadata } from "astro";
 import { z } from "astro/zod";
 import { PLACEHOLDER_PREFIX, containsTodo, isPlaceholder } from "./todo.ts";
 
-export { containsTodo, isPlaceholder };
-
 /** A value Louis hasn't supplied yet. Any field that can be unknown accepts this instead. */
 export const todo = z.string().startsWith(PLACEHOLDER_PREFIX, {
   error: `A placeholder must start with "${PLACEHOLDER_PREFIX}"`,

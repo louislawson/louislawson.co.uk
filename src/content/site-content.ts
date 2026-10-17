@@ -26,6 +26,7 @@ export async function getSiteContent() {
   );
   if (site.launch) {
     const problems = launchGateProblems(content, {
+      // The build runs from the project root, as every npm script and CI job does.
       cvFileExists: existsSync(join(process.cwd(), "public", "cv.pdf")),
     });
     if (problems.length > 0) {

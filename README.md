@@ -27,7 +27,7 @@ npm run dev
 
 ## Content and placeholders
 
-Content is a Markdown file per project in [`src/content/projects`](src/content/projects) plus [`src/data/profile.ts`](src/data/profile.ts). A value Louis has not supplied yet is a placeholder: a string that starts with `TODO:`. A `TODO` inside otherwise real text fails the build, so a half-finished sentence cannot be published.
+Content is a Markdown file per project in [`src/content/projects`](src/content/projects) plus [`src/data/profile.ts`](src/data/profile.ts). A value Louis has not supplied yet is a placeholder: a string that starts with `TODO:`. A `TODO` or `TODOs` inside otherwise real text fails the build, so a half-finished sentence cannot be published.
 
 - **Local and preview builds** keep placeholders, so they can be seen and filled in.
 - **Production** leaves them out, before and after launch, and omits the smallest unit that would otherwise look unfinished:

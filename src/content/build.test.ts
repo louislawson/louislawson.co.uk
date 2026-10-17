@@ -106,7 +106,10 @@ describe("a build with LAUNCH = true and the placeholder content", () => {
     const dir = copyOfProject();
     const siteConfig = join(dir, "src", "config", "site.ts");
     const source = readFileSync(siteConfig, "utf-8");
-    expect(source).toContain("const LAUNCH = false;");
+    expect(
+      source,
+      "the LAUNCH constant in src/config/site.ts changed: update this test",
+    ).toContain("const LAUNCH = false;");
     writeFileSync(
       siteConfig,
       source.replace("const LAUNCH = false;", "const LAUNCH = true;"),

@@ -1,6 +1,6 @@
 import type { DeployContext } from "../config/site";
 import type { Profile, Project } from "./schema";
-import { bodyContainsTodo, isPlaceholder } from "./todo.ts";
+import { containsTodo, isPlaceholder } from "./todo.ts";
 
 // How content is shown follows the deploy context, never `launch`: local and preview builds show
 // placeholders hatched so they can be found and filled in, and production leaves them out, before
@@ -8,7 +8,10 @@ import { bodyContainsTodo, isPlaceholder } from "./todo.ts";
 
 export type RenderDecision = "show" | "hatch" | "omit";
 
-/** What to do with one value. A hatched placeholder carries a visually hidden PLACEHOLDER_LABEL. */
+/**
+ * What to do with one value. A hatched placeholder also carries a visually hidden "Placeholder:"
+ * for screen readers; Phase 3 renders that.
+ */
 export function renderDecision(
   value: unknown,
   context: DeployContext,
@@ -38,12 +41,12 @@ export interface ProjectLike {
  * items. What is left is judged as a whole by isRealProject.
  */
 function withoutOptionalPlaceholders<E extends ProjectLike>(entry: E): E {
+  const { org, ...rest } = entry.data;
   const data: Project = {
-    ...entry.data,
+    ...(isPlaceholder(org) ? rest : entry.data),
     links: entry.data.links.filter((link) => !hasPlaceholder(link)),
     stack: entry.data.stack.filter((item) => !isPlaceholder(item)),
   };
-  if (isPlaceholder(data.org)) delete data.org;
   return { ...entry, data };
 }
 
@@ -51,7 +54,7 @@ function isComplete(entry: ProjectLike): boolean {
   return (
     entry.data.stack.length > 0 &&
     !hasPlaceholder(entry.data) &&
-    !(entry.body !== undefined && bodyContainsTodo(entry.body))
+    !(entry.body !== undefined && containsTodo(entry.body))
   );
 }
 

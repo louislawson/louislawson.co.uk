@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { containsTodo, isPlaceholder, todo } from "./schema";
-import { bodyContainsTodo } from "./todo";
+import { containsTodo, isPlaceholder } from "./todo";
+import { todo } from "./schema";
 
 describe("placeholders", () => {
   it("accepts a string that starts with TODO:", () => {
@@ -27,17 +27,19 @@ describe("placeholders", () => {
     expect(isPlaceholder(["TODO: x"])).toBe(false);
   });
 
-  describe("bodyContainsTodo", () => {
-    // A Markdown body has no schema, so this is what keeps a half-finished write-up out of production.
-    it("finds TODO and TODOs as words, in any case, anywhere in the body", () => {
+  describe("containsTodo", () => {
+    // One rule for every text field and for a Markdown body, which no schema covers.
+    it("finds TODO and TODOs as words, in any case, anywhere in the text", () => {
       for (const body of [
         "TODO: write the result section",
         "Some prose.\n\nTODO write more",
         "Still to do: see the TODOs below",
         "- todos remain",
         "(Todo)",
+        "Faster deploys. TODO: add the figure",
+        "line one\nTODO line two",
       ]) {
-        expect(bodyContainsTodo(body), body).toBe(true);
+        expect(containsTodo(body), body).toBe(true);
       }
     });
 
@@ -45,29 +47,10 @@ describe("placeholders", () => {
       for (const body of [
         "A Todoist-style board and autodoc output.",
         "Nothing left to do here.",
+        "mastodon, A to-do list",
         "",
       ]) {
-        expect(bodyContainsTodo(body), body).toBe(false);
-      }
-    });
-  });
-
-  describe("containsTodo", () => {
-    it("finds TODO as a word, in any case, anywhere in the text", () => {
-      for (const value of [
-        "TODO: later",
-        "Faster deploys. TODO: add the figure",
-        "todo write this",
-        "(Todo)",
-        "line one\nTODO line two",
-      ]) {
-        expect(containsTodo(value), value).toBe(true);
-      }
-    });
-
-    it("leaves words that merely contain it alone", () => {
-      for (const value of ["Todoist", "autodoc", "mastodon", "A to-do list"]) {
-        expect(containsTodo(value), value).toBe(false);
+        expect(containsTodo(body), body).toBe(false);
       }
     });
   });

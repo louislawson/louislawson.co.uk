@@ -1,4 +1,4 @@
-import { bodyContainsTodo } from "./todo.ts";
+import { containsTodo } from "./todo.ts";
 
 // Logic for `npm run placeholders` (scripts/placeholders.ts), kept here so Vitest can test it. It
 // imports nothing but todo.ts, so CI can run the script under plain Node without an install.
@@ -23,12 +23,15 @@ export function isContentFile(path: string): boolean {
   return file.startsWith("src/content/") && CONTENT_EXTENSIONS.test(file);
 }
 
-/** A comment line explains a placeholder without being one. Only code files have them. */
+/**
+ * A comment line explains a placeholder without being one. Only code files have them. This is a
+ * line-by-line heuristic that fits the profile; the Markdown files need no such rule.
+ */
 function isCommentLine(file: string, line: string): boolean {
   return /\.tsx?$/.test(file) && /^(\/\/|\/\*|\*)/.test(line.trimStart());
 }
 
-/** Every line of a file that holds a placeholder, by the same rule the body check uses. */
+/** Every line of a file that holds a placeholder, by the same rule as the schemas and the body check. */
 export function findPlaceholders(
   file: string,
   source: string,
@@ -36,7 +39,7 @@ export function findPlaceholders(
   return source
     .split(/\r?\n/)
     .flatMap((line, index) =>
-      bodyContainsTodo(line) && !isCommentLine(file, line)
+      containsTodo(line) && !isCommentLine(file, line)
         ? [{ file, line: index + 1, text: line.trim() }]
         : [],
     );
