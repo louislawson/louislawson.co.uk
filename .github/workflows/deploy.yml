@@ -60,6 +60,23 @@ on:
 
 permissions: {}
 
+# Two levels of concurrency, for two different jobs:
+#
+# 1. This workflow-level group queues whole RUNS for the same target in the order they were
+#    pushed: one group for production, one per pull request. The deploy job below waits for its
+#    build, and builds finish in whatever order they take, so a group on the deploy job alone
+#    would deploy in build-finish order, and a slow older build could overwrite a newer deploy
+#    while every run stays green. GitHub keeps one running and one pending run per group, so a
+#    newer pending run replaces an older pending one, which is right: the newer build contains
+#    the older commit. Nothing running is ever cancelled. Do not add a "skip unless head of main"
+#    guard instead: a later push that the paths filter ignores moves main without a deploy.
+# 2. The group on the deploy job, further down, exists so preview-cleanup.yml can use the same
+#    name and a close never overlaps a deploy of the same pull request. It is a different name
+#    from this one, so a run can never wait on itself.
+concurrency:
+  group: ${{ github.event_name == 'push' && 'Deploy-production-runs' || format('Deploy-runs-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: false
+
 env:
   # Not secrets: both names are committed in infra/site.
   SWA_NAME: stapp-louislawson-web-prod-weu
@@ -116,11 +133,10 @@ jobs:
   deploy:
     name: Deploy
     needs: build
-    # Nothing is cancelled mid-deploy. Each pull request has its own group, and production has
-    # one, so two pushes to main deploy in order. The group is on this job, not the workflow, so a
-    # run whose jobs are all skipped (a draft) never enters it. preview-cleanup.yml uses the same
-    # group name for the same pull request, so a close never overlaps a deploy, and a skipped run
-    # cannot displace a pending close.
+    # Shared with preview-cleanup.yml, which uses the same name for the same pull request, so a
+    # close never overlaps a deploy. It is on this job, not the workflow, so a run whose jobs are
+    # all skipped (a draft) never enters it and cannot displace a pending close. Run ordering is
+    # the workflow-level group at the top of this file; this one is a different name on purpose.
     concurrency:
       group: Deploy-${{ github.event.pull_request.number || 'production' }}
       cancel-in-progress: false
