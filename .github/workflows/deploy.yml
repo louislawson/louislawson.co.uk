@@ -10,8 +10,8 @@ on:
   # controls line endings in the checkout), because each production deploy fetches the
   # deployment token and runs Microsoft's client. The code only the scripts use is
   # src/metadata/ (the metadata check) and src/content/list-placeholders.ts (the placeholder
-  # listing); nothing the build reads imports either. Negations need a positive pattern first,
-  # and a later pattern overrides an earlier one.
+  # listing); nothing the build reads imports either, which src/deploy-path-filters.test.ts
+  # checks. Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
     paths:
@@ -25,8 +25,6 @@ on:
       - "!src/**/*.spec.*"
       - "!src/**/__tests__/**"
       - "!src/**/__fixtures__/**"
-      - "!src/metadata/**"
-      - "!src/content/list-placeholders.ts"
       - "!vitest.config.ts"
       - "!eslint.config.mjs"
       - "!.prettierrc.json"
@@ -40,6 +38,9 @@ on:
       - .github/actions/**
       - "!**/*.md"
       - src/**/*.md
+      # Last, so that the Markdown re-include above cannot win over them.
+      - "!src/metadata/**"
+      - "!src/content/list-placeholders.ts"
   # Pull requests use an allow-list instead, because there a wrong guess only costs a preview, not
   # a production deploy. They get a preview only for changes the build reads: the source
   # (Markdown under src/ is content; tests, specs and fixtures are not, and neither are
@@ -78,9 +79,12 @@ on:
   # ref:refs/heads/main, whatever the event. Microsoft's client does not read the event name: it
   # treats an event with no pull_request as a deploy of the branch the event names (or the
   # repository's default branch, which a schedule event carries), and that branch is
-  # INPUT_PRODUCTION_BRANCH, so the deploy is production, never a preview. The odd minute avoids
-  # GitHub's busiest moment at the top of the hour. GitHub switches schedules off in a public
-  # repository after 60 days without activity; the runbook says how to spot and re-enable that.
+  # INPUT_PRODUCTION_BRANCH, so the deploy is production, never a preview. That was read from the
+  # pinned client's own code, not yet seen in a live scheduled run: the first run after the merge
+  # is the proof. The odd minute avoids GitHub's busiest moment at the top of the hour. 04:17 UTC
+  # is 04:17 GMT or 05:17 BST, so a statement that expires at the end of a UK day stays up for a
+  # few hours past midnight. GitHub switches schedules off in a public repository after 60 days
+  # without activity; the runbook says how to spot and re-enable that.
   schedule:
     - cron: "17 4 * * *"
 
