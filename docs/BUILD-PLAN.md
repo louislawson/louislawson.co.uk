@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-17): **Phases 0, 1a and 1b are built.** **Phase 2 is approved for build** (2026-10-17). Phases 3–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-17): **Phases 0, 1a, 1b and 2 are built.** Phase 3 has been reviewed with Louis but is **not yet approved for build**. Phases 4–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -227,23 +227,93 @@ Reviewed with Louis on 2026-10-17 against the Astro 7 docs and four Astro 7 site
 
 ## Phase 3 · Design system and shell
 
+Reviewed with Louis on 2026-10-17, against the Astro 7 source and the reference mock.
+
+**Rebuild, don't design.** The mock is a spec, so each PR names the mock lines it rebuilds and lists where the real build must differ. Pieces the mock doesn't show (the 404 page, the keyboard-shortcut switch, focus styles) are designed using only the tokens and the contract, and approved through the PR's screenshots.
+
+**Every PR in this phase:**
+
+- **The content security policy stays as it is.** Nothing inline: no `<style>`, no inline `<script>`, no `style="…"` attribute, no `define:vars` or `style={…}`, no `data:` URL.
+- **Logic is tested first in Vitest**, for example which key goes to which section.
+- **Components are tested with Astro's Container API**, in Vitest's `node` environment.
+- **Desktop and mobile screenshots of the preview** go in the PR body.
+
 ### PR 3.1 · `feat(ui): design tokens, fonts and base styles`
 
-- Self-host `@fontsource-variable/martian-mono` (width and weight axes).
-- Tokens exactly as the contract's OWN-WORLD block; browser surfaces (selection, caret, focus ring, scrollbar, underline offset, tabular numerals); reduced-motion base; authored icon component (24px, 1.6 stroke).
-- **Acceptance:** contrast ratios for every text/ground pairing listed in the PR; no external font requests.
+- **Mock source:** `docs/design/mock/styles.css:1–48` (tokens and base) and the `.ph` placeholder hatch.
+- **Tokens:** exactly the contract's OWN-WORLD block, as CSS custom properties in a global stylesheet under `src/`.
+- **Browser surfaces:** selection, caret, focus ring, scrollbar, underline offset and tabular numerals. Also `color-scheme: dark` and a reduced-motion base.
+- **Font:**
+  - Import `@fontsource-variable/martian-mono/wdth.css` into the bundled CSS. It covers weight 100–800 and width 75–112.5%; the family is "Martian Mono Variable".
+  - Preload the Latin file with a `<link rel="preload">` whose URL comes from a `?url` import.
+  - Fallback stack: `"Martian Mono Variable", ui-monospace, monospace`.
+  - Don't use Astro's `<Font />`: it writes an inline `<style>`, which the policy blocks.
+- **Nothing inlined:**
+  - Set `vite.build.assetsInlineLimit: 0` in `astro.config.mjs`. Astro otherwise inlines any script under 4 KB and turns small CSS assets into `data:` URLs.
+  - Extend `src/build.test.ts` to fail on any `style=` attribute or `data:` URL in the built HTML or CSS.
+- **`<Icon>`:**
+  - A small set of hand-drawn SVGs: 24px viewBox, 1.6 stroke, `currentColor`, square ends, `aria-hidden` unless labelled.
+  - It starts with an arrow and an external-link mark; later PRs add icons as needed. No icon library.
+- **`<Placeholder>`:** the orange hatch with a dashed outline and a visually hidden "Placeholder:", rendered wherever `renderDecision` (PR 2.2) says `hatch`.
+- **Acceptance:**
+  - The PR lists the contrast ratio of every text and ground pairing.
+  - The built site makes no external font requests.
+  - The build test covers `style=` attributes and `data:` URLs.
 
-### PR 3.2 · `feat(ui): layout, navigation, footer and 404`
+### PR 3.2 · `feat(ui): layout and footer`
 
-- Base layout (meta, canonical from site URL, `noindex` logic), skip link.
-- Sticky nav: `louis.lawson`, section links with number keys 1–5 (only for rendered sections), mobile menu, current-section state.
-- Footer: updated date, built-with and repo link, one-line analytics note. 404 page in the same world.
-- **Acceptance:** keyboard-only navigation works; matches the mock's nav and footer.
+- **Mock source:** the footer in `docs/design/mock/index.html` (`<footer class="foot">`) and `styles.css` from line 175.
+- **Layout:** `src/layouts/Base.astro` already holds the shell and the `noindex` logic. Add:
+  - a canonical URL from the site URL
+  - a skip link to `<main>`
+  - places for the nav (PR 3.3) and the footer
+- **Footer:**
+  - **Updated date:** the last commit's date from `git log -1 --format=%cs` at build, shown as written (`2026-10-17`). If git isn't available, leave it out.
+  - **Built with:** the stack, plus a link to the repository.
+  - **Privacy line:** "no cookies, no tracking". PR 6.2 changes it when analytics arrives.
+  - **Keyboard-shortcut switch:**
+    - A button that reads "keyboard shortcuts: on", with `aria-pressed`. Turning it off disables `1`–`5` and `i` together and hides the number hints in the nav.
+    - The choice is remembered in `localStorage`, with every read and write in a try/catch; if storage is blocked, it falls back to on.
+    - It's required by WCAG 2.1.4 (Character Key Shortcuts).
+- **404:** the same world, with real facts only and no fake commands. A `404 · not found` heading, a line saying the page doesn't exist, and links to the home page and each visible section. It's static, with no script echoing the requested path.
+- **Acceptance:**
+  - Keyboard-only use works.
+  - The footer matches the mock's footer, apart from the listed changes.
+  - The 404 page and the shortcut switch are shown in screenshots.
 
-### PR 3.3 · `feat(ui): inspect mode`
+### PR 3.3 · `feat(ui): navigation`
 
-- `data-inspect` labels authored in components (each states a true fact about how that part is built or served); toggle button and `i` key; 12-column grid overlay; accessible explanatory note.
-- **Acceptance:** labels are accurate for the real build; toggling is announced; no contract text leaks into the page.
+- **Mock source:** `docs/design/mock/index.html:21–30` (markup), `styles.css:49–66` (sticky, links, mobile menu), `mock.js:155–178` (menu, current section, number keys).
+- **Sections:**
+  - The links come from `visibleSections()`, so a hidden section loses its link and the numbers close up 1 to _n_.
+  - Links point to `/#projects` and so on, so the same nav works on project pages and the 404; the number keys go to those sections from any page.
+  - `louis.lawson` links home.
+- **Works without JavaScript:** the links show by default, and the script collapses them into the mobile menu only once it runs. Number keys and the current-section highlight are extras on top.
+- **Number hints:** the `<kbd>` hint is `aria-hidden`. While shortcuts are on (see PR 3.2), the link carries `aria-keyshortcuts="1"` and so on.
+- **Current section:** shown with `aria-current`, on the home page only.
+- **Script:** a processed `<script>`, kept external by PR 3.1's `assetsInlineLimit`. It respects the shortcut switch and ignores keys pressed with a modifier or while typing in a field.
+- **Acceptance:**
+  - Keyboard-only navigation works.
+  - Without JavaScript, every link is reachable.
+  - Tests cover the nav rendering only the visible sections and the key-to-section logic.
+  - Screenshots show desktop, the open mobile menu, and a page with a hidden section.
+
+### PR 3.4 · `feat(ui): inspect mode`
+
+- **Mock source:** the `data-inspect` attributes in `docs/design/mock/index.html`, `styles.css:180–186` (outlines, labels, 12-column grid), the toggle in `mock.js:168–174`, and the `aria-live` `.inspect-note`.
+- **Toggle:** the `[i] inspect` button and the `i` key, which also respects the shortcut switch. `aria-pressed`, plus the polite explanatory note, announce the change.
+- **Labels:**
+  - Section-level only, never per element: per-element labels would make the page too busy.
+  - This PR labels the shell it owns: the nav, the footer and the 404's main content. Phase 4 adds a label to each section it builds.
+  - Every label states a true fact about the real build. Some mock labels aren't true, for example "GPS check fails the build" (it's the Metadata check in CI).
+- **Labels that state a config fact are pinned by a test,** so a config change that makes one false fails CI. For example:
+  - cache lifetimes, checked against `public/staticwebapp.config.json`
+  - "generated from `src/content/projects/*.md`", checked against the loader pattern
+  - the Metadata check, checked against its job name
+- **Acceptance:**
+  - Toggling is announced.
+  - Every label is accurate for the real build.
+  - No text from the contract or the plan appears in the page.
 
 ## Phase 4 · Home page
 
@@ -295,7 +365,7 @@ Playwright against the built site: pages render, number keys, inspect mode, redu
 
 ### PR 6.2 · `feat(security): final CSP and analytics`
 
-Cloudflare Web Analytics snippet (token is public config); CSP updated to allow only its beacon; headers asserted by a test.
+Cloudflare Web Analytics snippet (token is public config); CSP updated to allow only its beacon; headers asserted by a test. The footer's "no cookies, no tracking" line (PR 3.2) changes to the cookieless analytics note.
 
 ### PR 6.3 · `fix(ui): responsive and accessibility pass`
 
