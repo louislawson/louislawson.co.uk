@@ -116,6 +116,26 @@ jobs:
           node-version-file: .nvmrc
       - run: npm run placeholders -- --github
 
+  # Fails if any tracked image or PDF carries personal metadata (EXIF, XMP, IPTC, an author, a
+  # file path). It checks every file `git ls-files` lists, so no folder is excluded. Add this
+  # job's name to the "Protect main" required checks after its first run.
+  metadata:
+    name: Metadata check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run metadata:check
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest

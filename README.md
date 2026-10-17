@@ -11,17 +11,18 @@ npm ci
 npm run dev
 ```
 
-| Script                 | What it does                    |
-| ---------------------- | ------------------------------- |
-| `npm run dev`          | Start the dev server            |
-| `npm run build`        | Build the site into `dist/`     |
-| `npm run preview`      | Serve the built site locally    |
-| `npm run check`        | Type-check with `astro check`   |
-| `npm test`             | Unit tests (Vitest)             |
-| `npm run placeholders` | List every `TODO` placeholder   |
-| `npm run lint`         | ESLint and markdownlint         |
-| `npm run format:check` | Check formatting with Prettier  |
-| `npm run format`       | Format everything with Prettier |
+| Script                   | What it does                                |
+| ------------------------ | ------------------------------------------- |
+| `npm run dev`            | Start the dev server                        |
+| `npm run build`          | Build the site into `dist/`                 |
+| `npm run preview`        | Serve the built site locally                |
+| `npm run check`          | Type-check with `astro check`               |
+| `npm test`               | Unit tests (Vitest)                         |
+| `npm run placeholders`   | List every `TODO` placeholder               |
+| `npm run metadata:check` | Check photos and PDFs for personal metadata |
+| `npm run lint`           | ESLint and markdownlint                     |
+| `npm run format:check`   | Check formatting with Prettier              |
+| `npm run format`         | Format everything with Prettier             |
 
 `.npmrc` sets `min-release-age=7`, so installs only resolve package versions published more than a week ago.
 
@@ -37,6 +38,38 @@ Content is a Markdown file per project in [`src/content/projects`](src/content/p
   - a section with nothing left disappears with its nav link, and the rest renumber from 1.
 - **`npm run placeholders`** lists every placeholder as `file:line`. On pull requests, CI adds one warning with the count and the full list in the job summary.
 - **The launch gate.** While `LAUNCH` in [`src/config/site.ts`](src/config/site.ts) is `true`, any build fails until the intro, career line, role line, email, LinkedIn link and CV are real, `public/cv.pdf` exists, and there are at least two real projects with the featured one real.
+
+## Photos and PDFs
+
+The repository is public, so a photo or PDF must not carry the person behind it. `npm run metadata:check` fails on any image, PDF or SVG that `git ls-files` lists, anywhere in the repository, and CI runs it on every pull request and push as the **Metadata check** job. A phone photo's EXIF holds where and when it was taken and on what device; a CV exported from a word processor holds the author, the application and often the file path.
+
+**Images** (`jpg`, `jpeg`, `png`, `webp`, `avif`, `heic`, `heif`, `tif`, `tiff`, `gif`) fail on any EXIF, XMP or IPTC block except an orientation and a colour profile, and on free-text metadata: a PNG `tEXt`, `zTXt` or `iTXt` chunk (`Software` included), a JPEG comment or a GIF comment. A raw colour profile in a PNG is still allowed. Strip a file with [exiftool](https://exiftool.org), keeping only those two:
+
+```sh
+exiftool -all= -tagsFromFile @ -Orientation -ICC_Profile -overwrite_original photo.jpg
+```
+
+**SVGs** are text, and fail on a `<metadata>` element, on any `sodipodi:` or `inkscape:` attribute or namespace (Inkscape writes the file name, and often the full local path it was exported to), and on a path-like string anywhere in the file, and a photo pasted in as a `data:` URI is checked like any other image. In Inkscape, save as Plain SVG, which leaves its own data out, and delete by hand anything the check still reports.
+
+**PDFs** fail on any of:
+
+- more than one revision (more than one `%%EOF`), because an incremental update keeps the old metadata readable. A "fast web view" (linearized) PDF also has two, so do not linearize;
+- any XMP creator or tool field;
+- any document-info key other than `Title` and `Producer`;
+- a path-like string (`C:\`, `/Users/`, `/home/`) in the metadata;
+- an embedded JPEG or JPEG 2000 image that carries any of the image metadata above, reported with its object number;
+- XMP metadata on any object other than the catalog, such as a page or an image;
+- a file attached to the PDF, because an attachment is not checked.
+
+A PDF needs a clean rewrite, not an edit: exiftool's PDF edits are incremental updates, so the old metadata stays in the file and can be undone. Rewrite it with [qpdf](https://qpdf.sourceforge.io), which copies the pages and not the document-level metadata:
+
+```sh
+qpdf --empty --pages cv.pdf -- cv-clean.pdf
+```
+
+**Strip photos before they go into the document.** A JPEG in a PDF is stored as the original file, so a phone photo's location travels inside the PDF, and the `qpdf` rewrite above copies images unchanged, so it does not remove it. Run the `exiftool` command above on each photo first, then build the PDF. JPEG 2000 images cannot be read by the check, so a PDF that holds one fails; use JPEG.
+
+Printing to PDF from a browser also works, but browsers often add a `Creator` and dates, so run the result through `npm run metadata:check` first. The check is what decides: it reports each file and what is left in it.
 
 ## Deploying
 

@@ -25,17 +25,20 @@
     "lint:md": "markdownlint-cli2",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "placeholders": "node scripts/placeholders.ts"
+    "placeholders": "node scripts/placeholders.ts",
+    "metadata:check": "node scripts/check-metadata.ts"
   },
   "dependencies": {
     "astro": "^7.4.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@cantoo/pdf-lib": "^2.11.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
     "eslint": "^10.12.0",
     "eslint-plugin-astro": "^3.2.1",
+    "exifr": "^7.1.3",
     "globals": "^17.13.0",
     "markdownlint-cli2": "^0.23.3",
     "prettier": "^3.9.9",
