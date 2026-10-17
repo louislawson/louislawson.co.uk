@@ -1,9 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Azure/static-web-apps-deploy is tracked by hand (see "Manually tracked" in the README): it is
-// pinned by commit, Dependabot is told to ignore it, and the pin appears in more than one file.
-// These checks keep the copies from drifting apart.
 const root = new URL("../", import.meta.url);
 const read = (url: URL) => readFileSync(url, "utf-8");
 
@@ -21,36 +18,65 @@ const yamlFiles: URL[] = [
     ),
 ];
 
-const pins = yamlFiles.flatMap((url) =>
-  [...read(url).matchAll(/Azure\/static-web-apps-deploy@(\S+)/g)].map(
-    (match) => ({ file: url.pathname.split("/").slice(-1)[0], ref: match[1] }),
-  ),
-);
+const clientDir = new URL(".github/actions/swa-client/", root);
 
-describe("the Azure/static-web-apps-deploy pin", () => {
-  it("is used by at least the deploy and cleanup workflows", () => {
-    const files = pins.map((pin) => pin.file);
-    expect(files).toContain("deploy.yml");
-    expect(files).toContain("preview-cleanup.yml");
+// Microsoft's Static Web Apps client is run by the local swa-client action rather than through
+// the Azure/static-web-apps-deploy Docker action, which hands its container the job's whole
+// environment (including the OIDC request and runtime tokens) and the runner's Docker socket.
+describe("the Static Web Apps deployment client", () => {
+  it("is not run through the Azure/static-web-apps-deploy action", () => {
+    for (const url of yamlFiles) {
+      expect(read(url), url.pathname).not.toMatch(
+        /uses:\s*["']?Azure\/static-web-apps-deploy/i,
+      );
+    }
   });
 
-  it("is a full commit SHA, the same wherever it is used", () => {
-    for (const pin of pins) expect(pin.ref).toMatch(/^[0-9a-f]{40}$/);
-    expect(new Set(pins.map((pin) => pin.ref)).size).toBe(1);
+  it("is pinned by digest in one FROM line of the client action's Dockerfile", () => {
+    const froms = read(new URL("Dockerfile", clientDir)).match(/^FROM .*$/gm);
+    expect(froms).toHaveLength(1);
+    expect(froms?.[0]).toMatch(
+      /^FROM mcr\.microsoft\.com\/appsvc\/staticappsclient:[\w.-]+@sha256:[0-9a-f]{64}$/,
+    );
   });
 
-  it("is the commit the README names as manually tracked", () => {
-    expect(pins.length).toBeGreaterThan(0);
-    expect(read(new URL("README.md", root))).toContain(String(pins[0]?.ref));
-  });
-
-  it("is on the ignore list of Dependabot's github-actions entry, as the README says", () => {
+  it("is kept current by a Dependabot docker entry for that directory", () => {
     const dependabot = read(new URL(".github/dependabot.yml", root));
     const entry = dependabot
       .split(/\n {2}- package-ecosystem: /)
-      .find((block) => block.startsWith("github-actions"));
+      .find((block) => block.startsWith("docker"));
     expect(entry).toBeDefined();
-    expect(entry).toMatch(/dependency-name:\s*Azure\/static-web-apps-deploy/);
+    expect(entry).toMatch(/\/\.github\/actions\/swa-client\b/);
+  });
+
+  it("uploads from the deploy workflow and closes previews from the cleanup workflow", () => {
+    const step =
+      /uses: \.\/\.github\/actions\/swa-client[^\n]*\n(?:\s+.*\n)*?\s+action: (\w+)/;
+    const deploy = read(new URL(".github/workflows/deploy.yml", root));
+    const cleanup = read(
+      new URL(".github/workflows/preview-cleanup.yml", root),
+    );
+    expect(deploy.match(step)?.[1]).toBe("upload");
+    expect(cleanup.match(step)?.[1]).toBe("close");
+  });
+
+  it("never hands the container credentials, the runner's environment or the Docker socket", () => {
+    const action = read(new URL("action.yml", clientDir));
+    expect(action).toMatch(/docker run /);
+    for (const forbidden of [
+      "ACTIONS_ID_TOKEN_REQUEST",
+      "ACTIONS_RUNTIME_TOKEN",
+      "ACTIONS_CACHE_URL",
+      "ACTIONS_RESULTS_URL",
+      "GITHUB_TOKEN",
+      "ARM_",
+      "docker.sock",
+      "--env-file",
+      "--privileged",
+      "--network host",
+    ]) {
+      expect(action).not.toContain(forbidden);
+    }
   });
 });
 

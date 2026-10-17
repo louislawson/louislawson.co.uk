@@ -36,7 +36,7 @@ runs:
   using: composite
   steps:
     # Masks and validates the IDs first. They are set as environment variables on this step only,
-    # so no later step, including the caller's third-party upload action, receives them.
+    # so no later step, including the caller's deployment client, receives them.
     - name: Check and mask Azure IDs
       uses: ./.github/actions/mask-azure-ids # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
       env:
