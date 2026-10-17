@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ascii, concat } from "./__fixtures__/bytes";
+import { ascii } from "./__fixtures__/bytes";
 import { gif, heif, png, webp } from "./__fixtures__/containers";
 import { TAGS, tiff } from "./__fixtures__/exif";
 import { jpeg, xmpPacket } from "./__fixtures__/jpeg";
@@ -86,6 +86,25 @@ describe("a JPEG", () => {
     expect(found).toContain("IPTC");
   });
 
+  it("with a comment segment fails, even one with only a name or a path in it", async () => {
+    for (const comment of [
+      "Louis Lawson",
+      "C:\\Users\\louis\\Pictures\\car.jpg",
+    ]) {
+      const found = await checkImage(jpeg({ comment }));
+      expect(found, comment).toHaveLength(1);
+      expect(found[0]).toContain("comment");
+    }
+  });
+
+  it("with a comment segment after an EXIF block reports both", async () => {
+    const found = (
+      await checkImage(jpeg({ exif: camera, comment: "Louis" }))
+    ).join("\n");
+    expect(found).toContain("Make");
+    expect(found).toContain("comment");
+  });
+
   it("with an EXIF date block fails", async () => {
     const found = await checkImage(jpeg({ exif: dated }));
     expect(found.length).toBeGreaterThan(0);
@@ -118,14 +137,95 @@ describe("a PNG", () => {
     expect((await checkImage(bytes)).join("\n")).toContain("Make");
   });
 
-  it("with a raw profile text chunk that carries EXIF fails", async () => {
-    const bytes = concat(png(), ascii("Raw profile type exif"));
-    expect((await checkImage(bytes)).join("\n")).toContain("raw profile");
+  it("with a raw profile text chunk that carries EXIF fails, once", async () => {
+    const found = await checkImage(
+      png({
+        text: [{ type: "zTXt", keyword: "Raw profile type exif", text: "x" }],
+      }),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain("raw profile");
   });
 
-  it("with a raw colour profile text chunk is clean", async () => {
-    const bytes = concat(png(), ascii("Raw profile type icc"));
-    expect(await checkImage(bytes)).toEqual([]);
+  it("with a raw colour profile text chunk is still clean", async () => {
+    const found = await checkImage(
+      png({
+        text: [{ type: "zTXt", keyword: "Raw profile type icc", text: "x" }],
+      }),
+    );
+    expect(found).toEqual([]);
+  });
+
+  describe("text chunks", () => {
+    it.each(["tEXt", "zTXt", "iTXt"] as const)(
+      "a %s chunk fails, naming its keyword",
+      async (type) => {
+        const found = await checkImage(
+          png({ text: [{ type, keyword: "Author", text: "Louis Lawson" }] }),
+        );
+        expect(found).toHaveLength(1);
+        expect(found[0]).toContain("Author");
+        expect(found[0]).toContain(type);
+      },
+    );
+
+    it("fails on a comment that holds a path", async () => {
+      const found = await checkImage(
+        png({
+          text: [
+            {
+              type: "tEXt",
+              keyword: "Comment",
+              text: "C:\\Users\\louis\\icon.png",
+            },
+          ],
+        }),
+      );
+      expect(found.join("\n")).toContain("Comment");
+    });
+
+    it("fails on Software too: there is no exception, and the README's exiftool command removes it", async () => {
+      const found = await checkImage(
+        png({
+          text: [{ type: "tEXt", keyword: "Software", text: "Editor 1.0" }],
+        }),
+      );
+      expect(found.join("\n")).toContain("Software");
+    });
+
+    it("names every chunk it finds", async () => {
+      const found = (
+        await checkImage(
+          png({
+            text: [
+              { type: "tEXt", keyword: "Author", text: "x" },
+              { type: "tEXt", keyword: "Title", text: "y" },
+            ],
+          }),
+        )
+      ).join("\n");
+      expect(found).toContain("Author");
+      expect(found).toContain("Title");
+    });
+
+    it("finds them wherever they sit, after the image data included", async () => {
+      const bytes = png({
+        text: [{ type: "tEXt", keyword: "Author", text: "x" }],
+      });
+      // Move the chunk after IDAT: it is allowed anywhere before IEND.
+      const text = Buffer.from(bytes);
+      const start = text.indexOf("tEXt") - 4;
+      const end = start + 4 + 4 + "Author\0x".length + 4;
+      const chunk = text.subarray(start, end);
+      const idatEnd = text.indexOf("IEND") - 4;
+      const moved = Buffer.concat([
+        text.subarray(0, start),
+        text.subarray(end, idatEnd),
+        chunk,
+        text.subarray(idatEnd),
+      ]);
+      expect((await checkImage(moved)).join("\n")).toContain("Author");
+    });
   });
 });
 
@@ -134,8 +234,16 @@ describe("a GIF", () => {
     expect(await checkImage(gif())).toEqual([]);
   });
 
-  it("with an XMP block fails", async () => {
-    expect((await checkImage(gif({ xmp }))).join("\n")).toContain("XMP");
+  it("with an XMP block fails, and is not mistaken for a comment", async () => {
+    const found = await checkImage(gif({ xmp }));
+    expect(found.join("\n")).toContain("XMP");
+    expect(found.join("\n")).not.toContain("comment");
+  });
+
+  it("with a comment extension fails", async () => {
+    const found = await checkImage(gif({ comment: "Made by Louis" }));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain("comment");
   });
 });
 

@@ -11,9 +11,41 @@ function pngChunk(type: string, data: Uint8Array): Uint8Array {
   return concat(u32(data.length), body, crc(body));
 }
 
-/** A 1 x 1 PNG. `exif` is a TIFF block (the eXIf chunk); `xmp` is an XMP packet (an iTXt chunk). */
+export interface PngText {
+  type: "tEXt" | "zTXt" | "iTXt";
+  keyword: string;
+  text: string;
+}
+
+function pngTextChunk({ type, keyword, text }: PngText): Uint8Array {
+  const key = concat(ascii(keyword), new Uint8Array(1));
+  if (type === "tEXt") return pngChunk(type, concat(key, ascii(text)));
+  if (type === "zTXt") {
+    // Compression method 0, then the text deflated.
+    return pngChunk(
+      type,
+      concat(
+        key,
+        new Uint8Array([0]),
+        new Uint8Array(deflateSync(ascii(text))),
+      ),
+    );
+  }
+  // Uncompressed: flag 0, method 0, an empty language tag and translated keyword, then the text.
+  return pngChunk(type, concat(key, new Uint8Array([0, 0, 0, 0]), utf8(text)));
+}
+
+/**
+ * A 1 x 1 PNG. `exif` is a TIFF block (the eXIf chunk); `xmp` is an XMP packet (an iTXt chunk);
+ * `text` adds tEXt, zTXt or iTXt chunks, where tools write an author, a comment or a software name.
+ */
 export function png(
-  parts: { exif?: Uint8Array; xmp?: string; exifAfterData?: boolean } = {},
+  parts: {
+    exif?: Uint8Array;
+    xmp?: string;
+    exifAfterData?: boolean;
+    text?: PngText[];
+  } = {},
 ): Uint8Array {
   const header = concat(u32(1), u32(1), new Uint8Array([8, 0, 0, 0, 0]));
   const xmp = parts.xmp
@@ -34,6 +66,7 @@ export function png(
       ? pngChunk("eXIf", parts.exif)
       : new Uint8Array(0),
     xmp,
+    ...(parts.text ?? []).map(pngTextChunk),
     pngChunk("IDAT", new Uint8Array(deflateSync(new Uint8Array([0, 0])))),
     // The PNG specification lets eXIf come anywhere before IEND, including after the image data.
     parts.exif && parts.exifAfterData
@@ -70,8 +103,20 @@ export function webp(
 
 // ---- GIF
 
-/** A 1 x 1 GIF. `xmp` becomes the XMP application extension. */
-export function gif(parts: { xmp?: string } = {}): Uint8Array {
+/**
+ * A 1 x 1 GIF. `xmp` becomes the XMP application extension and `comment` a Comment Extension
+ * (0x21 0xFE), where some editors write a name or a note.
+ */
+export function gif(
+  parts: { xmp?: string; comment?: string } = {},
+): Uint8Array {
+  const commentBlock = parts.comment
+    ? concat(
+        new Uint8Array([0x21, 0xfe, parts.comment.length]),
+        ascii(parts.comment),
+        new Uint8Array([0x00]),
+      )
+    : new Uint8Array(0);
   const xmpBlock = parts.xmp
     ? concat(
         new Uint8Array([0x21, 0xff, 0x0b]),
@@ -92,6 +137,7 @@ export function gif(parts: { xmp?: string } = {}): Uint8Array {
     u16(1, true),
     new Uint8Array([0x00, 0, 0]),
     xmpBlock,
+    commentBlock,
     new Uint8Array([
       0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0x02, 0x02, 0x44, 0x01, 0x00,
     ]),

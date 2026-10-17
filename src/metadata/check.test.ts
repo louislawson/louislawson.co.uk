@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { utf8 } from "./__fixtures__/bytes";
 import { png } from "./__fixtures__/containers";
 import { TAGS, tiff } from "./__fixtures__/exif";
 import { jpeg } from "./__fixtures__/jpeg";
@@ -22,6 +23,7 @@ describe("isCheckedPath", () => {
       "tif",
       "tiff",
       "gif",
+      "svg",
       "pdf",
     ]) {
       expect(isCheckedPath(`a/b/file.${extension}`), extension).toBe(true);
@@ -49,7 +51,6 @@ describe("isCheckedPath", () => {
     for (const path of [
       "README.md",
       "src/pages/index.astro",
-      "logo.svg",
       "favicon.ico",
       "jpg",
       "archive.jpg.zip",
@@ -79,13 +80,19 @@ describe("checkFiles", () => {
     "docs/located.jpg": jpeg({ exif: located }),
     "public/cv.pdf": pdf({ info: { Title: "CV", Author: "Louis" } }),
     "clean.PNG": png(),
+    "public/icons/clean.svg": utf8(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>',
+    ),
+    "public/icons/inkscape.svg": utf8(
+      '<svg xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" inkscape:export-filename="icon.png"/>',
+    ),
     "README.md": new TextEncoder().encode("# readme"),
   };
   const read = (path: string) => files[path];
 
   it("checks every image and PDF it is given and counts them", async () => {
     const result = await checkFiles(Object.keys(files), read);
-    expect(result.checked).toBe(4);
+    expect(result.checked).toBe(6);
   });
 
   it("reports each file with a problem, with its path and what is wrong", async () => {
@@ -93,6 +100,7 @@ describe("checkFiles", () => {
     expect(result.failures.map((f) => f.file).sort()).toEqual([
       "docs/located.jpg",
       "public/cv.pdf",
+      "public/icons/inkscape.svg",
     ]);
     const jpegFailure = result.failures.find(
       (f) => f.file === "docs/located.jpg",

@@ -91,6 +91,17 @@ describe("npm run metadata:check", () => {
     expect(result.output).toContain("Author");
   });
 
+  it("fails for an SVG with Inkscape data and a local path", () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" inkscape:export-filename="C:\\Users\\louis\\icon.png"/>';
+    const result = run(
+      repoWith({ "public/icons/icon.svg": new TextEncoder().encode(svg) }),
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("public/icons/icon.svg");
+    expect(result.output).toContain("inkscape:export-filename");
+  });
+
   it("checks the whole repository even when run from a subdirectory", () => {
     const dir = repoWith({
       "located.jpg": jpeg({ exif: located }),

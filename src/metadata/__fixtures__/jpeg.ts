@@ -28,7 +28,13 @@ function iptcResource(caption: string): Uint8Array {
 
 /** A JPEG made of the segments asked for, a 1 x 1 frame and an end marker. */
 export function jpeg(
-  parts: { exif?: Uint8Array; xmp?: string; iptc?: string; icc?: boolean } = {},
+  parts: {
+    exif?: Uint8Array;
+    xmp?: string;
+    iptc?: string;
+    icc?: boolean;
+    comment?: string;
+  } = {},
 ): Uint8Array {
   const segments: Uint8Array[] = [u16(0xffd8)];
   if (parts.exif) {
@@ -57,6 +63,10 @@ export function jpeg(
         ),
       ),
     );
+  }
+  if (parts.comment !== undefined) {
+    // A COM segment: free text some editors fill with a name, a path or a note.
+    segments.push(segment(0xfffe, utf8(parts.comment)));
   }
   // Start of frame (baseline, 1 x 1, one component), then start of scan and its data.
   segments.push(

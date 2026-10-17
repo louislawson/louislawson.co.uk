@@ -1,4 +1,12 @@
 import exifr from "exifr";
+import {
+  hasGifComment,
+  hasJpegComment,
+  isGif,
+  isJpeg,
+  isPng,
+  pngTextChunks,
+} from "./free-text.ts";
 
 // Refuses a photo that carries EXIF, XMP or IPTC metadata, except an orientation and a colour
 // profile. A phone photo's EXIF holds the location, the device and the time it was taken.
@@ -78,7 +86,6 @@ const isTiff = (bytes: Uint8Array) =>
   startsWith(bytes, "II*\0") || startsWith(bytes, "MM\0*");
 const isWebp = (bytes: Uint8Array) =>
   startsWith(bytes, "RIFF") && startsWith(bytes, "WEBP", 8);
-const isGif = (bytes: Uint8Array) => startsWith(bytes, "GIF8");
 
 function describeExif(parsed: unknown, tiffFile: boolean): string[] {
   const problems: string[] = [];
@@ -135,6 +142,21 @@ export async function checkImage(bytes: Uint8Array): Promise<string[]> {
   if (/Raw profile type (exif|iptc|xmp|APP1)/i.test(text)) {
     problems.add("a raw profile text chunk carrying EXIF, IPTC or XMP");
   }
+  if (isPng(bytes)) {
+    for (const { type, keyword } of pngTextChunks(bytes)) {
+      // The raw profiles are judged above by what they carry (a colour profile is allowed), and
+      // the XMP chunk is the XMP block.
+      if (
+        /^Raw profile type /i.test(keyword) ||
+        keyword === "XML:com.adobe.xmp"
+      ) {
+        continue;
+      }
+      problems.add(`a PNG text chunk (${type} "${keyword}")`);
+    }
+  }
+  if (isJpeg(bytes) && hasJpegComment(bytes)) problems.add("a JPEG comment");
+  if (isGif(bytes) && hasGifComment(bytes)) problems.add("a GIF comment");
   try {
     if (isWebp(bytes)) {
       for (const chunk of webpChunks(bytes)) {
@@ -158,7 +180,9 @@ export async function checkImage(bytes: Uint8Array): Promise<string[]> {
       }
     }
   } catch (error) {
+    // What was found before the file proved unreadable is still reported, with the failure last.
     return [
+      ...problems,
       `could not be read as an image (${error instanceof Error ? error.message : String(error)}), so it cannot be shown to be free of metadata`,
     ];
   }

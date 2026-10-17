@@ -1,18 +1,22 @@
 import {
+  PDFArray,
   PDFDict,
   PDFDocument,
   PDFName,
   PDFRawStream,
+  PDFStream,
   decodePDFRawStream,
+  type PDFRef,
 } from "@cantoo/pdf-lib";
+import { checkImage } from "./image.ts";
+import { PATH_LIKE, PATH_LIKE_MESSAGE } from "./paths.ts";
 
 // Refuses a PDF that carries who made it, with what, or where from. A CV exported from a word
-// processor keeps the author, the application and often the file path in its metadata.
+// processor keeps the author, the application and often the file path in its metadata, and a
+// photo in it keeps the photo's own EXIF: a JPEG in a PDF is stored as the original file.
 
 /** The only document-info keys a PDF may carry: the title, and the tool that wrote the file. */
 const ALLOWED_INFO_KEYS = ["Title", "Producer"];
-
-const PATH_LIKE = /[A-Za-z]:\\|\/Users\/|\/home\//;
 
 /**
  * An XMP element or attribute that names a person or the software behind the file. "Author" is
@@ -20,11 +24,18 @@ const PATH_LIKE = /[A-Za-z]:\\|\/Users\/|\/home\//;
  */
 const CREATOR_OR_TOOL = /creator|author|tool|softwareagent/i;
 
+/** Image filters that store a whole image file, header blocks included. */
+const FILE_FILTERS = ["DCTDecode", "JPXDecode"];
+
 const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+
+const METADATA = PDFName.of("Metadata");
+const FILTER = PDFName.of("Filter");
+const DECODE_PARMS = PDFName.of("DecodeParms");
 
 /** The text of the catalog's XMP metadata stream, decoded however it was compressed. */
 function xmpText(doc: PDFDocument): string | undefined {
-  const reference = doc.catalog.get(PDFName.of("Metadata"));
+  const reference = doc.catalog.get(METADATA);
   const stream = reference ? doc.context.lookup(reference) : undefined;
   if (!(stream instanceof PDFRawStream)) return undefined;
   // An XMP packet may be UTF-16, which as UTF-8 has a NUL between every character and would hide
@@ -42,6 +53,82 @@ function creatorAndToolFields(xmp: string): string[] {
     CREATOR_OR_TOOL.test(name.slice(name.indexOf(":") + 1)),
   );
   return [...new Set(fields)];
+}
+
+function filterNames(dict: PDFDict): PDFName[] {
+  const filter = dict.lookup(FILTER);
+  if (filter instanceof PDFName) return [filter];
+  if (filter instanceof PDFArray) {
+    return Array.from({ length: filter.size() }, (_, index) =>
+      filter.lookup(index, PDFName),
+    );
+  }
+  return [];
+}
+
+/**
+ * An image stream's bytes with every filter before the last one undone. The last filter of a
+ * photo is DCTDecode (JPEG) or JPXDecode (JPEG 2000), which the library cannot decode and need
+ * not: what is left is the image file itself.
+ */
+function imageFile(
+  doc: PDFDocument,
+  stream: PDFRawStream,
+  filters: PDFName[],
+): Uint8Array {
+  const before = filters.slice(0, -1);
+  if (before.length === 0) return stream.contents;
+  const dict = PDFDict.withContext(doc.context);
+  dict.set(FILTER, doc.context.obj(before));
+  const parms = stream.dict.lookup(DECODE_PARMS);
+  if (parms instanceof PDFArray) {
+    dict.set(
+      DECODE_PARMS,
+      doc.context.obj(parms.asArray().slice(0, before.length)),
+    );
+  }
+  return decodePDFRawStream(PDFRawStream.of(dict, stream.contents)).decode();
+}
+
+/**
+ * Problems in the objects of the document other than its catalog: XMP attached to a page or an
+ * image, and photos whose own metadata came with them.
+ */
+async function checkObjects(doc: PDFDocument): Promise<string[]> {
+  const problems: string[] = [];
+  const root = doc.context.trailerInfo.Root as PDFRef | undefined;
+  for (const [reference, object] of doc.context.enumerateIndirectObjects()) {
+    const dict =
+      object instanceof PDFStream
+        ? object.dict
+        : object instanceof PDFDict
+          ? object
+          : undefined;
+    if (!dict) continue;
+    const where = `object ${reference.objectNumber}`;
+
+    if (reference.objectNumber !== root?.objectNumber && dict.has(METADATA)) {
+      problems.push(
+        `XMP metadata on an object other than the catalog (${where})`,
+      );
+    }
+
+    if (
+      object instanceof PDFRawStream &&
+      dict.lookup(PDFName.of("Subtype")) === PDFName.of("Image")
+    ) {
+      const filters = filterNames(dict);
+      const last = filters.at(-1)?.decodeText();
+      if (last && FILE_FILTERS.includes(last)) {
+        for (const problem of await checkImage(
+          imageFile(doc, object, filters),
+        )) {
+          problems.push(`an embedded image (${where}): ${problem}`);
+        }
+      }
+    }
+  }
+  return problems;
 }
 
 /**
@@ -99,10 +186,10 @@ export async function checkPdf(bytes: Uint8Array): Promise<string[]> {
     }
 
     if (metadata.some((text) => PATH_LIKE.test(text))) {
-      problems.push(
-        "a path-like string (such as C:\\, /Users/ or /home/) in the metadata",
-      );
+      problems.push(`${PATH_LIKE_MESSAGE} in the metadata`);
     }
+
+    problems.push(...(await checkObjects(doc)));
   } catch (error) {
     return [
       `could not be read as a PDF (${error instanceof Error ? error.message : String(error)}), so it cannot be shown to be free of metadata`,

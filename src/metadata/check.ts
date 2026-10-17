@@ -1,5 +1,6 @@
 import { checkImage } from "./image.ts";
 import { checkPdf } from "./pdf.ts";
+import { checkSvg } from "./svg.ts";
 
 // Which tracked files the metadata check looks at, and how it reports. The command-line script
 // (scripts/check-metadata.ts) supplies the list from `git ls-files` and reads the files.
@@ -21,12 +22,16 @@ const extensionOf = (path: string) =>
   /\.([^./\\]+)$/.exec(path)?.[1]?.toLowerCase();
 
 /**
- * Every file with one of the image or PDF extensions above, wherever it is in the repository.
- * There are no exclusions by folder. SVG is not on the list: it is text, and is not covered here.
+ * Every file with an image extension, or that of a PDF or an SVG, wherever it is in the
+ * repository. There are no exclusions by folder.
  */
 export function isCheckedPath(path: string): boolean {
   const extension = extensionOf(path);
-  return extension === "pdf" || IMAGE_EXTENSIONS.includes(extension ?? "");
+  return (
+    extension === "pdf" ||
+    extension === "svg" ||
+    IMAGE_EXTENSIONS.includes(extension ?? "")
+  );
 }
 
 /** The paths in the NUL-separated output of `git ls-files -z`, which keeps odd names intact. */
@@ -66,10 +71,13 @@ export async function checkFiles(
     }
     if (bytes === undefined) continue;
     checked++;
+    const extension = extensionOf(file);
     const problems =
-      extensionOf(file) === "pdf"
+      extension === "pdf"
         ? await checkPdf(bytes)
-        : await checkImage(bytes);
+        : extension === "svg"
+          ? checkSvg(bytes)
+          : await checkImage(bytes);
     if (problems.length > 0) failures.push({ file, problems });
   }
   return { checked, failures };
