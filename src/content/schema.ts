@@ -1,0 +1,165 @@
+import { z } from "astro/zod";
+
+const PLACEHOLDER_PREFIX = "TODO:";
+
+/** A value Louis hasn't supplied yet. Any field that can be unknown accepts this instead. */
+export const todo = z.string().startsWith(PLACEHOLDER_PREFIX, {
+  error: `A placeholder must start with "${PLACEHOLDER_PREFIX}"`,
+});
+
+export function isPlaceholder(value: unknown): boolean {
+  return typeof value === "string" && value.startsWith(PLACEHOLDER_PREFIX);
+}
+
+/** The value a field takes when it is known, or a placeholder when it is not. */
+function orTodo<T extends z.ZodType>(schema: T, expected: string) {
+  return z.union([schema, todo], {
+    error: `Expected ${expected}, or a placeholder starting with "${PLACEHOLDER_PREFIX}"`,
+  });
+}
+
+const text = z.string().min(1);
+const url = orTodo(z.httpUrl(), "an http(s) URL");
+
+const headline = orTodo(
+  z.string().refine((value) => {
+    const words = value.trim().split(/\s+/).length;
+    return value.trim() !== "" && words >= 2 && words <= 5;
+  }),
+  "a headline of 2 to 5 words",
+);
+
+const status = orTodo(
+  z.enum(["in-service", "commissioning", "complete", "archived"]),
+  "in-service, commissioning, complete or archived",
+);
+
+/** A measurement is real or absent, so unlike every other field it takes no placeholder. */
+const real = text.refine((value) => !isPlaceholder(value), {
+  error:
+    "A measurement is real or absent: remove it rather than use a placeholder",
+});
+
+const measurement = z.strictObject({
+  label: real,
+  before: real,
+  after: real.optional(),
+  unit: real.optional(),
+});
+
+const link = z.strictObject({ label: text, url });
+
+const forbidden = (reason: string) => z.never({ error: reason }).optional();
+
+const code = z.string().regex(/^R\d{2}$/, {
+  error: "A code is R and two digits, for example R01",
+});
+
+const projectFields = {
+  code,
+  title: text,
+  summary: text,
+  headline,
+  status,
+  period: text,
+  featured: z.boolean(),
+  order: z.number().int().positive(),
+  setup: text,
+  change: text,
+  result: text,
+  measurements: z.array(measurement).optional(),
+  stack: z.array(text).min(1),
+  links: z.array(link).default([]),
+};
+
+/**
+ * Work projects are anonymised: they carry a descriptor and may not name an organisation, so
+ * naming an employer is a build error. Personal and open-source projects may be named.
+ */
+export const projectSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    ...projectFields,
+    kind: z.literal("work"),
+    descriptor: text,
+    org: forbidden("A work project is anonymised: use descriptor, never org"),
+  }),
+  ...(["personal", "open-source"] as const).map((kind) =>
+    z.strictObject({
+      ...projectFields,
+      kind: z.literal(kind),
+      org: text.optional(),
+      descriptor: forbidden(
+        `A ${kind} project is named: use org, not descriptor`,
+      ),
+    }),
+  ),
+] as const);
+
+export type Project = z.infer<typeof projectSchema>;
+
+const certificationDate = orTodo(
+  z.string().regex(/^\d{4}(-(0[1-9]|1[0-2]))?$/),
+  "a year (2025) or a year and month (2025-06)",
+);
+
+/** Astro's ImageMetadata, as a typed import of a photo produces it. */
+const photo = orTodo(
+  z.looseObject({
+    src: text,
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    format: text,
+  }),
+  "an imported image",
+);
+
+export const profileSchema = z.strictObject({
+  roleLine: text,
+  intro: text,
+  careerLine: text,
+  region: text,
+  /** Shown until the end of `until`, UK time. */
+  availability: z.strictObject({
+    text,
+    until: orTodo(z.iso.date(), "a date as YYYY-MM-DD"),
+  }),
+  email: orTodo(z.email(), "an email address"),
+  links: z.strictObject({ github: url, linkedin: url }),
+  /** The file is `public/cv.pdf`. */
+  cv: orTodo(z.literal("/cv.pdf"), "/cv.pdf"),
+  skills: z.array(
+    z.strictObject({
+      group: text,
+      context: text,
+      tools: z.array(text).min(1),
+      /** Codes of the projects where this was used. */
+      runs: z.array(code),
+    }),
+  ),
+  exploring: z.array(text),
+  certifications: z.array(
+    z.strictObject({
+      title: text,
+      issuer: text,
+      date: certificationDate,
+      verify: url.optional(),
+    }),
+  ),
+  garage: z.array(
+    z.strictObject({ name: text, note: text, photo, alt: text, caption: text }),
+  ),
+});
+
+export type Profile = z.infer<typeof profileSchema>;
+
+/** Parses the profile data, failing with one error that lists every problem. */
+export function parseProfile(input: unknown): Profile {
+  const result = profileSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      `src/data/profile.ts does not match the profile schema:
+${z.prettifyError(result.error)}`,
+    );
+  }
+  return result.data;
+}

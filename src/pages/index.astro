@@ -1,5 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import { getSiteContent } from "../content/site-content";
+
+// Read for validation only until the sections exist: bad content already fails the build.
+await getSiteContent();
 ---
 
 <Base title="Louis Lawson">
