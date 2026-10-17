@@ -132,3 +132,39 @@ describe("the placeholders job in ci.yml", () => {
     expect(job).not.toMatch(/continue-on-error|exit 1/);
   });
 });
+
+// Louis adds this job's name to the required checks, so a rename would leave main unprotected
+// without any check going red: the required check would simply never report.
+describe("the metadata job in ci.yml", () => {
+  const ci = read(new URL(".github/workflows/ci.yml", root));
+  const job = ci.match(/^ {2}metadata:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+
+  it("exists", () => {
+    expect(job).not.toBe("");
+  });
+
+  it('is named exactly "Metadata check"', () => {
+    expect(job).toMatch(/^ {4}name: Metadata check$/m);
+  });
+
+  it("runs on every pull request and every push to main, which the workflow triggers cover", () => {
+    expect(job).not.toMatch(/^ {4}if:/m);
+    expect(ci).toMatch(
+      /^on:\n {2}pull_request:\n {2}push:\n {4}branches: \[main\]/m,
+    );
+  });
+
+  it("only reads the repository", () => {
+    expect(job).toMatch(/permissions:\n\s+contents: read/);
+    expect(job).toMatch(/persist-credentials: false/);
+  });
+
+  it("installs the locked dependencies and runs the check script", () => {
+    expect(job).toContain("npm ci");
+    expect(job).toContain("npm run metadata:check");
+  });
+
+  it("is not allowed to fail quietly", () => {
+    expect(job).not.toMatch(/continue-on-error|\|\| true/);
+  });
+});
