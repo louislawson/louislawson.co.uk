@@ -4,17 +4,21 @@ on:
   # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
-  # folders, tests, the test, lint and format configs, editor and ignore files, the licence,
-  # Markdown outside src/, and the workflows other than this one and the local actions;
-  # .gitattributes is deliberately not excluded, since it controls line endings in the checkout),
-  # because each production deploy fetches the deployment token and runs Microsoft's client.
-  # Negations need a positive pattern first, and a later pattern overrides an earlier one.
+  # folders, the scripts, code only the scripts and tests use, tests, the test, lint and format
+  # configs, editor and ignore files, the licence, Markdown outside src/, and the workflows other
+  # than this one and the local actions; .gitattributes is deliberately not excluded, since it
+  # controls line endings in the checkout), because each production deploy fetches the
+  # deployment token and runs Microsoft's client. The code only the scripts use is
+  # src/metadata/ (the metadata check) and src/content/list-placeholders.ts (the placeholder
+  # listing); nothing the build reads imports either, which src/deploy-path-filters.test.ts
+  # checks. Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
     paths:
       - "**"
       - "!docs/**"
       - "!infra/**"
+      - "!scripts/**"
       - "!.impeccable/**"
       - "!.claude/**"
       - "!src/**/*.test.*"
@@ -34,12 +38,17 @@ on:
       - .github/actions/**
       - "!**/*.md"
       - src/**/*.md
+      # Last, so that the Markdown re-include above cannot win over them.
+      - "!src/metadata/**"
+      - "!src/content/list-placeholders.ts"
   # Pull requests use an allow-list instead, because there a wrong guess only costs a preview, not
   # a production deploy. They get a preview only for changes the build reads: the source
-  # (Markdown under src/ is content; tests, specs and fixtures are not), static files, and the
-  # files the build or install reads. Tests, lint and format configs, docs, infrastructure and
-  # tooling folders are not on it, so they would only produce a preview identical to production
-  # and use up one of the Free plan's 3 slots. Such pull requests still build and test in CI.
+  # (Markdown under src/ is content; tests, specs and fixtures are not, and neither are
+  # src/metadata/ and src/content/list-placeholders.ts, which only the scripts use), static
+  # files, and the files the build or install reads. Tests, lint and format configs, docs,
+  # infrastructure and tooling folders are not on it, so they would only produce a preview
+  # identical to production and use up one of the Free plan's 3 slots. Such pull requests still
+  # build and test in CI.
   # A draft pull request builds in CI but gets no preview until it is marked ready for review.
   # Removing a preview (on close, or when a pull request goes back to draft) is a separate
   # workflow, preview-cleanup.yml, because this paths filter is evaluated on the final diff and
@@ -52,6 +61,8 @@ on:
       - "!src/**/*.spec.*"
       - "!src/**/__tests__/**"
       - "!src/**/__fixtures__/**"
+      - "!src/metadata/**"
+      - "!src/content/list-placeholders.ts"
       - public/**
       - astro.config.mjs
       - package.json
@@ -61,24 +72,42 @@ on:
       - tsconfig.json
       - .github/workflows/deploy.yml
       - .github/actions/**
+  # Production is rebuilt every day, so a statement that expires on a date (the availability line)
+  # disappears without a push. A scheduled run is always on the default branch, so it is a
+  # production run: it builds with DEPLOY_CONTEXT=production, joins the production queue below, and
+  # always deploys (redeploying identical output is harmless). The plan identity already trusts
+  # ref:refs/heads/main, whatever the event. Microsoft's client does not read the event name: it
+  # treats an event with no pull_request as a deploy of the branch the event names (or the
+  # repository's default branch, which a schedule event carries), and that branch is
+  # INPUT_PRODUCTION_BRANCH, so the deploy is production, never a preview. That was read from the
+  # pinned client's own code, not yet seen in a live scheduled run: the first run after the merge
+  # is the proof. The odd minute avoids GitHub's busiest moment at the top of the hour. 04:17 UTC
+  # is 04:17 GMT or 05:17 BST, so a statement that expires at the end of a UK day stays up for a
+  # few hours past midnight. GitHub switches schedules off in a public repository after 60 days
+  # without activity; the runbook says how to spot and re-enable that.
+  schedule:
+    - cron: "17 4 * * *"
 
 permissions: {}
 
 # Two levels of concurrency, for two different jobs:
 #
 # 1. This workflow-level group queues whole RUNS for the same target in the order they were
-#    pushed: one group for production, one per pull request. The deploy job below waits for its
-#    build, and builds finish in whatever order they take, so a group on the deploy job alone
-#    would deploy in build-finish order, and a slow older build could overwrite a newer deploy
-#    while every run stays green. GitHub keeps one running and one pending run per group, so a
-#    newer pending run replaces an older pending one, which is right: the newer build contains
-#    the older commit. Nothing running is ever cancelled. Do not add a "skip unless head of main"
-#    guard instead: a later push that the paths filter ignores moves main without a deploy.
+#    pushed: one group for production (pushes and the daily schedule alike), one per pull request.
+#    The group is named for production unless the run is a pull request, so any other trigger
+#    added later is queued with production rather than in a group with an empty number. The
+#    deploy job below waits for its build, and builds finish in whatever order they take, so a
+#    group on the deploy job alone would deploy in build-finish order, and a slow older build
+#    could overwrite a newer deploy while every run stays green. GitHub keeps one running and
+#    one pending run per group, so a newer pending run replaces an older pending one, which is
+#    right: the newer build contains the older commit. Nothing running is ever cancelled. Do not
+#    add a "skip unless head of main" guard instead: a later push that the paths filter ignores
+#    moves main without a deploy.
 # 2. The group on the deploy job, further down, exists so preview-cleanup.yml can use the same
 #    name and a close never overlaps a deploy of the same pull request. It is a different name
 #    from this one, so a run can never wait on itself.
 concurrency:
-  group: ${{ github.event_name == 'push' && 'Deploy-production-runs' || format('Deploy-runs-{0}', github.event.pull_request.number) }}
+  group: ${{ github.event_name == 'pull_request' && format('Deploy-runs-{0}', github.event.pull_request.number) || 'Deploy-production-runs' }}
   cancel-in-progress: false
 
 env:
@@ -96,6 +125,7 @@ jobs:
     # change when Louis pushes a commit to a Dependabot branch.
     if: >-
       github.event_name == 'push'
+      || github.event_name == 'schedule'
       || (github.event.pull_request.head.repo.full_name == github.repository
         && github.event.pull_request.user.login != 'dependabot[bot]'
         && !github.event.pull_request.draft)
@@ -132,7 +162,8 @@ jobs:
           path: dist
           if-no-files-found: error
           include-hidden-files: true # e.g. public/.well-known/ would otherwise be dropped
-          retention-days: 7
+          # A scheduled run rebuilds the same code every day, so its artifact is kept for a day.
+          retention-days: ${{ github.event_name == 'schedule' && 1 || 7 }}
 
   deploy:
     name: Deploy

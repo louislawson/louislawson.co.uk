@@ -168,3 +168,63 @@ describe("the metadata job in ci.yml", () => {
     expect(job).not.toMatch(/continue-on-error|\|\| true/);
   });
 });
+
+// Production is rebuilt every day so a statement that expires on a date disappears without a push.
+// Several places in deploy.yml used to assume that production means a push; each is pinned here.
+describe("the daily schedule in deploy.yml", () => {
+  const deploy = read(new URL(".github/workflows/deploy.yml", root));
+  /** One job's text, from its key to the next job's. */
+  const job = (name: string) =>
+    deploy.match(
+      new RegExp(`^ {2}${name}:\\n(?:(?! {2}\\S).*\\n?)*`, "m"),
+    )?.[0] ?? "";
+  const build = job("build");
+  const deployJob = job("deploy");
+
+  it("is a schedule trigger at 04:17 UTC: an odd minute, away from the top of the hour", () => {
+    expect(deploy).toMatch(
+      /^ {2}schedule:\n {4}- cron: ["']17 4 \* \* \*["']$/m,
+    );
+  });
+
+  it("queues a scheduled run with production, not in a pull-request group with no number", () => {
+    // Any run that is not a pull request takes the production group.
+    expect(deploy).toContain(
+      "group: ${{ github.event_name == 'pull_request' && format('Deploy-runs-{0}', github.event.pull_request.number) || 'Deploy-production-runs' }}",
+    );
+    expect(deploy).not.toContain(
+      "github.event_name == 'push' && 'Deploy-production-runs'",
+    );
+  });
+
+  it("lets a schedule through the build job's condition", () => {
+    const condition = /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(build)?.[1] ?? "";
+    expect(condition).toContain("github.event_name == 'push'");
+    expect(condition).toContain("github.event_name == 'schedule'");
+  });
+
+  it("builds a scheduled run as production, like a push", () => {
+    expect(build).toContain(
+      "DEPLOY_CONTEXT: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}",
+    );
+  });
+
+  it("keeps a scheduled build's artifact for 1 day and any other for 7", () => {
+    expect(build).toContain(
+      "retention-days: ${{ github.event_name == 'schedule' && 1 || 7 }}",
+    );
+  });
+
+  it("deploys through the production group when there is no pull request number", () => {
+    expect(deployJob).toContain(
+      "group: Deploy-${{ github.event.pull_request.number || 'production' }}",
+    );
+  });
+
+  it("only checks a pull request's state for a pull request", () => {
+    // The guard step must let any other event, a schedule included, straight through.
+    expect(deployJob).toContain(
+      'if [ "${EVENT_NAME}" != "pull_request" ]; then',
+    );
+  });
+});
