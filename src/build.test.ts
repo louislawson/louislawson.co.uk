@@ -154,6 +154,29 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(css).toContain(href.replace("/_astro/", ""));
     expect(listing(dir, "_astro")).toContain(href.replace("/_astro/", ""));
   });
+
+  it("ships the visually hidden class in the stylesheet every page loads", () => {
+    // The placeholder label, the skip link and the key hints rely on it, so a layout that stopped
+    // importing global.css would show that text to everyone.
+    const css = Object.entries(pagesAndStyles(dir))
+      .filter(([name]) => name.endsWith(".css"))
+      .map(([, text]) => text)
+      .join("\n");
+    const hidden = /\.vh\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    for (const declaration of [
+      "position:absolute",
+      "width:1px",
+      "height:1px",
+      "margin:-1px",
+      "overflow:hidden",
+      "clip-path:inset(50%)",
+    ]) {
+      expect(hidden).toContain(declaration);
+    }
+    expect(read(dir, "index.html")).toContain(
+      `href="/_astro/${listing(dir, "_astro").find((name) => name.startsWith("Base.") && name.endsWith(".css"))}"`,
+    );
+  });
 });
 
 describe("a build with an unknown DEPLOY_CONTEXT", () => {

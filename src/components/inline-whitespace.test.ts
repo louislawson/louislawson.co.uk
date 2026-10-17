@@ -26,12 +26,16 @@ describe("prose with inline elements", () => {
     expect(html).toContain("</span> placeholder, and a <kbd>1</kbd> key hint.");
   });
 
-  it("adds no space of its own around a placeholder, so punctuation can follow it", async () => {
-    const container = await AstroContainer.create();
-    const html = await container.renderToString(InlineProse);
-    // The fixture puts a space after the placeholder on one line; a stray one inside the
-    // component would show as two.
-    expect(html).not.toMatch(/<\/span>\s{2,}more/);
-    expect(html).not.toMatch(/ph[^>]*>\s+<span/);
+  it("adds no space of its own around a placeholder, so brackets and punctuation sit against it", async () => {
+    const html = await render();
+    // The fixture writes "(", the placeholder, ")," and then a placeholder and "." with nothing
+    // between them, so a space the component added would show up as one here.
+    expect(html).toMatch(
+      /\(<span[^>]*class="ph[^>]*>.*?<\/span>\), then <span/,
+    );
+    expect(html).toMatch(/<\/span>\.\s*<\/p>/);
+    // And none inside the hatch, before the hidden label or after the text.
+    expect(html).not.toMatch(/class="ph[^>]*> /);
+    expect(html).not.toMatch(/ <\/span>\)/);
   });
 });

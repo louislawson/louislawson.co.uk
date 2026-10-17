@@ -27,7 +27,11 @@ describe("astro.config.mjs", () => {
     const prettier = JSON.parse(
       readFileSync(new URL("../.prettierrc.json", import.meta.url), "utf-8"),
     );
-    expect(prettier.astroCompressHTML).toBe(config.compressHTML);
+    // Both accept the same rule under different spellings: true is "html" and false is "none",
+    // and the plugin assumes Astro's default ("jsx") when the option is absent.
+    const rule = (value: unknown) =>
+      value === true ? "html" : value === false ? "none" : (value ?? "jsx");
+    expect(rule(prettier.astroCompressHTML)).toBe(rule(config.compressHTML));
   });
 
   it("takes the site URL from the resolved site configuration", () => {
