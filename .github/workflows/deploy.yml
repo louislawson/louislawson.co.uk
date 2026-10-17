@@ -1,32 +1,84 @@
 name: Deploy
 
 on:
+  # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
+  # and deploys production, so a build input added later can never leave production on an old
+  # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
+  # folders, tests, the test, lint and format configs, editor and ignore files, the licence,
+  # Markdown outside src/, and the workflows other than this one and the local actions;
+  # .gitattributes is deliberately not excluded, since it controls line endings in the checkout),
+  # because each production deploy hands the job's OIDC request token to a third-party container.
+  # Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
-    paths: &site_paths
+    paths:
       - "**"
       - "!docs/**"
       - "!infra/**"
+      - "!.impeccable/**"
+      - "!.claude/**"
+      - "!src/**/*.test.*"
+      - "!src/**/*.spec.*"
+      - "!src/**/__tests__/**"
+      - "!src/**/__fixtures__/**"
+      - "!vitest.config.ts"
+      - "!eslint.config.mjs"
+      - "!.prettierrc.json"
+      - "!.prettierignore"
+      - "!.markdownlint-cli2.jsonc"
+      - "!.editorconfig"
+      - "!.gitignore"
+      - "!LICENSE"
       - "!.github/**"
       - .github/workflows/deploy.yml
       - .github/actions/**
       - "!**/*.md"
       - src/**/*.md
-  # Pull requests that change none of the site paths (docs-only, infrastructure-only,
-  # workflow-only) get no preview, but still build and test in CI. Removing a preview when its
-  # pull request closes is a separate workflow (preview-cleanup.yml), because the paths filter
-  # here is evaluated on the final diff and would miss a pull request that was reduced to a
-  # docs-only diff after it had deployed a preview.
+  # Pull requests use an allow-list instead, because there a wrong guess only costs a preview, not
+  # a production deploy. They get a preview only for changes the build reads: the source
+  # (Markdown under src/ is content; tests, specs and fixtures are not), static files, and the
+  # files the build or install reads. Tests, lint and format configs, docs, infrastructure and
+  # tooling folders are not on it, so they would only produce a preview identical to production
+  # and use up one of the Free plan's 3 slots. Such pull requests still build and test in CI.
+  # A draft pull request builds in CI but gets no preview until it is marked ready for review.
+  # Removing a preview (on close, or when a pull request goes back to draft) is a separate
+  # workflow, preview-cleanup.yml, because this paths filter is evaluated on the final diff and
+  # would miss a pull request that was reduced to a docs-only diff after it had deployed one.
   pull_request:
-    types: [opened, synchronize, reopened]
-    paths: *site_paths
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - src/**
+      - "!src/**/*.test.*"
+      - "!src/**/*.spec.*"
+      - "!src/**/__tests__/**"
+      - "!src/**/__fixtures__/**"
+      - public/**
+      - astro.config.mjs
+      - package.json
+      - package-lock.json
+      - .npmrc
+      - .nvmrc
+      - tsconfig.json
+      - .github/workflows/deploy.yml
+      - .github/actions/**
 
 permissions: {}
 
-# Nothing is cancelled mid-deploy. Each pull request has its own group; production has one, so
-# two pushes to main deploy in order.
+# Two levels of concurrency, for two different jobs:
+#
+# 1. This workflow-level group queues whole RUNS for the same target in the order they were
+#    pushed: one group for production, one per pull request. The deploy job below waits for its
+#    build, and builds finish in whatever order they take, so a group on the deploy job alone
+#    would deploy in build-finish order, and a slow older build could overwrite a newer deploy
+#    while every run stays green. GitHub keeps one running and one pending run per group, so a
+#    newer pending run replaces an older pending one, which is right: the newer build contains
+#    the older commit. Nothing running is ever cancelled. Do not add a "skip unless head of main"
+#    guard instead: a later push that the paths filter ignores moves main without a deploy.
+# 2. The group on the deploy job, further down, exists so preview-cleanup.yml can use the same
+#    name and a close never overlaps a deploy of the same pull request. It is a different name
+#    from this one, so a run can never wait on itself.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || 'production' }}
+  group: ${{ github.event_name == 'push' && 'Deploy-production-runs' || format('Deploy-runs-{0}', github.event.pull_request.number) }}
   cancel-in-progress: false
 
 env:
@@ -45,7 +97,8 @@ jobs:
     if: >-
       github.event_name == 'push'
       || (github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login != 'dependabot[bot]')
+        && github.event.pull_request.user.login != 'dependabot[bot]'
+        && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -84,6 +137,18 @@ jobs:
   deploy:
     name: Deploy
     needs: build
+    # Shared with preview-cleanup.yml, which uses the same name for the same pull request, so a
+    # close never overlaps a deploy. It is on this job, not the workflow, so a run whose jobs are
+    # all skipped (a draft) never enters it and cannot displace a pending close. Run ordering is
+    # the workflow-level group at the top of this file; this one is a different name on purpose.
+    # The group alone does not stop a run that was already building when its pull request was
+    # closed or converted to draft: cleanup would take the group first, find nothing, and the
+    # deploy would then upload a preview nobody removes. So the first step, which runs inside the
+    # group, checks that the pull request is still open and ready, and every later step is skipped
+    # if not.
+    concurrency:
+      group: Deploy-${{ github.event.pull_request.number || 'production' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No `environment:` here: that would change the OIDC subject, and the plan identity is
@@ -92,17 +157,40 @@ jobs:
     permissions:
       contents: read # sparse checkout of the local actions only
       id-token: write
+      pull-requests: read # the guard step reads the pull request's state
     outputs:
       url: ${{ steps.deploy.outputs.static_web_app_url }}
     steps:
+      - name: Check the pull request is still open and ready
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" != "pull_request" ]; then
+            echo "proceed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          state="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '"\(.state) draft=\(.draft)"')"
+          if [ "${state}" = "open draft=false" ]; then
+            echo "proceed=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "proceed=false" >> "${GITHUB_OUTPUT}"
+            echo "Pull request ${PR_NUMBER} is now \"${state}\", so no preview is deployed."
+          fi
       # A local action needs the repository, but only the actions folder: this job holds the
       # identity, so it checks out nothing else. `$/` would avoid the checkout, but actionlint
       # 1.7.12 rejects it; switch when a release accepts it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.guard.outputs.proceed == 'true'
         with:
           persist-credentials: false
           sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false # cone mode would also check out every root-level file
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.guard.outputs.proceed == 'true'
         with:
           name: site
           path: dist
@@ -110,6 +198,7 @@ jobs:
       # action's own steps, so the third-party upload action below never receives them.
       - name: Sign in and fetch the deployment token
         id: swa
+        if: steps.guard.outputs.proceed == 'true'
         uses: ./.github/actions/swa-deployment-token # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the `$/` syntax
         with:
           client-id: ${{ secrets.AZURE_PLAN_CLIENT_ID }}
@@ -122,6 +211,7 @@ jobs:
       # one third-party component that handles the token.
       - name: Upload to Static Web Apps
         id: deploy
+        if: steps.guard.outputs.proceed == 'true'
         uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1 branch, 2024-09-11
         with:
           azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
@@ -135,7 +225,8 @@ jobs:
   comment:
     name: Preview comment
     needs: deploy
-    if: github.event_name == 'pull_request'
+    # No URL means the guard skipped the upload, so there is nothing to announce.
+    if: github.event_name == 'pull_request' && needs.deploy.outputs.url != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -156,7 +247,7 @@ jobs:
             echo
             echo "${PREVIEW_URL} (built from ${HEAD_SHA:0:7})"
             echo
-            echo "Public, marked noindex, and removed when this pull request closes."
+            echo "Public, marked noindex, and removed when this pull request closes or goes back to draft."
           } > comment.md
           id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- deploy-preview -->"))) | .id' | head -n 1)"

@@ -25,12 +25,13 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 - New logic arrived test-first (`mattpocock-skills:tdd`, Vitest); end-to-end coverage is Playwright from phase 6.
 - Snyk scans of what it touches (code, dependencies, IaC) are clean: scan, fix, rescan.
 - `/code-review` has run on the diff and every finding is fixed or answered in the PR.
-- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL; visual PRs add desktop and mobile screenshots and name the mock section they match.
+- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL (a draft pull request gets no preview until it is marked ready, and a change the build does not read gets none at all, so say so instead); visual PRs add desktop and mobile screenshots and name the mock section they match.
 
 ## Conventions
 
 - **Toolchain:** Node from `.nvmrc`, npm (≥ 11.19) with the committed lockfile, Astro 7.x, TypeScript 6.x (`@astrojs/check` does not yet accept 7). Commands are the scripts in `package.json`; `npm run lint` covers ESLint and markdownlint.
 - **Line endings are LF** everywhere (`.gitattributes`), even though authoring happens on Windows.
+- **Adding a file or folder the build reads** (a root config, a content directory, a script the build calls)? Add it to the `pull_request.paths` allow-list in `deploy.yml`, or its previews are silently skipped.
 - **The npm release-age gate is deliberate.** `.npmrc` sets `min-release-age=7`, so installs resolve only versions published over a week ago (supply-chain defence). When an urgent security fix is newer than that, add just that package to `min-release-age-exclude` in `.npmrc` and say why in the PR; the gate itself stays.
 - **Current docs first:** check context7 or the Astro docs MCP before using an API from Astro, Playwright, Vitest, Terraform providers or GitHub Actions.
 - **The mock is a spec.** Rebuild layout and components as Astro components on the design tokens; harvest only the trace maths, the ASCII wheel renderer and the photo dither, each behind unit tests.
