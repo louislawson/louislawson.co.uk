@@ -1,54 +1,18 @@
 // The navigation's script: the mobile menu, the number keys, the shortcut hints and the current
 // section. The links work without it (they are plain links to /#section), so everything here is an
 // addition. Like shortcuts.ts, it takes its parts as arguments and runs under test without a browser.
+import { plainKey, type KeyEvent, type KeyTarget } from "./keys";
 import { shortcutsEnabled } from "./shortcuts";
 
-export interface KeyEvent {
-  key: string;
-  ctrlKey: boolean;
-  metaKey: boolean;
-  altKey: boolean;
-  shiftKey: boolean;
-  repeat?: boolean;
-  /** An input method is composing text: a digit then belongs to it. */
-  isComposing?: boolean;
-}
+export type { KeyEvent, KeyTarget };
 
-export interface KeyTarget {
-  tagName?: string;
-  isContentEditable?: boolean;
-}
-
-const FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
-
-/**
- * The section number a keypress asks for: a 1 to 9. Nothing while Control, Alt or Meta is held (the
- * browser's own shortcuts keep working), while a key repeats or an input method is composing, or
- * while the visitor is typing in a field. Shift is not held against it: the key says what was
- * typed. On QWERTY, Shift+1 is "!", which is no digit; on AZERTY the top row types a digit only
- * with Shift, and refusing it would lock those visitors out.
- */
+/** The section number a keypress asks for: a plain 1 to 9, under the guards plainKey applies. */
 export function shortcutNumber(
   event: KeyEvent,
   target: KeyTarget | null,
 ): number | undefined {
-  if (
-    event.ctrlKey ||
-    event.metaKey ||
-    event.altKey ||
-    event.repeat ||
-    event.isComposing
-  ) {
-    return undefined;
-  }
-  if (
-    target &&
-    (FIELDS.has((target.tagName ?? "").toUpperCase()) ||
-      target.isContentEditable)
-  ) {
-    return undefined;
-  }
-  return /^[1-9]$/.test(event.key) ? Number(event.key) : undefined;
+  const key = plainKey(event, target);
+  return key !== undefined && /^[1-9]$/.test(key) ? Number(key) : undefined;
 }
 
 /**

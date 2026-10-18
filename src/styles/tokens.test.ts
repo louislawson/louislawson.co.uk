@@ -206,7 +206,7 @@ describe("the browser surfaces", () => {
   it("has the page's width and gutters in one class", () => {
     const wrap = rule(".wrap");
     expect(wrap).toContain("padding-inline: var(--gutter)");
-    expect(wrap).toContain("max-width: 1520px");
+    expect(wrap).toContain("max-width: var(--wrap-max)");
     expect(wrap).toContain("margin-inline: auto");
   });
 
@@ -237,6 +237,86 @@ describe("the browser surfaces", () => {
   it("sets controls in the page font instead of the browser's", () => {
     const controls = rule("button,\ninput,\ntextarea,\nselect");
     expect(controls).toContain("font: inherit");
+  });
+});
+
+describe("inspect mode", () => {
+  it("outlines each labelled part in dashed hi-vis, without taking a sticky part out of its place", () => {
+    // :where() has no weight of its own, so the bar's own position: sticky is not overridden.
+    const outline = rule(":where(body.inspecting) [data-inspect]");
+    expect(outline).toContain("position: relative");
+    expect(outline).toContain("outline: 1px dashed var(--hivis)");
+    expect(outline).toContain("outline-offset: 4px");
+  });
+
+  it("writes the label above its part, from its data-inspect attribute, in a hi-vis tag", () => {
+    const label = rule("body.inspecting [data-inspect]::after");
+    for (const declaration of [
+      "content: attr(data-inspect)",
+      "position: absolute",
+      "background: var(--hivis)",
+      "color: var(--bg)",
+      "font: 600 11px/1.35 var(--mono)",
+      "font-stretch: 88%",
+      "max-width: min(92vw, 40rem)",
+      "pointer-events: none",
+      "transform: translateY(-100%)",
+    ]) {
+      expect(label).toContain(declaration);
+    }
+    // A label wraps, and is never cut short: a fact with its end missing says something else.
+    expect(label).not.toContain("text-overflow");
+    expect(label).not.toContain("white-space: nowrap");
+  });
+
+  it("can write the label below instead, at the right, for a part at the top of the window", () => {
+    // Below, because there is no room above the bar; at the right, so it does not sit where the
+    // label of the content under the bar goes.
+    const below = rule("body.inspecting [data-inspect-below]::after");
+    expect(below).toContain("bottom: -4px");
+    expect(below).toContain("right: 0");
+    expect(below).toContain("left: auto");
+    expect(below).toContain("transform: translateY(100%)");
+  });
+
+  it("draws a 12-column grid over the page, that clicks pass through", () => {
+    // Whitespace as a browser reads it, since the formatter wraps the long values.
+    const grid = rule("body.inspecting::before")
+      .replace(/\s+/g, " ")
+      .replace(/\( /g, "(")
+      .replace(/ \)/g, ")");
+    expect(grid).toContain("position: fixed");
+    expect(grid).toContain("pointer-events: none");
+    // One line per column: a 1px rule, tiled at a twelfth of the content box, plus the gap.
+    expect(grid).toContain("linear-gradient(90deg");
+    expect(grid).toContain(
+      "background-size: calc((100% + var(--col-gap)) / 12) 100%",
+    );
+  });
+
+  it("draws the grid in the same box as .wrap, whatever the scrollbar, from one width token", () => {
+    // The overlay is a fixed box with .wrap's width, centred, and its columns are measured in its
+    // own content box. Measuring in 100vw instead would include a classic scrollbar's width, and
+    // the lines would drift off the real columns.
+    expect(token("wrap-max")).toBe("1520px");
+    const grid = rule("body.inspecting::before");
+    expect(grid).toContain("max-width: var(--wrap-max)");
+    expect(grid).toContain("padding-inline: var(--gutter)");
+    expect(grid).toContain("margin-inline: auto");
+    expect(grid).toContain("background-origin: content-box");
+    expect(grid).not.toMatch(/\d+vw/);
+    expect(grid).not.toContain("1520px");
+  });
+
+  it("styles nothing outside inspect mode, so a visitor never sees a label", () => {
+    const selectors = [...css.matchAll(/^([^\n{}]*\[data-inspect[^\n{]*)\{/gm)];
+    expect(selectors.length).toBeGreaterThan(0);
+    for (const [, selector] of selectors) {
+      expect(
+        selector,
+        "a data-inspect rule not under body.inspecting",
+      ).toContain("body.inspecting");
+    }
   });
 });
 

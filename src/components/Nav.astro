@@ -2,6 +2,7 @@
 // The hint and the label of each link sit against each other, with nothing between: compressHTML
 // keeps a line break as a space, so the formatter hugs the tags (`><kbd`) and they must stay so.
 import type { Section } from "../content/visibility";
+import { INSPECT_LABELS } from "./inspect-labels";
 import { SECTION_LABELS, sectionHref } from "./section-labels";
 
 interface Props {
@@ -14,7 +15,13 @@ const { sections } = Astro.props;
 const home = Astro.url.pathname === "/";
 ---
 
-<header class="nav" data-nav data-home={home ? "" : undefined}>
+<header
+  class="nav"
+  data-nav
+  data-home={home ? "" : undefined}
+  data-inspect={INSPECT_LABELS.nav}
+  data-inspect-below
+>
   <div class="wrap nav__inner">
     <a class="nav__home" href="/">louis<span>.</span>lawson</a>
     {sections.length > 0 && <Fragment>
@@ -38,6 +45,15 @@ const home = Astro.url.pathname === "/";
         </div>
       </nav>
     </Fragment>}
+    <button
+      class="inspect-btn"
+      type="button"
+      aria-pressed="false"
+      data-inspect-toggle
+      data-pending
+    >
+      <kbd class="hint" aria-hidden="true">i</kbd>inspect
+    </button>
   </div>
 </header>
 
@@ -107,6 +123,42 @@ const home = Astro.url.pathname === "/";
     display: inline;
   }
 
+  /* Inspect mode needs script, so the button is there but unseen until it runs: it keeps its place
+     in the bar, and the links do not shift when it appears. */
+  .inspect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 6px 12px;
+    color: var(--bone);
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    cursor: pointer;
+    transition:
+      background-color 160ms var(--ease),
+      border-color 160ms var(--ease),
+      color 160ms var(--ease);
+  }
+
+  .inspect-btn:hover {
+    border-color: var(--bone);
+  }
+
+  .inspect-btn[aria-pressed="true"] {
+    color: var(--bg);
+    background: var(--hivis);
+    border-color: var(--hivis);
+  }
+
+  .inspect-btn[aria-pressed="true"] .hint {
+    color: var(--bg);
+  }
+
+  .inspect-btn[data-pending] {
+    visibility: hidden;
+  }
+
   .nav__menu {
     display: none;
     min-height: 40px;
@@ -118,6 +170,16 @@ const home = Astro.url.pathname === "/";
   }
 
   @media (max-width: 900px) {
+    /* Below the width where the links collapse, the script is already changing the bar, so the
+       button need not hold its place. */
+    .inspect-btn[data-pending] {
+      display: none;
+    }
+
+    .nav__inner {
+      gap: 10px;
+    }
+
     /* Without script the links stay in the bar and scroll sideways, so the bar is the same height
        when the script collapses them into the menu and nothing below it moves. */
     .nav__nav {
@@ -138,8 +200,15 @@ const home = Astro.url.pathname === "/";
       margin-right: auto;
     }
 
+    /* Collapsed, the links are a dropdown, so the wrapper takes no room in the bar: a zero-height
+       strip across it, which the dropdown hangs from. Left in the row it would add a gap, and the
+       bar, now with the inspect button too, would run out of width on a narrow phone. */
     .nav[data-collapsible] .nav__nav {
-      flex: none;
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 0;
     }
 
     .nav[data-collapsible] .nav__menu {
@@ -171,9 +240,19 @@ const home = Astro.url.pathname === "/";
       border-bottom: 1px solid var(--line);
     }
   }
+
+  /* On a narrow phone the brand, the menu and the inspect button fill the bar, and the button's
+     name matters more than its key. Only here does the i hint go; the key itself still works and
+     the button still says so to a screen reader (aria-keyshortcuts). */
+  @media (max-width: 400px) {
+    :global([data-shortcuts]) .inspect-btn .hint {
+      display: none;
+    }
+  }
 </style>
 
 <script>
+  import { onKeydown, onShortcutsChange } from "../scripts/dom";
   import { initNav } from "../scripts/nav";
 
   const header = document.querySelector<HTMLElement>("[data-nav]");
@@ -203,19 +282,7 @@ const home = Astro.url.pathname === "/";
           window.scrollY + window.innerHeight >= page.scrollHeight - 2
         );
       },
-      onKeydown: (listener) =>
-        document.addEventListener("keydown", (event) =>
-          listener({
-            key: event.key,
-            ctrlKey: event.ctrlKey,
-            metaKey: event.metaKey,
-            altKey: event.altKey,
-            shiftKey: event.shiftKey,
-            repeat: event.repeat,
-            isComposing: event.isComposing,
-            target: event.target as HTMLElement | null,
-          }),
-        ),
+      onKeydown,
       onViewportChange: (listener) => {
         let queued = false;
         const queue = () => {
@@ -240,11 +307,7 @@ const home = Astro.url.pathname === "/";
         document.addEventListener("pointerdown", (event) => {
           if (!header.contains(event.target as Node)) listener();
         }),
-      onShortcutsChange: (listener) =>
-        new MutationObserver(listener).observe(root, {
-          attributes: true,
-          attributeFilter: ["data-shortcuts"],
-        }),
+      onShortcutsChange,
     });
   }
 </script>

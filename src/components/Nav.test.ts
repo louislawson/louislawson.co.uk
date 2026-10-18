@@ -1,6 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import type { Section } from "../content/visibility";
+import { INSPECT_LABELS } from "./inspect-labels";
 import Nav from "./Nav.astro";
 
 const all: Section[] = [
@@ -109,9 +110,41 @@ describe("<Nav>", () => {
   it("has no links and no menu when no section is shown, but still the way home", async () => {
     const html = await render([]);
     expect(links(html)).toEqual([]);
-    expect(html).not.toContain("<button");
+    // No menu to open, though the inspect button is still there.
+    expect(html).not.toContain("data-nav-menu");
     expect(html).not.toContain("<nav");
     expect(html).toMatch(/<a class="nav__home" href="\/"/);
+  });
+
+  it("labels the bar for inspect mode, below it, since it sits at the top of the window", async () => {
+    const html = await render(all);
+    expect(html).toContain(`data-inspect="${INSPECT_LABELS.nav}"`);
+    expect(html).toMatch(/<header[^>]*\sdata-inspect-below/);
+  });
+
+  it("has the inspect button: pressed state, a name that stays the same, and held back until the script runs", async () => {
+    const html = await render(all);
+    const button = /<button[^>]*data-inspect-toggle[^>]*>.*?<\/button>/.exec(
+      html,
+    )?.[0];
+    expect(button, "no inspect button").toBeDefined();
+    expect(button).toMatch(/type="button"/);
+    expect(button).toMatch(/aria-pressed="false"/);
+    // It keeps its place in the bar without showing until the script, which it needs, has run.
+    expect(button).toMatch(/\sdata-pending/);
+    // The hint is aria-hidden, so the name is "inspect" in either state.
+    const name = button!
+      .replace(/<(\w+)[^>]*aria-hidden="true"[^>]*>.*?<\/\1>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    expect(name).toBe("inspect");
+    expect(button).toMatch(/<kbd[^>]*>i<\/kbd>inspect/);
+    // No shortcut is announced on the server, because without script there is none.
+    expect(button).not.toContain("aria-keyshortcuts");
+  });
+
+  it("has the inspect button even when no section is shown", async () => {
+    expect(await render([])).toContain("data-inspect-toggle");
   });
 
   it("has no inline style and no inline script", async () => {

@@ -1,5 +1,6 @@
 ---
 import { REPOSITORY_URL } from "../config/site";
+import { INSPECT_LABELS } from "./inspect-labels";
 import ShortcutSwitch from "./ShortcutSwitch.astro";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 const { updated } = Astro.props;
 ---
 
-<footer class="foot">
+<footer class="foot" data-inspect={INSPECT_LABELS.footer}>
   <div class="wrap foot__mark" aria-hidden="true">LAWSON</div>
   <div class="wrap foot__row">
     {updated && <span>updated {updated}</span>}

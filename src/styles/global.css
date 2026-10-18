@@ -18,6 +18,8 @@
   --section: clamp(4.5rem, 3rem + 6vw, 9rem);
   /* The sticky navigation bar: its height, where its dropdown starts, and the scroll offset. */
   --nav-height: 58px;
+  /* The page's widest width: .wrap's, and the grid inspect mode draws over it. */
+  --wrap-max: 1520px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
@@ -108,7 +110,7 @@ main:focus-visible {
 /* The page's width and side gutters. */
 .wrap {
   padding-inline: var(--gutter);
-  max-width: 1520px;
+  max-width: var(--wrap-max);
   margin-inline: auto;
 }
 
@@ -153,6 +155,68 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* Inspect mode. The script puts "inspecting" on <body>; nothing here applies without it, so a
+   visitor who has not asked for it never sees a label. Each labelled part carries its text in a
+   data-inspect attribute, which a pseudo-element writes: no inline style, no data: URL. */
+
+/* :where() has no weight of its own, so a part that is already positioned (the sticky bar) keeps
+   its own position. */
+:where(body.inspecting) [data-inspect] {
+  position: relative;
+  outline: 1px dashed var(--hivis);
+  outline-offset: 4px;
+}
+
+body.inspecting [data-inspect]::after {
+  content: attr(data-inspect);
+  position: absolute;
+  z-index: 25;
+  top: -4px;
+  left: -4px;
+  max-width: min(92vw, 40rem);
+  padding: 3px 7px;
+  color: var(--bg);
+  font: 600 11px/1.35 var(--mono);
+  font-stretch: 88%;
+  background: var(--hivis);
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+
+/* A part at the top of the window, such as the bar, has no room above it: its label goes below,
+   at the right, clear of the label for the content under it. */
+body.inspecting [data-inspect-below]::after {
+  top: auto;
+  right: 0;
+  bottom: -4px;
+  left: auto;
+  transform: translateY(100%);
+}
+
+/* The 12 columns the layout sits on: one 1px line per column. The overlay is a fixed box with the
+   width and gutters of .wrap, centred, and the columns are measured in its own content box: the
+   same box the page's content is laid out in, so they line up with a scrollbar or without one,
+   which a width in vw (the viewport, scrollbar included) would not. */
+body.inspecting::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  box-sizing: border-box;
+  max-width: var(--wrap-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--hivis) 6%, transparent) 1px,
+    transparent 1px
+  );
+  background-origin: content-box;
+  background-clip: content-box;
+  background-size: calc((100% + var(--col-gap)) / 12) 100%;
+  pointer-events: none;
 }
 
 /* Motion is cut short, not removed: an animation still runs to its end, so whatever it ends on

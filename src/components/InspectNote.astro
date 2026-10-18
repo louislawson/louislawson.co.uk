@@ -1,0 +1,98 @@
+---
+// The note that goes with inspect mode, and the script that turns the mode on and off. It is a
+// polite live region that is always in the page, read whole: when the script changes the first
+// words ("Inspect mode is on."), a screen reader reads the note, which a part that goes from
+// hidden to shown would not reliably do. Off, it is visually hidden with only the words "Inspect
+// mode is off."; on, it is the box in the corner. It starts empty, so nothing is announced on load.
+// It is a status, not an <aside>: an empty, unnamed landmark would only get in the way of a screen
+// reader's list of landmarks.
+---
+
+<div
+  class="inspect-note"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+  data-inspect-note
+>
+  <b class="note__state" data-inspect-state></b>
+  <span class="note__body"
+    >Every outlined part says how it is built and served. Turn it off with the
+    inspect button<span class="note__key"> or by pressing <b>i</b></span>.</span
+  >
+</div>
+
+<style>
+  .inspect-note {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  :global(body.inspecting) .inspect-note {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 40;
+    width: auto;
+    height: auto;
+    max-width: 320px;
+    margin: 0;
+    padding: 12px 14px;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    color: var(--bone);
+    font-size: 0.8rem;
+    background: var(--panel);
+    border: 1px solid var(--hivis);
+  }
+
+  .note__state {
+    color: var(--hivis);
+    font-weight: 600;
+  }
+
+  /* The explanation shows only while the mode is on. */
+  .note__body {
+    display: none;
+  }
+
+  :global(body.inspecting) .note__body {
+    display: inline;
+  }
+
+  /* The i key is named only while the shortcuts are on, so the note never promises a dead key. */
+  .note__key {
+    display: none;
+  }
+
+  :global([data-shortcuts="on"]) .note__key {
+    display: inline;
+  }
+</style>
+
+<script>
+  import { initInspect } from "../scripts/inspect";
+  import { onKeydown, onShortcutsChange } from "../scripts/dom";
+
+  const button = document.querySelector<HTMLButtonElement>(
+    "[data-inspect-toggle]",
+  );
+  const state = document.querySelector<HTMLElement>("[data-inspect-state]");
+  if (button && state) {
+    initInspect({
+      body: document.body,
+      root: document.documentElement,
+      button,
+      state,
+      onKeydown,
+      onShortcutsChange,
+    });
+  }
+</script>

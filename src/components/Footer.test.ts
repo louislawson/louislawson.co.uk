@@ -2,6 +2,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { REPOSITORY_URL } from "../config/site";
 import Footer from "./Footer.astro";
+import { INSPECT_LABELS } from "./inspect-labels";
 
 async function render(props: Record<string, unknown> = {}): Promise<string> {
   const container = await AstroContainer.create();
@@ -45,6 +46,12 @@ describe("<Footer>", () => {
     const html = await render();
     expect(html).toMatch(/^<footer\b/);
     expect(html).toMatch(/aria-hidden="true"[^>]*>LAWSON</);
+  });
+
+  it("is labelled for inspect mode, with how it is served", async () => {
+    const html = await render();
+    expect(html).toMatch(/^<footer[^>]*\sdata-inspect=/);
+    expect(html).toContain(`data-inspect="${INSPECT_LABELS.footer}"`);
   });
 
   it("has no inline style", async () => {
