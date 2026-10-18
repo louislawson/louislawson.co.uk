@@ -4,7 +4,10 @@
 // each side of the slash makes no different.
 import { site, type DeployContext } from "../../config/site";
 import type { Profile } from "../../content/schema";
-import type { Section as SectionInfo } from "../../content/visibility";
+import {
+  renderDecision,
+  type Section as SectionInfo,
+} from "../../content/visibility";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
 import { SECTION_INTROS } from "./section-intros";
@@ -28,6 +31,10 @@ const {
   context = site.deployContext,
 } = Astro.props;
 
+// The tools that are shown: a placeholder that production leaves out takes no " / " with it.
+const shownTools = (tools: string[]) =>
+  tools.filter((tool) => renderDecision(tool, context) !== "omit");
+
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
 const shown =
   (skills.length > 0 || exploring.length > 0) &&
@@ -47,7 +54,7 @@ const shown =
     </p>}
     <p class="ctx"><Placeholder value={skill.context} context={context} /></p>
     <p class="tools">
-      {skill.tools.map((tool, index) => <Fragment
+      {shownTools(skill.tools).map((tool, index) => <Fragment
         >{index > 0 && " / "}<Placeholder value={tool} context={context}
       /></Fragment>)}
     </p>

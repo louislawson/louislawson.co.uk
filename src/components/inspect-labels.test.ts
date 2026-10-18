@@ -157,14 +157,24 @@ const facts: {
   {
     label: "skills",
     phrase: "from profile.ts",
-    holds: () =>
+    holds: () => {
       // The skills and the exploring list come from the profile data file, through the one loader
-      // every page reads content by.
-      /import \{ profile \} from "\.\.\/data\/profile"/.test(
-        read("src/content/site-content.ts"),
-      ) && /^export const profile\b/m.test(read("src/data/profile.ts")),
+      // every page reads content by, and the home page hands them to the section from there.
+      const page = read("src/pages/index.astro");
+      return (
+        /import \{ profile \} from "\.\.\/data\/profile"/.test(
+          read("src/content/site-content.ts"),
+        ) &&
+        /^export const profile\b/m.test(read("src/data/profile.ts")) &&
+        /const \{[^}]*\bprofile\b[^}]*\} = await getSiteContent\(\)/.test(
+          page,
+        ) &&
+        /skills=\{profile\.skills\}/.test(page) &&
+        /exploring=\{profile\.exploring\}/.test(page)
+      );
+    },
     because:
-      "site-content.ts imports `profile` from src/data/profile.ts, which exports it",
+      "site-content.ts imports `profile` from src/data/profile.ts, and index.astro gives the section profile.skills and profile.exploring from getSiteContent()",
   },
   {
     label: "skills",
@@ -176,11 +186,11 @@ const facts: {
         id: "r01",
         data: { code: "R01", order: 1, featured: true },
       };
-      const profile = { skills: [{ group: "Delivery", runs: ["R09"] }] };
-      const problems = validateContent([project], profile);
+      const fakeProfile = { skills: [{ group: "Delivery", runs: ["R09"] }] };
+      const problems = validateContent([project], fakeProfile);
       let threw = false;
       try {
-        assembleSiteContent([project], profile, new Date());
+        assembleSiteContent([project], fakeProfile, new Date());
       } catch (error) {
         threw = String(error).includes("R09");
       }

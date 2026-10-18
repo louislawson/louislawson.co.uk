@@ -285,6 +285,23 @@ describe("<Skills>", () => {
       expect(html).not.toContain("TODO:");
     });
 
+    it.each([
+      [["TODO: tools", "Real tool"], "Real tool"],
+      [["Real tool", "TODO: tools"], "Real tool"],
+      [["One", "TODO: tools", "Two"], "One / Two"],
+    ])(
+      "joins only the tools it shows on production (%j), so a placeholder leaves no stray slash",
+      async (tools, expected) => {
+        const html = await render({
+          skills: [{ ...platform, tools }],
+          exploring: [],
+          sections: all,
+          context: "production",
+        });
+        expect(text(html, "tools")).toEqual([expected]);
+      },
+    );
+
     it("shows a real row and a real item the same in both", async () => {
       const props = {
         skills: [platform, scripting],
