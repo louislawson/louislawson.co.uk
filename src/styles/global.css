@@ -155,6 +155,67 @@ select {
   font: inherit;
 }
 
+/* Inspect mode. The script puts "inspecting" on <body>; nothing here applies without it, so a
+   visitor who has not asked for it never sees a label. Each labelled part carries its text in a
+   data-inspect attribute, which a pseudo-element writes: no inline style, no data: URL. */
+
+/* :where() has no weight of its own, so a part that is already positioned (the sticky bar) keeps
+   its own position. */
+:where(body.inspecting) [data-inspect] {
+  position: relative;
+  outline: 1px dashed var(--hivis);
+  outline-offset: 4px;
+}
+
+body.inspecting [data-inspect]::after {
+  content: attr(data-inspect);
+  position: absolute;
+  z-index: 25;
+  top: -4px;
+  left: -4px;
+  max-width: min(92vw, 40rem);
+  padding: 3px 7px;
+  color: var(--bg);
+  font: 600 11px/1.35 var(--mono);
+  font-stretch: 88%;
+  background: var(--hivis);
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+
+/* A part at the top of the window, such as the bar, has no room above it: its label goes below,
+   at the right, clear of the label for the content under it. */
+body.inspecting [data-inspect-below]::after {
+  top: auto;
+  right: 0;
+  bottom: -4px;
+  left: auto;
+  transform: translateY(100%);
+}
+
+/* The 12 columns the layout sits on: one 1px line per column, between the gutters. */
+body.inspecting::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--hivis) 6%, transparent) 1px,
+    transparent 1px
+  );
+  background-position: max(
+      var(--gutter),
+      calc((100vw - 1520px) / 2 + var(--gutter))
+    )
+    0;
+  background-size: calc(
+      (min(100vw, 1520px) - var(--gutter) * 2 + var(--col-gap)) / 12
+    )
+    100%;
+  pointer-events: none;
+}
+
 /* Motion is cut short, not removed: an animation still runs to its end, so whatever it ends on
    (a revealed element, a settled caret) shows without the movement. */
 @media (prefers-reduced-motion: reduce) {

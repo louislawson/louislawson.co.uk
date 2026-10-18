@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { INSPECT_LABELS } from "./components/inspect-labels";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -59,6 +60,48 @@ const DATA_URL =
 // import or url(). A link to another site (an anchor, a canonical URL) is not one.
 const EXTERNAL_RESOURCE =
   /<link\b[^>]*\brel="(?:stylesheet|preload|preconnect|dns-prefetch|prefetch|modulepreload)"[^>]*\bhref="https?:\/\/|<link\b[^>]*\bhref="https?:\/\/[^>]*\brel="(?:stylesheet|preload|preconnect|dns-prefetch|prefetch|modulepreload)"|(?:@import\s+(?:url\()?|url\(\s*)["']?https?:\/\//i;
+
+/** The words of a text or of HTML, lower case: the tags and entities are not words. */
+function words(text: string): string[] {
+  return (
+    text
+      .toLowerCase()
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&[a-z#0-9]+;/g, " ")
+      .match(/[a-z0-9]+/g) ?? []
+  );
+}
+
+/** Every run of eight words, as a set. */
+function wordRuns(list: string[], size = 8): Set<string> {
+  const runs = new Set<string>();
+  for (let i = 0; i + size <= list.length; i++) {
+    runs.add(list.slice(i, i + size).join(" "));
+  }
+  return runs;
+}
+
+describe("the check for copied text", () => {
+  it("finds a sentence that was copied, and leaves different words alone", () => {
+    const source = wordRuns(
+      words(
+        "A working console, not a portfolio template: the site shows its own workings.",
+      ),
+    );
+    const copied = wordRuns(
+      words(
+        "<p>It is a working console, not a portfolio template: the site shows</p>",
+      ),
+    );
+    expect([...copied].some((run) => source.has(run))).toBe(true);
+    const own = wordRuns(
+      words(
+        "Plain links, one per section with content, and a script that adds the menu.",
+      ),
+    );
+    expect([...own].some((run) => source.has(run))).toBe(false);
+  });
+});
 
 describe("the checks on a build", () => {
   it("flag a style attribute, a data: URL and an external resource", () => {
@@ -286,6 +329,68 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   it("marks only the home page for the current-section highlight", () => {
     expect(read(dir, "index.html")).toMatch(/<header[^>]*\sdata-home/);
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
+  });
+
+  it.each([
+    ["index.html", 2],
+    ["404.html", 3],
+  ])(
+    "labels only the shell's parts in %s, %i of them, each with a registered label",
+    (page, count) => {
+      const html = read(dir, page);
+      const labels = [...html.matchAll(/\sdata-inspect="([^"]*)"/g)].map(
+        (m) => m[1],
+      );
+      // Section-level only: the bar, the footer, and on the 404 page its content. Never per element.
+      expect(labels).toHaveLength(count);
+      for (const label of labels) {
+        expect(Object.values(INSPECT_LABELS), label).toContain(label);
+      }
+    },
+  );
+
+  it.each(["index.html", "404.html"])(
+    "has the inspect button and its live note in %s",
+    (page) => {
+      const html = read(dir, page);
+      expect(html).toMatch(
+        /<button[^>]*data-inspect-toggle[^>]*aria-pressed="false"|<button[^>]*aria-pressed="false"[^>]*data-inspect-toggle/,
+      );
+      expect(html).toMatch(
+        /<aside[^>]*aria-live="polite"[^>]*data-inspect-note|<aside[^>]*data-inspect-note[^>]*aria-live="polite"/,
+      );
+    },
+  );
+
+  it("styles a label only under body.inspecting, so a visitor never sees one", () => {
+    const rules =
+      stylesheetText(dir).match(/[^{}]*\[data-inspect[^{}]*\{/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) expect(rule).toContain("body.inspecting");
+  });
+
+  it("puts no text from the direction contract or the build plan in the page, labels included", () => {
+    // The page speaks for itself. A run of eight words that is in either document is a sentence
+    // copied from it, not something the page says.
+    const sources = [
+      "../.impeccable/surfaces/src-pages-index-astro.md",
+      "../docs/BUILD-PLAN.md",
+    ].map((file) =>
+      wordRuns(words(readFileSync(new URL(file, import.meta.url), "utf-8"))),
+    );
+    for (const page of ["index.html", "404.html"]) {
+      const html = read(dir, page);
+      const labels = [...html.matchAll(/\sdata-inspect="([^"]*)"/g)].map(
+        (m) => m[1],
+      );
+      const text = words(
+        `${html.replace(/<(script|style)[\s\S]*?<\/\1>/g, " ")} ${labels.join(" ")}`,
+      );
+      for (const run of wordRuns(text)) {
+        for (const source of sources)
+          expect(source.has(run), `${page}: "${run}"`).toBe(false);
+      }
+    }
   });
 
   it("sizes the bar and places its dropdown from the one --nav-height token", () => {

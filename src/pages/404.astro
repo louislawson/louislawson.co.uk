@@ -1,4 +1,5 @@
 ---
+import { INSPECT_LABELS } from "../components/inspect-labels";
 import NotFoundLinks from "../components/NotFoundLinks.astro";
 import { getSiteContent } from "../content/site-content";
 import Base from "../layouts/Base.astro";
@@ -8,7 +9,7 @@ const { sections } = await getSiteContent();
 ---
 
 <Base title="Not found | Louis Lawson" canonical={false} sections={sections}>
-  <div class="wrap notfound">
+  <div class="wrap notfound" data-inspect={INSPECT_LABELS.notFound}>
     <h1>404 · not found</h1>
     <p>There is nothing at this address.</p>
     <NotFoundLinks sections={sections} />
@@ -16,8 +17,11 @@ const { sections } = await getSiteContent();
 </Base>
 
 <style>
+  /* The top margin is room above the content, which inspect mode writes its label into: without
+     it the label would sit behind the sticky bar. */
   .notfound {
-    padding-block: clamp(3rem, 7vw, 6rem) 0;
+    margin-top: 2rem;
+    padding-block: clamp(1rem, 3.5vw, 4rem) 0;
   }
 
   h1 {

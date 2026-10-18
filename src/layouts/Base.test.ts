@@ -63,6 +63,14 @@ describe("the base layout", () => {
     );
   });
 
+  it("has the inspect note after the footer, in every page", async () => {
+    const html = await render();
+    expect(html).toMatch(/<aside[^>]*data-inspect-note/);
+    expect(html.indexOf("<footer")).toBeLessThan(
+      html.indexOf("data-inspect-note"),
+    );
+  });
+
   it("loads the saved shortcut choice in <head>, as a classic script file that blocks rendering", async () => {
     // So the number hints show or hide on the first paint, with no flash. A file, because the
     // content security policy allows no inline code; classic and not deferred, so it runs first.
