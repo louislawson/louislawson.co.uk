@@ -7,8 +7,8 @@ interface Props {
   title: string;
   /** One line of fixed copy that makes no claims. Left out when it would be about what is not shown. */
   intro?: string | undefined;
-  /** What inspect mode says about this section: how it is built and served. None when the plan approves none. */
-  inspect?: string | undefined;
+  /** What inspect mode says about this section: how it is built and served. */
+  inspect: string;
   /** Shown after the title, for example "(02)". */
   count?: string | undefined;
 }
