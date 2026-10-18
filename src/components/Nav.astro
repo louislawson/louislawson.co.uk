@@ -180,11 +180,6 @@ const home = Astro.url.pathname === "/";
       gap: 10px;
     }
 
-    /* A touch screen has no i key to press, and the room is needed for the button's name. */
-    :global([data-shortcuts]) .inspect-btn .hint {
-      display: none;
-    }
-
     /* Without script the links stay in the bar and scroll sideways, so the bar is the same height
        when the script collapses them into the menu and nothing below it moves. */
     .nav__nav {
@@ -243,6 +238,15 @@ const home = Astro.url.pathname === "/";
       padding: 12px 0;
       border: 0;
       border-bottom: 1px solid var(--line);
+    }
+  }
+
+  /* On a narrow phone the brand, the menu and the inspect button fill the bar, and the button's
+     name matters more than its key. Only here does the i hint go; the key itself still works and
+     the button still says so to a screen reader (aria-keyshortcuts). */
+  @media (max-width: 400px) {
+    :global([data-shortcuts]) .inspect-btn .hint {
+      display: none;
     }
   }
 </style>

@@ -356,9 +356,11 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(html).toMatch(
         /<button[^>]*data-inspect-toggle[^>]*aria-pressed="false"|<button[^>]*aria-pressed="false"[^>]*data-inspect-toggle/,
       );
-      expect(html).toMatch(
-        /<aside[^>]*aria-live="polite"[^>]*data-inspect-note|<aside[^>]*data-inspect-note[^>]*aria-live="polite"/,
-      );
+      const note = /<div[^>]*data-inspect-note[^>]*>/.exec(html)?.[0] ?? "";
+      expect(note).toContain('role="status"');
+      expect(note).toContain('aria-live="polite"');
+      // A status, not a landmark: nothing for a list of landmarks to find.
+      expect(html).not.toContain("<aside");
     },
   );
 
@@ -367,6 +369,23 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       stylesheetText(dir).match(/[^{}]*\[data-inspect[^{}]*\{/g) ?? [];
     expect(rules.length).toBeGreaterThan(0);
     for (const rule of rules) expect(rule).toContain("body.inspecting");
+  });
+
+  it("makes room for the 404 content's label only in inspect mode, leaving the page's own layout alone", () => {
+    // The label of content that starts under the sticky bar would sit behind the bar, so inspect
+    // mode moves the content down. A visitor who has not asked for inspect mode sees no change.
+    const rules = [
+      ...stylesheetText(dir).matchAll(/([^{}]*\.notfound[^{}]*)\{([^}]*)\}/g),
+    ].map(([, selector, body]) => ({ selector: selector!, body: body! }));
+    const inspecting = rules.filter((r) =>
+      r.selector.includes("body.inspecting"),
+    );
+    const ordinary = rules.filter(
+      (r) => !r.selector.includes("body.inspecting"),
+    );
+    expect(inspecting.some((r) => r.body.includes("margin-top"))).toBe(true);
+    expect(ordinary.length).toBeGreaterThan(0);
+    for (const rule of ordinary) expect(rule.body).not.toContain("margin-top");
   });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {

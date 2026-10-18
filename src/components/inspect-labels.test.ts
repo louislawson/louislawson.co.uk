@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
+import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
 import { INSPECT_LABELS } from "./inspect-labels";
+import Nav from "./Nav.astro";
 
 const root = new URL("../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf-8");
@@ -28,7 +30,7 @@ const pageCache = directives(swa.globalHeaders["Cache-Control"]);
 const facts: {
   label: keyof typeof INSPECT_LABELS;
   phrase: string;
-  holds: () => boolean;
+  holds: () => boolean | Promise<boolean>;
   because: string;
 }[] = [
   {
@@ -50,9 +52,16 @@ const facts: {
   {
     label: "footer",
     phrase: "served by Azure Static Web Apps",
-    holds: () =>
-      /resource "azurerm_static_web_app"/.test(read("infra/site/main.tf")),
-    because: "infra/site/main.tf declares an azurerm_static_web_app",
+    holds: () => {
+      // A resource in a comment, or commented out, is not one: only live lines count.
+      const live = read("infra/site/main.tf")
+        .split("\n")
+        .filter((line) => !/^\s*(#|\/\/)/.test(line))
+        .join("\n");
+      return /^resource "azurerm_static_web_app" "\w+"/m.test(live);
+    },
+    because:
+      "infra/site/main.tf declares an azurerm_static_web_app, not in a comment",
   },
   {
     label: "notFound",
@@ -63,18 +72,28 @@ const facts: {
   {
     label: "nav",
     phrase: "one per section with content",
-    holds: () => {
-      // visibleSections() is what the bar is built from: a section with nothing in it has no link.
-      const ids = visibleSections([{}], {
+    holds: async () => {
+      // The real bar, built from what visibleSections() returns when three sections have nothing
+      // in them: it links the two that have content and nothing else.
+      const sections = visibleSections([{}], {
         ...profile,
         skills: [],
         exploring: [],
         certifications: [],
         garage: [],
-      }).map((section) => section.id);
-      return ids.join() === "projects,contact";
+      });
+      const container = await AstroContainer.create();
+      const html = await container.renderToString(Nav, {
+        props: { sections },
+        request: new Request("http://localhost/"),
+      });
+      const links = [...html.matchAll(/<a href="(\/#[^"]+)"/g)].map(
+        (m) => m[1],
+      );
+      return links.join() === "/#projects,/#contact";
     },
-    because: "visibleSections() drops a section with nothing in it",
+    because:
+      "the bar, built from visibleSections(), has no link for a section with nothing in it",
   },
 ];
 
@@ -101,9 +120,9 @@ describe("the inspect labels", () => {
 
   it.each(facts)(
     "$label says “$phrase”, and that is so: $because",
-    ({ label, phrase, holds }) => {
+    async ({ label, phrase, holds }) => {
       expect(INSPECT_LABELS[label]).toContain(phrase);
-      expect(holds()).toBe(true);
+      expect(await holds()).toBe(true);
     },
   );
 });

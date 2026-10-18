@@ -206,7 +206,7 @@ describe("the browser surfaces", () => {
   it("has the page's width and gutters in one class", () => {
     const wrap = rule(".wrap");
     expect(wrap).toContain("padding-inline: var(--gutter)");
-    expect(wrap).toContain("max-width: 1520px");
+    expect(wrap).toContain("max-width: var(--wrap-max)");
     expect(wrap).toContain("margin-inline: auto");
   });
 
@@ -287,9 +287,25 @@ describe("inspect mode", () => {
       .replace(/ \)/g, ")");
     expect(grid).toContain("position: fixed");
     expect(grid).toContain("pointer-events: none");
-    // One line per column: a 1px rule, tiled at a twelfth of the width between the gutters.
+    // One line per column: a 1px rule, tiled at a twelfth of the content box, plus the gap.
     expect(grid).toContain("linear-gradient(90deg");
-    expect(grid).toMatch(/background-size:[^;]*\/ 12\)/);
+    expect(grid).toContain(
+      "background-size: calc((100% + var(--col-gap)) / 12) 100%",
+    );
+  });
+
+  it("draws the grid in the same box as .wrap, whatever the scrollbar, from one width token", () => {
+    // The overlay is a fixed box with .wrap's width, centred, and its columns are measured in its
+    // own content box. Measuring in 100vw instead would include a classic scrollbar's width, and
+    // the lines would drift off the real columns.
+    expect(token("wrap-max")).toBe("1520px");
+    const grid = rule("body.inspecting::before");
+    expect(grid).toContain("max-width: var(--wrap-max)");
+    expect(grid).toContain("padding-inline: var(--gutter)");
+    expect(grid).toContain("margin-inline: auto");
+    expect(grid).toContain("background-origin: content-box");
+    expect(grid).not.toMatch(/\d+vw/);
+    expect(grid).not.toContain("1520px");
   });
 
   it("styles nothing outside inspect mode, so a visitor never sees a label", () => {

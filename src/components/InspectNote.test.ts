@@ -8,18 +8,25 @@ async function render(): Promise<string> {
 }
 
 describe("<InspectNote>", () => {
-  it("is a polite live region that is read whole, so a change to its first words announces the note", async () => {
+  it("is a polite status that is read whole, so a change to its first words announces the note", async () => {
     const html = await render();
-    expect(html).toMatch(/<aside[^>]*aria-live="polite"/);
-    expect(html).toMatch(/<aside[^>]*aria-atomic="true"/);
+    expect(html).toMatch(/<div[^>]*role="status"/);
+    expect(html).toMatch(/<div[^>]*aria-live="polite"/);
+    expect(html).toMatch(/<div[^>]*aria-atomic="true"/);
+  });
+
+  it("is not a landmark, so a screen reader's list of landmarks has no empty, unnamed region in it", async () => {
+    const html = await render();
+    expect(html).not.toContain("<aside");
+    expect(html).not.toMatch(/role="(complementary|region|note)"/);
   });
 
   it("is always in the page, because a screen reader notices a region's text change, not a hidden one appearing", async () => {
     const html = await render();
-    expect(html).toMatch(/<aside[^>]*data-inspect-note/);
+    expect(html).toMatch(/<div[^>]*data-inspect-note/);
     // Nothing hides it from assistive technology: no hidden attribute, no aria-hidden.
-    expect(html).not.toMatch(/<aside[^>]*\shidden/);
-    expect(html).not.toMatch(/<aside[^>]*aria-hidden/);
+    expect(html).not.toMatch(/<div[^>]*\shidden/);
+    expect(html).not.toMatch(/<div[^>]*aria-hidden/);
   });
 
   it("starts with no words in it, so nothing is announced on load", async () => {

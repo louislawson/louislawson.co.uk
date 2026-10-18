@@ -65,7 +65,7 @@ describe("the base layout", () => {
 
   it("has the inspect note after the footer, in every page", async () => {
     const html = await render();
-    expect(html).toMatch(/<aside[^>]*data-inspect-note/);
+    expect(html).toMatch(/<div[^>]*data-inspect-note/);
     expect(html.indexOf("<footer")).toBeLessThan(
       html.indexOf("data-inspect-note"),
     );

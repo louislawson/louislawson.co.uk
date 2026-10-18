@@ -18,6 +18,8 @@
   --section: clamp(4.5rem, 3rem + 6vw, 9rem);
   /* The sticky navigation bar: its height, where its dropdown starts, and the scroll offset. */
   --nav-height: 58px;
+  /* The page's widest width: .wrap's, and the grid inspect mode draws over it. */
+  --wrap-max: 1520px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
@@ -108,7 +110,7 @@ main:focus-visible {
 /* The page's width and side gutters. */
 .wrap {
   padding-inline: var(--gutter);
-  max-width: 1520px;
+  max-width: var(--wrap-max);
   margin-inline: auto;
 }
 
@@ -193,26 +195,27 @@ body.inspecting [data-inspect-below]::after {
   transform: translateY(100%);
 }
 
-/* The 12 columns the layout sits on: one 1px line per column, between the gutters. */
+/* The 12 columns the layout sits on: one 1px line per column. The overlay is a fixed box with the
+   width and gutters of .wrap, centred, and the columns are measured in its own content box: the
+   same box the page's content is laid out in, so they line up with a scrollbar or without one,
+   which a width in vw (the viewport, scrollbar included) would not. */
 body.inspecting::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 24;
+  box-sizing: border-box;
+  max-width: var(--wrap-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
   background-image: linear-gradient(
     90deg,
     color-mix(in srgb, var(--hivis) 6%, transparent) 1px,
     transparent 1px
   );
-  background-position: max(
-      var(--gutter),
-      calc((100vw - 1520px) / 2 + var(--gutter))
-    )
-    0;
-  background-size: calc(
-      (min(100vw, 1520px) - var(--gutter) * 2 + var(--col-gap)) / 12
-    )
-    100%;
+  background-origin: content-box;
+  background-clip: content-box;
+  background-size: calc((100% + var(--col-gap)) / 12) 100%;
   pointer-events: none;
 }
 

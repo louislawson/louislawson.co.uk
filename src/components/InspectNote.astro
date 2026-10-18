@@ -4,10 +4,13 @@
 // words ("Inspect mode is on."), a screen reader reads the note, which a part that goes from
 // hidden to shown would not reliably do. Off, it is visually hidden with only the words "Inspect
 // mode is off."; on, it is the box in the corner. It starts empty, so nothing is announced on load.
+// It is a status, not an <aside>: an empty, unnamed landmark would only get in the way of a screen
+// reader's list of landmarks.
 ---
 
-<aside
+<div
   class="inspect-note"
+  role="status"
   aria-live="polite"
   aria-atomic="true"
   data-inspect-note
@@ -17,7 +20,7 @@
     >Every outlined part says how it is built and served. Turn it off with the
     inspect button<span class="note__key"> or by pressing <b>i</b></span>.</span
   >
-</aside>
+</div>
 
 <style>
   .inspect-note {
