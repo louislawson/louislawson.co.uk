@@ -13,7 +13,15 @@ function build(env: Record<string, string>): string {
   const outDir = mkdtempSync(join(tmpdir(), "site-build-"));
   outDirs.push(outDir);
   execFileSync(process.execPath, [astro, "build", "--outDir", outDir], {
-    env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "", ...env },
+    // The build info is the deploy workflow's, so a test build starts without it, as a local one.
+    env: {
+      ...process.env,
+      DEPLOY_CONTEXT: "",
+      SITE_URL: "",
+      BUILD_NUMBER: "",
+      GIT_SHA: "",
+      ...env,
+    },
     stdio: "pipe",
   });
   return outDir;
@@ -304,8 +312,15 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       // Between them they hold the switch's storage key.
       expect(code.join("\n"), page).toContain("keyboard-shortcuts");
       for (const [index, text] of code.entries()) {
-        // The 404 page is served for any address and shows none of it.
-        expect(text, scripts[index]).not.toMatch(/location|pathname/);
+        // The 404 page is served for any address and shows none of it: not the path, and no
+        // script of it reads the host either. The home page's trace names the host it was
+        // fetched from ("DNS lookup for …"), and that is the only part of the address any script
+        // of it reads.
+        const reads =
+          page === "404.html"
+            ? /location|pathname|hostname/
+            : /location|pathname/;
+        expect(text, scripts[index]).not.toMatch(reads);
       }
     }
   });
@@ -371,7 +386,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   it.each([
-    ["index.html", 3],
+    ["index.html", 4],
     ["404.html", 3],
   ])(
     "labels only whole parts in %s, %i of them, each with a registered label",
@@ -424,6 +439,47 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(room[0]!.selector.trim()).toBe("body.inspecting main");
     // No page makes the room itself.
     expect(css).not.toMatch(/\.notfound[^{}]*\{[^}]*margin-top/);
+  });
+
+  it("has the trace panel in the hero of the home page only, in a preview and in production alike", () => {
+    const html = read(dir, "index.html");
+    const hero = /<section class="wrap hero"[\s\S]*?<\/section>/.exec(
+      html,
+    )?.[0];
+    expect(hero, "no hero").toBeDefined();
+    // The right-hand column of the hero, after the name and the text.
+    const side =
+      /<div class="hero__side"[^>]*>([\s\S]*?)<\/div>\s*<\/section>/.exec(
+        hero!,
+      )?.[1];
+    expect(side, "no trace column").toBeDefined();
+    expect(side).toMatch(/<figure class="trace"[^>]*\sdata-trace\b/);
+    expect(side).toContain("how this page reached you");
+    // Without JavaScript the panel says the timings need it, and shows no empty values.
+    expect(side).toMatch(/data-trace-nojs[^>]*>\s*These timings are measured/);
+    expect(side).toMatch(/data-trace-hops[^>]*\shidden/);
+    // A build with no build info is a local one.
+    expect(side).toContain("local build");
+    expect(read(dir, "404.html")).not.toContain("data-trace");
+  });
+
+  it("serves the trace's script as a file that reads the timings and the host, and only on the home page", () => {
+    const scriptsOf = (page: string) =>
+      [...read(dir, page).matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
+        (match) => read(dir, match[1]!.replace(/^\//, "")),
+      );
+    const trace = scriptsOf("index.html").filter((code) =>
+      code.includes("largest-contentful-paint"),
+    );
+    expect(trace).toHaveLength(1);
+    expect(trace[0]).toContain("navigation");
+    expect(trace[0]).toContain("hostname");
+    // Its styles are set through the CSSOM, which the policy allows: never as a style attribute.
+    expect(trace[0]).toContain("setProperty");
+    expect(trace[0]).not.toMatch(/setAttribute\(\s*["']style["']|cssText/);
+    expect(scriptsOf("404.html").join("\n")).not.toContain(
+      "largest-contentful-paint",
+    );
   });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
@@ -505,6 +561,30 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(links).toContain("/#projects");
       expect(links).toContain("/#contact");
     }
+  });
+});
+
+describe("the build info in the trace panel", () => {
+  it("shows the build number and the commit the deploy workflow gives the build", () => {
+    const dir = build({
+      DEPLOY_CONTEXT: "preview",
+      BUILD_NUMBER: "412",
+      GIT_SHA: "0af5e05",
+    });
+    const html = read(dir, "index.html");
+    expect(html).toContain("build 412 · commit 0af5e05");
+    expect(html).not.toContain("local build");
+  });
+
+  it("shows a local build, and nothing odd, for a value that is not a run number and a commit", () => {
+    const dir = build({
+      DEPLOY_CONTEXT: "preview",
+      BUILD_NUMBER: "<b>412</b>",
+      GIT_SHA: "main",
+    });
+    const html = read(dir, "index.html");
+    expect(html).toContain("local build");
+    expect(html).not.toContain("<b>412");
   });
 });
 

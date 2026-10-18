@@ -54,6 +54,9 @@ const getInTouch = hasSection("contact");
       {getInTouch && <a class="btn" href="#contact">get in touch</a>}
     </div>}
   </div>
+  {Astro.slots.has("default") && <div class="hero__side">
+    <slot />
+  </div>}
 </section>
 
 <style>
@@ -68,6 +71,11 @@ const getInTouch = hasSection("contact");
 
   .hero__copy {
     grid-column: 1 / span 7;
+  }
+
+  /* The right-hand column: the trace panel, on the other five columns. */
+  .hero__side {
+    grid-column: 8 / span 5;
   }
 
   .hero__name {
@@ -128,7 +136,8 @@ const getInTouch = hasSection("contact");
   }
 
   @media (max-width: 960px) {
-    .hero__copy {
+    .hero__copy,
+    .hero__side {
       grid-column: 1 / -1;
     }
   }

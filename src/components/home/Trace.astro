@@ -1,0 +1,345 @@
+---
+import { buildLabel, type BuildInfo } from "../../config/build-info";
+import { INSPECT_LABELS } from "../inspect-labels";
+
+interface Props {
+  /** This build's number and commit, from the deploy workflow. Nothing for a local build. */
+  build?: BuildInfo | undefined;
+}
+
+const { build } = Astro.props;
+---
+
+<figure class="trace" data-trace data-inspect={INSPECT_LABELS.trace}>
+  <figcaption class="trace__head">
+    <span><b>how this page reached you</b></span>
+    <span class="trace__total" data-trace-total></span>
+  </figcaption>
+  <p class="trace__nojs" data-trace-nojs>
+    These timings are measured in your browser, so they need JavaScript to show.
+  </p>
+  <ol
+    class="trace__hops"
+    aria-label="Steps this page took to reach you, with real timings"
+    data-trace-hops
+    hidden
+  ></ol>
+  <div class="trace__foot">
+    <span class="trace__measured" data-trace-measured hidden></span>
+    <span class="trace__build">{buildLabel(build)}</span>
+    <button class="replay" type="button" data-trace-replay hidden>
+      replay
+    </button>
+  </div>
+</figure>
+
+<style>
+  .trace {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+
+  .trace__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 12px 16px;
+    color: var(--dim);
+    font-size: 0.8rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .trace__head b {
+    color: var(--bone);
+    font-weight: 600;
+  }
+
+  .trace__total {
+    flex: none;
+    color: var(--hivis);
+    white-space: nowrap;
+  }
+
+  .trace__nojs {
+    padding: 18px 16px;
+    color: var(--dim);
+  }
+
+  .trace__hops {
+    margin: 0;
+    padding: 18px 16px 8px;
+    list-style: none;
+  }
+
+  /* The steps are built by the script, so their rules do not carry this component's scope. */
+  .trace__hops :global(.hop) {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding-bottom: 18px;
+  }
+
+  /* The connector: a line from each node down to the next. */
+  .trace__hops :global(.hop)::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    bottom: -2px;
+    left: 5px;
+    width: 1px;
+    background: var(--line-strong);
+    transform-origin: top;
+  }
+
+  .trace__hops :global(.hop:last-child)::before {
+    display: none;
+  }
+
+  .trace__hops :global(.hop__node) {
+    position: relative;
+    z-index: 1;
+    width: 11px;
+    height: 11px;
+    margin-top: 6px;
+    background: var(--bg);
+    border: 1px solid var(--bone);
+  }
+
+  .trace__hops :global(.hop--you .hop__node) {
+    background: var(--bone);
+  }
+
+  .trace__hops :global(.hop--page .hop__node) {
+    background: var(--hivis);
+    border-color: var(--hivis);
+  }
+
+  .trace__hops :global(.hop__name) {
+    font-weight: 700;
+  }
+
+  .trace__hops :global(.hop__what) {
+    grid-column: 2;
+    color: var(--dim);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .trace__hops :global(.hop__ms) {
+    grid-column: 3;
+    grid-row: 1;
+    color: var(--bone);
+    white-space: nowrap;
+  }
+
+  /* A square, as the status markers are: this value is live, measured just now. */
+  .trace__hops :global(.hop__ms.is-measured)::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 7px;
+    vertical-align: 0.15em;
+    background: var(--ok);
+  }
+
+  .trace__hops :global(.hop__bar) {
+    position: relative;
+    grid-column: 2 / -1;
+    height: 3px;
+    margin-top: 6px;
+    overflow: hidden;
+    background: var(--line);
+  }
+
+  .trace__hops :global(.hop__bar i) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--pct, 0%);
+    background: var(--bone);
+    transform-origin: left;
+  }
+
+  .trace__hops :global(.hop--page .hop__bar i) {
+    background: var(--hivis);
+  }
+
+  .trace__foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 16px;
+    padding: 10px 16px 12px;
+    color: var(--dim);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .trace__measured {
+    color: var(--ok);
+  }
+
+  .trace__measured::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 7px;
+    vertical-align: 0.1em;
+    background: var(--ok);
+  }
+
+  .replay {
+    min-height: 24px;
+    padding: 0;
+    color: var(--dim);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 0.3em;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .replay:hover {
+    color: var(--hivis);
+    text-decoration-color: var(--hivis);
+  }
+</style>
+
+<script>
+  import { initTrace, lcpTime, type Hop } from "../../scripts/trace";
+
+  const figure = document.querySelector<HTMLElement>("[data-trace]");
+  const note = figure?.querySelector<HTMLElement>("[data-trace-nojs]");
+  const list = figure?.querySelector<HTMLElement>("[data-trace-hops]");
+  const total = figure?.querySelector<HTMLElement>("[data-trace-total]");
+  const measured = figure?.querySelector<HTMLElement>("[data-trace-measured]");
+  const replayButton = figure?.querySelector<HTMLButtonElement>(
+    "[data-trace-replay]",
+  );
+
+  /** A span with a class, and the text it holds. */
+  function span(className: string, text = ""): HTMLSpanElement {
+    const element = document.createElement("span");
+    element.className = className;
+    element.textContent = text;
+    return element;
+  }
+
+  interface Row {
+    item: HTMLLIElement;
+    ms: HTMLElement;
+    what: HTMLElement;
+    fill: HTMLElement | null;
+    /** How long into the replay this step arrives, as the view said. */
+    delay: number;
+  }
+
+  /** One step: built once, then updated in place, so a late paint never cuts a replay short. */
+  function build(hop: Hop): Row {
+    const item = document.createElement("li");
+    item.className = hop.kind === "step" ? "hop" : `hop hop--${hop.kind}`;
+    const node = span("hop__node");
+    node.setAttribute("aria-hidden", "true");
+    const ms = span("hop__ms");
+    const what = span("hop__what");
+    item.append(node, span("hop__name", hop.name), ms, what);
+    let fill: HTMLElement | null = null;
+    if (hop.bar !== null) {
+      const bar = span("hop__bar");
+      bar.setAttribute("aria-hidden", "true");
+      fill = document.createElement("i");
+      bar.append(fill);
+      item.append(bar);
+    }
+    return { item, ms, what, fill, delay: hop.delay };
+  }
+
+  if (figure && note && list && total && measured && replayButton) {
+    const rows: Row[] = [];
+    // Not "location": the one thing this page's scripts read of the address is the host name.
+    const host = new URL(document.URL).hostname;
+
+    initTrace({
+      host,
+      reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+      navigation: () =>
+        performance.getEntriesByType("navigation")[0] as
+          PerformanceNavigationTiming | undefined,
+      onPaint: (listener) => {
+        try {
+          new PerformanceObserver((entries) => {
+            const ms = lcpTime(entries.getEntries());
+            if (ms !== null) listener(ms);
+          }).observe({ type: "largest-contentful-paint", buffered: true });
+        } catch {
+          // A browser without the largest paint leaves that step as an ellipsis.
+        }
+      },
+      onLoad: (listener) => {
+        // After the load event's own handlers, which is when the ready time is set.
+        const later = () => setTimeout(listener, 0);
+        if (document.readyState === "complete") later();
+        else addEventListener("load", later, { once: true });
+      },
+      show: (view) => {
+        view.hops.forEach((hop, index) => {
+          const row = (rows[index] ??= build(hop));
+          row.delay = hop.delay;
+          row.ms.textContent = hop.value;
+          row.ms.classList.toggle("is-measured", hop.measured);
+          row.what.textContent = hop.what;
+          row.fill?.style.setProperty("--pct", `${hop.bar ?? 0}%`);
+        });
+        if (list.children.length === 0) list.append(...rows.map((r) => r.item));
+        total.textContent = view.total;
+        measured.textContent = view.measured
+          ? "measured in your browser"
+          : "your browser gave no timings";
+        note.hidden = true;
+        list.hidden = false;
+        measured.hidden = false;
+        replayButton.hidden = !view.canReplay;
+      },
+      replay: () => {
+        // The steps arrive in order and the bars fill, each at its own delay.
+        const ease = "cubic-bezier(0.16, 1, 0.3, 1)";
+        for (const row of rows) {
+          const { delay } = row;
+          row.item.animate(
+            [
+              { opacity: 0, transform: "translateY(4px)" },
+              { opacity: 1, transform: "none" },
+            ],
+            { duration: 260, delay, easing: ease, fill: "backwards" },
+          );
+          row.item.animate(
+            [{ transform: "scaleY(0)" }, { transform: "none" }],
+            {
+              duration: 240,
+              delay: delay + 160,
+              easing: ease,
+              fill: "backwards",
+              pseudoElement: "::before",
+            },
+          );
+          row.fill?.animate(
+            [{ transform: "scaleX(0)" }, { transform: "none" }],
+            {
+              duration: 520,
+              delay: delay + 120,
+              easing: ease,
+              fill: "backwards",
+            },
+          );
+        }
+      },
+      onReplay: (listener) => replayButton.addEventListener("click", listener),
+    });
+  }
+</script>

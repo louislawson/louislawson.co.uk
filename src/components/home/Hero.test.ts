@@ -185,6 +185,25 @@ describe("<Hero>", () => {
     expect(html).toMatch(/see projects ?<svg[^>]*aria-hidden="true"/);
   });
 
+  it("holds what is slotted in a right-hand column after the text: where the trace panel goes", async () => {
+    const container = await AstroContainer.create();
+    const html = (
+      await container.renderToString(Hero, {
+        props: { profile: real, sections: all },
+        slots: { default: "<figure>the panel</figure>" },
+      })
+    ).replace(/\s+/g, " ");
+    expect(html).toMatch(
+      /<div[^>]*class="[^"]*hero__side[^"]*"[^>]*>\s*<figure>the panel<\/figure>\s*<\/div>/,
+    );
+    expect(html.indexOf("hero__copy")).toBeLessThan(html.indexOf("hero__side"));
+  });
+
+  it("has no right-hand column when nothing is slotted, so there is no empty box", async () => {
+    const html = await render({ profile: real, sections: all });
+    expect(html).not.toContain("hero__side");
+  });
+
   it("labels the name for inspect mode", async () => {
     const html = await render({ profile: real, sections: all });
     expect(html).toMatch(

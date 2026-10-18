@@ -132,6 +132,40 @@ const facts: {
     },
     because: "Hero renders the h1 as HTML and has no <script> block",
   },
+  {
+    label: "trace",
+    phrase: "Navigation Timing API",
+    holds: () =>
+      // The panel's script reads the browser's navigation entry, and the steps come from the
+      // fields of that entry, which the pure functions name.
+      read("src/components/home/Trace.astro").includes(
+        'getEntriesByType("navigation")',
+      ) &&
+      ["domainLookupStart", "connectEnd", "responseStart", "responseEnd"].every(
+        (field) => read("src/scripts/trace.ts").includes(field),
+      ),
+    because:
+      "Trace.astro reads performance.getEntriesByType('navigation') and trace.ts uses its timing fields",
+  },
+  {
+    label: "trace",
+    phrase: "nothing sent anywhere",
+    holds: () => {
+      // Neither the panel's script nor its functions make a request, beacon, socket or image.
+      const script =
+        /<script>([\s\S]*)<\/script>/.exec(
+          read("src/components/home/Trace.astro"),
+        )?.[1] ?? "";
+      const code = [script, read("src/scripts/trace.ts")]
+        .join("\n")
+        .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+      return !/\b(fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|new Image|import\()/.test(
+        code,
+      );
+    },
+    because:
+      "Trace.astro's script and trace.ts use no fetch, XMLHttpRequest, sendBeacon, WebSocket, EventSource or Image",
+  },
 ];
 
 describe("the inspect labels", () => {
@@ -141,6 +175,7 @@ describe("the inspect labels", () => {
       "hero",
       "nav",
       "notFound",
+      "trace",
     ]);
   });
 
