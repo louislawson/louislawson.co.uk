@@ -8,6 +8,7 @@ import {
   type Section as SectionInfo,
 } from "../../content/visibility";
 import Icon from "../Icon.astro";
+import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
 import { SECTION_INTROS } from "./section-intros";
 import Section from "./Section.astro";
@@ -42,6 +43,7 @@ const shown =
   id="certifications"
   title="certifications"
   intro={SECTION_INTROS.certifications}
+  inspect={INSPECT_LABELS.certifications}
 >
   <ul role="list">
     {rows.map(({ cert, index, verify, decision }) => <li class="cert">

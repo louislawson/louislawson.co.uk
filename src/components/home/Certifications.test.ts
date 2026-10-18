@@ -1,6 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import type { Section } from "../../content/visibility";
+import { INSPECT_LABELS } from "../inspect-labels";
 import Certifications from "./Certifications.astro";
 
 const all: Section[] = [
@@ -85,9 +86,12 @@ describe("<Certifications>", () => {
     );
   });
 
-  it("has no inspect label of its own: the plan approves none and the mock has none", async () => {
+  it("is labelled for inspect mode", async () => {
     const html = await render({ certifications: [checked], sections: all });
-    expect(html).not.toContain("data-inspect");
+    expect(html).toContain(`data-inspect="${INSPECT_LABELS.certifications}"`);
+    expect(html).toMatch(
+      /<section[^>]*\sid="certifications"[^>]*\sdata-inspect="/,
+    );
   });
 
   it("is not rendered when the certifications section is not shown, so the nav and the page agree", async () => {
@@ -180,7 +184,9 @@ describe("<Certifications>", () => {
       const html = await render({ certifications: [unchecked], sections: all });
       expect(html).not.toContain("<a ");
       expect(html).not.toContain("href=");
-      expect(html).not.toContain("verify");
+      // The words are not in the rows (the inspect label's own wording is an attribute).
+      expect(rows(html)).toHaveLength(1);
+      expect(rows(html)[0]).not.toContain("verify");
       // The rest of the row is there.
       expect(text(html, "t")).toEqual([unchecked.title]);
     });
@@ -230,7 +236,8 @@ describe("<Certifications>", () => {
       expect(html).not.toContain("Placeholder:");
       expect(html).not.toContain("TODO:");
       expect(html).not.toContain("<a ");
-      expect(html).not.toContain("verify");
+      expect(rows(html)).toHaveLength(1);
+      expect(rows(html)[0]).not.toContain("verify");
       expect(text(html, "t")).toEqual([checked.title]);
       expect(text(html, "iss")).toEqual([checked.issuer]);
       expect(text(html, "dt")).toEqual([checked.date]);

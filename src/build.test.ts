@@ -455,17 +455,28 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
   });
 
+  // The certifications this build shows follow the real profile (a preview shows all of them,
+  // production the ones that are real), so correct content cannot fail the checks on them: they
+  // test that the page agrees with the rule, which visibility.test.ts tests itself.
+  const shownCerts = visibleProfile(
+    profile,
+    new Set(),
+    parseDeployContext(deployContext),
+  ).certifications;
+
   // The home page's labelled parts: the bar, the footer, the hero, the trace and the projects, and
-  // the skills where the section is shown. A preview always shows it. Production shows it once a
-  // skill row or an item to explore is real, and that follows the real profile, so it is worked
-  // out from the profile and not fixed: correct content must not fail this test.
+  // the skills and the certifications where each section is shown. A preview always shows them.
+  // Production shows the skills once a skill row or an item to explore is real, and the
+  // certifications once one is, and that follows the real profile, so it is worked out from the
+  // profile and not fixed: correct content must not fail this test.
   const skillsShown =
     deployContext === "preview" ||
     visibleSections(
       [{}],
       visibleProfile(profile, new Set(), "production"),
     ).some((section) => section.id === "skills");
-  const homeLabels = 5 + (skillsShown ? 1 : 0);
+  const homeLabels =
+    5 + (skillsShown ? 1 : 0) + (shownCerts.length > 0 ? 1 : 0);
 
   it.each([
     ["index.html", homeLabels],
@@ -664,15 +675,6 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
     });
   }
-
-  // The certifications this build shows follow the real profile (a preview shows all of them,
-  // production the ones that are real), so correct content cannot fail these checks: they test
-  // that the page agrees with the rule, which visibility.test.ts tests itself.
-  const shownCerts = visibleProfile(
-    profile,
-    new Set(),
-    parseDeployContext(deployContext),
-  ).certifications;
 
   it("shows the certifications section, and its nav link, exactly when there is a certification to show", () => {
     const html = read(dir, "index.html");

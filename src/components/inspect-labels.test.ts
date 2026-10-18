@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { assembleSiteContent } from "../content/assemble";
+import { profileSchema } from "../content/schema";
 import { validateContent } from "../content/validate";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
@@ -200,6 +201,48 @@ const facts: {
       "validateContent reports a skill's run that no project has, and assembleSiteContent throws on it",
   },
   {
+    label: "certifications",
+    phrase: "from profile.ts",
+    holds: () => {
+      // The certifications come from the profile data file, through the one loader every page
+      // reads content by, and the home page hands them to the section from there.
+      const page = read("src/pages/index.astro");
+      return (
+        /import \{ profile \} from "\.\.\/data\/profile"/.test(
+          read("src/content/site-content.ts"),
+        ) &&
+        /^export const profile\b/m.test(read("src/data/profile.ts")) &&
+        /const \{[^}]*\bprofile\b[^}]*\} = await getSiteContent\(\)/.test(
+          page,
+        ) &&
+        /certifications=\{profile\.certifications\}/.test(page)
+      );
+    },
+    because:
+      "site-content.ts imports `profile` from src/data/profile.ts, and index.astro gives the section profile.certifications from getSiteContent()",
+  },
+  {
+    label: "certifications",
+    phrase: "checked as a web address at build",
+    holds: () => {
+      // The profile schema is parsed when the build imports src/data/profile.ts, so a verify link
+      // that is not a web address stops the build. A web address is http or https: an https URL
+      // is accepted, and a script URL or one of another scheme is not.
+      const cert = (verify: string) => [
+        { title: "A certification", issuer: "An issuer", date: "2025", verify },
+      ];
+      const accepts = (verify: string) =>
+        profileSchema.shape.certifications.safeParse(cert(verify)).success;
+      return (
+        accepts("https://example.com/verify") &&
+        !accepts("javascript:alert(1)") &&
+        !accepts("ftp://example.com")
+      );
+    },
+    because:
+      "profileSchema accepts a certification whose verify is an https URL and rejects javascript:alert(1) and ftp://example.com",
+  },
+  {
     label: "projects",
     phrase: "generated at build",
     holds: () => {
@@ -251,6 +294,7 @@ const facts: {
 describe("the inspect labels", () => {
   it("are the shell's (the bar, the footer, the 404 page's content) and the home page sections built so far", () => {
     expect(Object.keys(INSPECT_LABELS).sort()).toEqual([
+      "certifications",
       "footer",
       "hero",
       "nav",
