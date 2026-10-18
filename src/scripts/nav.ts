@@ -10,6 +10,8 @@ export interface KeyEvent {
   altKey: boolean;
   shiftKey: boolean;
   repeat?: boolean;
+  /** An input method is composing text: a digit then belongs to it. */
+  isComposing?: boolean;
 }
 
 export interface KeyTarget {
@@ -20,9 +22,11 @@ export interface KeyTarget {
 const FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 /**
- * The section number a keypress asks for: a plain 1 to 9. Nothing while a modifier is held (the
- * browser's own shortcuts keep working), while a key repeats, or while the visitor is typing in a
- * field.
+ * The section number a keypress asks for: a 1 to 9. Nothing while Control, Alt or Meta is held (the
+ * browser's own shortcuts keep working), while a key repeats or an input method is composing, or
+ * while the visitor is typing in a field. Shift is not held against it: the key says what was
+ * typed. On QWERTY, Shift+1 is "!", which is no digit; on AZERTY the top row types a digit only
+ * with Shift, and refusing it would lock those visitors out.
  */
 export function shortcutNumber(
   event: KeyEvent,
@@ -32,8 +36,8 @@ export function shortcutNumber(
     event.ctrlKey ||
     event.metaKey ||
     event.altKey ||
-    event.shiftKey ||
-    event.repeat
+    event.repeat ||
+    event.isComposing
   ) {
     return undefined;
   }
@@ -49,17 +53,19 @@ export function shortcutNumber(
 
 /**
  * Which section is current: the last one whose top has passed 35% of the way down the window, or
- * -1 before the first has. `tops` are the sections in page order, with undefined for one that is
- * not on the page.
+ * -1 before the first has. At the bottom of the page it is the last section there is, because a
+ * short last section cannot scroll up to the line. `tops` are the sections in page order, with
+ * undefined for one that is not on the page.
  */
 export function currentSection(
   tops: readonly (number | undefined)[],
   viewportHeight: number,
+  atBottom = false,
 ): number {
   const line = viewportHeight * 0.35;
   let current = -1;
   tops.forEach((top, index) => {
-    if (top !== undefined && top < line) current = index;
+    if (top !== undefined && (atBottom || top < line)) current = index;
   });
   return current;
 }
@@ -89,10 +95,17 @@ export interface NavPage {
   root: { dataset: Record<string, string | undefined> };
   home: boolean;
   viewportHeight(): number;
+  /** Whether the page is scrolled to its end. */
+  atBottom(): boolean;
   onKeydown(
     listener: (event: KeyEvent & { target: KeyTarget | null }) => void,
   ): void;
-  onScroll(listener: () => void): void;
+  /** Called when the window scrolls, is resized or is turned. */
+  onViewportChange(listener: () => void): void;
+  /** Called when the window crosses the width where the links collapse into the menu. */
+  onBreakpointChange(listener: () => void): void;
+  /** Called when the visitor presses anywhere outside the navigation bar. */
+  onOutsidePress(listener: () => void): void;
   /** Called when data-shortcuts on <html> changes. */
   onShortcutsChange(listener: () => void): void;
 }
@@ -114,6 +127,12 @@ export function initNav(page: NavPage): void {
   for (const link of links) {
     link.element.addEventListener("click", () => setOpen(false));
   }
+  // An open menu does not outlast what it was open for: a window that has grown past the
+  // breakpoint shows the links in the bar, and a press elsewhere is the visitor moving on.
+  page.onBreakpointChange(() => setOpen(false));
+  page.onOutsidePress(() => {
+    if (isOpen()) setOpen(false);
+  });
 
   // The hint is announced only while the shortcut works.
   const syncHints = () => {
@@ -149,6 +168,7 @@ export function initNav(page: NavPage): void {
       const current = currentSection(
         links.map((link) => link.section?.getBoundingClientRect().top),
         page.viewportHeight(),
+        page.atBottom(),
       );
       links.forEach((link, index) => {
         if (index === current)
@@ -157,6 +177,6 @@ export function initNav(page: NavPage): void {
       });
     };
     update();
-    page.onScroll(update);
+    page.onViewportChange(update);
   }
 }

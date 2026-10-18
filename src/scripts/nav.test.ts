@@ -30,12 +30,25 @@ describe("shortcutNumber", () => {
     }
   });
 
-  it("is nothing while a modifier is held, so the browser's own shortcuts still work", () => {
+  it("is nothing while Control, Alt or Meta is held, so the browser's own shortcuts still work", () => {
     expect(shortcutNumber(plain("1", { ctrlKey: true }), null)).toBeUndefined();
     expect(shortcutNumber(plain("1", { metaKey: true }), null)).toBeUndefined();
     expect(shortcutNumber(plain("1", { altKey: true }), null)).toBeUndefined();
+  });
+
+  it("does not count Shift as a modifier, because the key says what was typed", () => {
+    // On a QWERTY keyboard Shift+1 types "!", which is no digit. On an AZERTY keyboard the top
+    // row types a digit only with Shift, and then the key is "1": refusing Shift would lock those
+    // visitors out of the shortcuts the nav advertises.
     expect(
-      shortcutNumber(plain("1", { shiftKey: true }), null),
+      shortcutNumber(plain("!", { shiftKey: true }), null),
+    ).toBeUndefined();
+    expect(shortcutNumber(plain("1", { shiftKey: true }), null)).toBe(1);
+  });
+
+  it("is nothing while an input method is composing text", () => {
+    expect(
+      shortcutNumber(plain("1", { isComposing: true }), null),
     ).toBeUndefined();
   });
 
@@ -87,6 +100,18 @@ describe("currentSection", () => {
   it("is none when there are no sections", () => {
     expect(currentSection([], vh)).toBe(-1);
   });
+
+  it("is the last section on the page at the bottom, even if it never reached the line", () => {
+    // A short last section, such as contact, cannot scroll up to the line: the page has ended.
+    expect(currentSection([-1200, -200, 600], vh, true)).toBe(2);
+    expect(currentSection([-1200, -200, 600], vh, false)).toBe(1);
+  });
+
+  it("is the last section that is on the page at the bottom", () => {
+    expect(currentSection([-1200, 600, undefined], vh, true)).toBe(1);
+    expect(currentSection([undefined, undefined], vh, true)).toBe(-1);
+    expect(currentSection([], vh, true)).toBe(-1);
+  });
 });
 
 /** The parts of the page the navigation touches, as plain objects. */
@@ -94,12 +119,15 @@ function page(
   overrides: { home?: boolean; shortcuts?: string; missing?: number[] } = {},
 ) {
   const keydown: ((event: KeyEvent & { target: null }) => void)[] = [];
-  const scroll: (() => void)[] = [];
+  const viewport: (() => void)[] = [];
+  const breakpoint: (() => void)[] = [];
+  const outsidePress: (() => void)[] = [];
   const shortcutChanges: (() => void)[] = [];
   const menuAttributes: Record<string, string> = {};
   const menuClicks: (() => void)[] = [];
   const state = {
     menuFocused: 0,
+    atBottom: false,
     tops: [900, 1800, 2700] as (number | undefined)[],
   };
 
@@ -158,8 +186,11 @@ function page(
     root,
     home: overrides.home ?? true,
     viewportHeight: () => 800,
+    atBottom: () => state.atBottom,
     onKeydown: (listener) => void keydown.push(listener),
-    onScroll: (listener) => void scroll.push(listener),
+    onViewportChange: (listener) => void viewport.push(listener),
+    onBreakpointChange: (listener) => void breakpoint.push(listener),
+    onOutsidePress: (listener) => void outsidePress.push(listener),
     onShortcutsChange: (listener) => void shortcutChanges.push(listener),
   };
   initNav(env);
@@ -175,10 +206,18 @@ function page(
       keydown.forEach((listener) =>
         listener({ ...plain(key, extra), target: null }),
       ),
-    scrollTo: (tops: (number | undefined)[]) => {
+    scrollTo: (tops: (number | undefined)[], atBottom = false) => {
       state.tops = tops;
-      scroll.forEach((listener) => listener());
+      state.atBottom = atBottom;
+      viewport.forEach((listener) => listener());
     },
+    /** The window is resized or turned: the same listener, with no scroll. */
+    resizeTo: (tops: (number | undefined)[]) => {
+      state.tops = tops;
+      viewport.forEach((listener) => listener());
+    },
+    crossBreakpoint: () => breakpoint.forEach((listener) => listener()),
+    pressOutside: () => outsidePress.forEach((listener) => listener()),
     changeShortcuts: (value: string) => {
       root.dataset.shortcuts = value;
       shortcutChanges.forEach((listener) => listener());
@@ -224,6 +263,30 @@ describe("the navigation menu", () => {
     const { state, press } = page();
     press("Escape");
     expect(state.menuFocused).toBe(0);
+  });
+
+  it("closes when the window crosses the breakpoint, so no stale open menu waits on the other side", () => {
+    const { nav, menuAttributes, clickMenu, crossBreakpoint } = page();
+    clickMenu();
+    crossBreakpoint();
+    expect(nav.dataset.open).toBeUndefined();
+    expect(menuAttributes["aria-expanded"]).toBe("false");
+  });
+
+  it("closes when the visitor presses outside the bar, without taking the focus", () => {
+    const { nav, menuAttributes, state, clickMenu, pressOutside } = page();
+    clickMenu();
+    pressOutside();
+    expect(nav.dataset.open).toBeUndefined();
+    expect(menuAttributes["aria-expanded"]).toBe("false");
+    expect(state.menuFocused).toBe(0);
+  });
+
+  it("leaves a closed menu closed on an outside press", () => {
+    const { nav, menuAttributes, pressOutside } = page();
+    pressOutside();
+    expect(nav.dataset.open).toBeUndefined();
+    expect(menuAttributes["aria-expanded"]).toBe("false");
   });
 });
 
@@ -336,12 +399,35 @@ describe("the current section", () => {
       root: { dataset: {} },
       home: true,
       viewportHeight: () => 800,
+      atBottom: () => false,
       onKeydown: () => undefined,
-      onScroll: () => undefined,
+      onViewportChange: () => undefined,
+      onBreakpointChange: () => undefined,
+      onOutsidePress: () => undefined,
       onShortcutsChange: () => undefined,
     });
     expect(attributes[0]!["aria-current"]).toBeUndefined();
     expect(attributes[1]!["aria-current"]).toBe("true");
+  });
+
+  it("marks the last section at the bottom of the page, where a short one cannot reach the line", () => {
+    const { link, scrollTo } = page({ home: true });
+    scrollTo([-1500, -600, 650], false);
+    expect(link(2).attributes["aria-current"]).toBe("true");
+    expect(link(3).attributes["aria-current"]).toBeUndefined();
+
+    scrollTo([-1500, -600, 650], true);
+    expect(link(3).attributes["aria-current"]).toBe("true");
+    expect(link(2).attributes["aria-current"]).toBeUndefined();
+  });
+
+  it("is worked out again when the window is resized or turned, with no scroll", () => {
+    const { link, resizeTo } = page({ home: true });
+    resizeTo([100, 900, 1700]);
+    expect(link(1).attributes["aria-current"]).toBe("true");
+    resizeTo([-500, 150, 1000]);
+    expect(link(2).attributes["aria-current"]).toBe("true");
+    expect(link(1).attributes["aria-current"]).toBeUndefined();
   });
 
   it("is never marked on another page", () => {

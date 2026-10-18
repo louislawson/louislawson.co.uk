@@ -288,6 +288,14 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
   });
 
+  it("sizes the bar and places its dropdown from the one --nav-height token", () => {
+    const css = stylesheetText(dir);
+    expect(css).toMatch(/height:var\(--nav-height\)/);
+    expect(css).toMatch(/top:var\(--nav-height\)/);
+    // Not the token's own definition, `--nav-height:58px`, but a property set to the bare number.
+    expect(css).not.toMatch(/(?<![-\w])(?:top|height):58px/);
+  });
+
   it("shows the number hints only while data-shortcuts is on, so they never show without script", () => {
     const css = stylesheetText(dir);
     expect(css).toMatch(/\[data-shortcuts=["']?on["']?\][^{]*\.hint/);

@@ -187,6 +187,14 @@ describe("the browser surfaces", () => {
     }
   });
 
+  it("has the navigation bar's height as one token, which the bar, its dropdown and the scroll offset share", () => {
+    expect(token("nav-height")).toBe("58px");
+    // A link to a section lands below the sticky bar, with the 38px the mock leaves under it.
+    expect(rule("html")).toContain(
+      "scroll-padding-top: calc(var(--nav-height) + 38px)",
+    );
+  });
+
   it("keeps the footer at the foot of a short page", () => {
     const body = rule("body");
     expect(body).toContain("display: flex");
