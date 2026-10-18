@@ -191,6 +191,8 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     "starts %s with a skip link to <main>, and ends it with the footer",
     (page) => {
       const html = read(dir, page);
+      // Both pages go through the layout, so both are in British English.
+      expect(html).toMatch(/<html lang="en-GB"/);
       expect(html).toMatch(
         /<body[^>]*>\s*<a class="vh skip" href="#main">Skip to content<\/a>/,
       );

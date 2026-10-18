@@ -1,8 +1,9 @@
 ---
 // The switch for the single-key shortcuts (WCAG 2.1.4). Hidden until the script runs: without
 // script there are no shortcuts, so a switch that does nothing would only get in the way.
-// The on/off word is for the eye only: aria-pressed carries the state, so the accessible name stays
-// "keyboard shortcuts" and a screen reader does not hear the state twice.
+// "keyboard shortcuts:" is the label. The on/off word after it is a visual indicator of the state,
+// hidden from assistive technology: aria-pressed carries the state, so the accessible name stays
+// the same and a screen reader does not hear it twice.
 ---
 
 <button
