@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS } from "./components/inspect-labels";
+import { isPlaceholder } from "./content/todo";
+import { visibleProfile, visibleSections } from "./content/visibility";
+import { profile } from "./data/profile";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -452,8 +455,16 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   // The home page's labelled parts: the bar, the footer, the hero, the trace and the projects, and
-  // the skills where they are shown. A preview shows them; production has nothing real for them.
-  const homeLabels = deployContext === "preview" ? 6 : 5;
+  // the skills where the section is shown. A preview always shows it. Production shows it once a
+  // skill row or an item to explore is real, and that follows the real profile, so it is worked
+  // out from the profile and not fixed: correct content must not fail this test.
+  const skillsShown =
+    deployContext === "preview" ||
+    visibleSections(
+      [{}],
+      visibleProfile(profile, new Set(), "production"),
+    ).some((section) => section.id === "skills");
+  const homeLabels = 5 + (skillsShown ? 1 : 0);
 
   it.each([
     ["index.html", homeLabels],
@@ -640,11 +651,16 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(section).not.toContain("<a ");
     });
   } else {
-    it("leaves the skills out of production, with their nav link, because nothing in them is real yet", () => {
+    it("shows the skills on production exactly when something in them is real, and its nav link with it, so the page and the nav agree", () => {
+      // While the profile's skill row and exploring item are placeholders, nothing is real: the
+      // section, its link and the exploring heading are all out. A real row or item brings all of
+      // them in.
       const html = read(dir, "index.html");
-      expect(html).not.toContain('id="skills"');
-      expect(html).not.toContain('href="/#skills"');
-      expect(html).not.toContain("what I'm exploring next");
+      expect(html.includes('id="skills"')).toBe(skillsShown);
+      expect(html.includes('href="/#skills"')).toBe(skillsShown);
+      expect(html.includes("what I'm exploring next")).toBe(
+        skillsShown && profile.exploring.some((item) => !isPlaceholder(item)),
+      );
     });
   }
 

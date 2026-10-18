@@ -5,8 +5,8 @@ interface Props {
   /** The id the navigation links to (`/#projects`), and the stem of the heading's id. */
   id: string;
   title: string;
-  /** One line of fixed copy that makes no claims. */
-  intro: string;
+  /** One line of fixed copy that makes no claims. Left out when it would be about what is not shown. */
+  intro?: string | undefined;
   /** What inspect mode says about this section: how it is built and served. */
   inspect: string;
   /** Shown after the title, for example "(02)". */
@@ -28,7 +28,7 @@ const { id, title, intro, inspect, count } = Astro.props;
         >{count}</span
       >}{count && <span class="vh"> {count}</span>}
     </h2>
-    <p>{intro}</p>
+    {intro && <p>{intro}</p>}
   </div>
   <slot />
 </section>

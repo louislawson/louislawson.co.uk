@@ -44,20 +44,20 @@ const shown =
 {shown && <Section
   id="skills"
   title="skills"
-  intro={SECTION_INTROS.skills}
+  intro={skills.length > 0 ? SECTION_INTROS.skills : undefined}
   inspect={INSPECT_LABELS.skills}
 >
   {skills.map((skill) => <div class="skill">
     <h3><Placeholder value={skill.group} context={context} /></h3>
-    {skill.runs.length > 0 && <p class="seen">
-      seen in <span class="codes">{skill.runs.join(" ")}</span>
-    </p>}
     <p class="ctx"><Placeholder value={skill.context} context={context} /></p>
     <p class="tools">
       {shownTools(skill.tools).map((tool, index) => <Fragment
         >{index > 0 && " / "}<Placeholder value={tool} context={context}
       /></Fragment>)}
     </p>
+    {skill.runs.length > 0 && <p class="seen">
+      seen in <span class="codes">{skill.runs.join(" ")}</span>
+    </p>}
   </div>)}
   {exploring.length > 0 && <div class="explore">
     <h3>what I'm exploring next</h3>
@@ -94,7 +94,9 @@ const shown =
     font-size: 0.85rem;
   }
 
-  /* Top right, on the group's own line. The codes are the evidence: the accent is for codes. */
+  /* Last in the markup, so a row reads as name, context, tools and then the evidence, on a phone
+     and to a screen reader; on a wide screen it sits top right, on the group's own line. The codes
+     are the evidence: the accent is for codes. */
   .skill .seen {
     grid-column: 10 / span 3;
     grid-row: 1;

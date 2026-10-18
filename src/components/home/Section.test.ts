@@ -36,6 +36,16 @@ describe("<Section>", () => {
     expect(html.indexOf("<h2")).toBeLessThan(html.indexOf("An intro line."));
   });
 
+  it("has no paragraph beside the title when it is given no intro", async () => {
+    const html = await render({ intro: undefined });
+    expect(html).toMatch(/<h2[^>]*>\s*projects\s*<\/h2>/);
+    const head = /<div class="shead"[^>]*>(.*?)<\/div>/.exec(html)?.[1];
+    expect(head, "no head").toBeDefined();
+    expect(head).not.toContain("<p");
+    // What is slotted is still there, and still a paragraph of its own.
+    expect(html).toContain("<p>the content</p>");
+  });
+
   it("puts what is slotted after the heading", async () => {
     const html = await render();
     expect(html).toContain("<p>the content</p>");

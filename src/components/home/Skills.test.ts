@@ -119,6 +119,20 @@ describe("<Skills>", () => {
       );
     });
 
+    it("reads context first: the group, the context, the tools, and only then where it was seen", async () => {
+      const html = await render({
+        skills: [platform],
+        exploring: [],
+        sections: all,
+      });
+      const at = (needle: string) => html.indexOf(needle);
+      expect(at("<h3")).toBeLessThan(at('class="ctx"'));
+      expect(at('class="ctx"')).toBeLessThan(at('class="tools"'));
+      // The evidence comes last in the markup, so a screen reader reaches it after the context.
+      // The styles put it at the top right on a wide screen.
+      expect(at('class="tools"')).toBeLessThan(at('class="seen"'));
+    });
+
     it("joins the tools with a slash and a space on each side", async () => {
       const html = await render({
         skills: [platform],
@@ -244,6 +258,27 @@ describe("<Skills>", () => {
       expect(html).toMatch(/<section[^>]*\sid="skills"/);
       expect(html).not.toContain('class="skill"');
       expect(html).toContain("what I'm exploring next");
+    });
+
+    it("has no intro line when there are no rows, because the line is about the rows", async () => {
+      // "Where I've used each one, and the projects that show it" over a list of what is next
+      // would say something the section does not show.
+      const html = await render({
+        skills: [],
+        exploring: ["Something to explore"],
+        sections: all,
+      });
+      expect(html).not.toContain("Where I");
+      const head = /<div class="shead"[^>]*>(.*?)<\/div>/.exec(html)?.[1];
+      expect(head, "no head").toBeDefined();
+      expect(head).not.toContain("<p");
+      // With a row, the intro is there as before.
+      const withRow = await render({
+        skills: [platform],
+        exploring: ["Something to explore"],
+        sections: all,
+      });
+      expect(withRow).toContain("projects that show it");
     });
   });
 
