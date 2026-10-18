@@ -3,6 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
+import Hero from "./home/Hero.astro";
 import { INSPECT_LABELS } from "./inspect-labels";
 import Nav from "./Nav.astro";
 
@@ -95,12 +96,49 @@ const facts: {
     because:
       "the bar, built from visibleSections(), has no link for a section with nothing in it",
   },
+  {
+    label: "hero",
+    phrase: "Martian Mono 800",
+    holds: () => {
+      // The family is the page's font, and the name is set at weight 800.
+      const family = /--mono:\s*"([^"]+)"/.exec(read("src/styles/global.css"));
+      const name = /\.hero__name\s*\{[^}]*\}/.exec(
+        read("src/components/home/Hero.astro"),
+      )?.[0];
+      return (
+        family?.[1] === "Martian Mono Variable" &&
+        /font-weight:\s*800\b/.test(name ?? "") &&
+        // The name is in the page's own font, not one set on the heading.
+        !/font-family/.test(name ?? "")
+      );
+    },
+    because:
+      "--mono is Martian Mono Variable and .hero__name sets font-weight: 800 without its own family",
+  },
+  {
+    label: "hero",
+    phrase: "static HTML, no JavaScript",
+    holds: async () => {
+      // The heading is in the built HTML, and the component carries no script of its own.
+      const container = await AstroContainer.create();
+      const html = await container.renderToString(Hero, {
+        props: { profile: {}, sections: [] },
+      });
+      return (
+        /<h1[^>]*>\s*Louis<br[^>]*>Lawson/.test(html) &&
+        !html.includes("<script") &&
+        !/<script/.test(read("src/components/home/Hero.astro"))
+      );
+    },
+    because: "Hero renders the h1 as HTML and has no <script> block",
+  },
 ];
 
 describe("the inspect labels", () => {
-  it("are the shell's: the bar, the footer and the 404 page's content", () => {
+  it("are the shell's (the bar, the footer, the 404 page's content) and the home page sections built so far", () => {
     expect(Object.keys(INSPECT_LABELS).sort()).toEqual([
       "footer",
+      "hero",
       "nav",
       "notFound",
     ]);

@@ -157,6 +157,49 @@ select {
   font: inherit;
 }
 
+/* A link or button that is an action: square, 1px, at least 48px tall. --hv is the one hi-vis action
+   on a screen. These are global because the hero and the contact section both have them, and the
+   arrow inside is another component's SVG, which a scoped rule would not reach. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 18px;
+  color: var(--bone);
+  text-decoration: none;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease),
+    border-color 160ms var(--ease),
+    color 160ms var(--ease);
+}
+
+.btn svg {
+  transition: transform 220ms var(--ease);
+}
+
+.btn:hover svg {
+  transform: translateX(3px);
+}
+
+.btn:not(.btn--hv):hover {
+  border-color: var(--bone);
+}
+
+.btn--hv {
+  color: var(--bg);
+  font-weight: 700;
+  background: var(--hivis);
+  border-color: var(--hivis);
+}
+
+.btn--hv:hover {
+  color: var(--bg);
+  background: color-mix(in srgb, var(--hivis) 80%, white);
+}
+
 /* Inspect mode. The script puts "inspecting" on <body>; nothing here applies without it, so a
    visitor who has not asked for it never sees a label. Each labelled part carries its text in a
    data-inspect attribute, which a pseudo-element writes: no inline style, no data: URL. */
@@ -180,6 +223,8 @@ body.inspecting [data-inspect]::after {
   color: var(--bg);
   font: 600 11px/1.35 var(--mono);
   font-stretch: 88%;
+  /* Not the part's: a heading's negative tracking, inherited as a length, would overprint it. */
+  letter-spacing: normal;
   background: var(--hivis);
   pointer-events: none;
   transform: translateY(-100%);
@@ -193,6 +238,14 @@ body.inspecting [data-inspect-below]::after {
   bottom: -4px;
   left: auto;
   transform: translateY(100%);
+}
+
+/* The first content of any page starts right under the sticky bar, which writes its own label
+   below it (up to three lines on a phone) while the content's label goes above the content. So in
+   inspect mode only, the page moves down: room for both. A visitor who has not asked for inspect
+   mode sees the page as it is. */
+body.inspecting main {
+  padding-top: 6rem;
 }
 
 /* The 12 columns the layout sits on: one 1px line per column. The overlay is a fixed box with the

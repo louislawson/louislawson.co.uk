@@ -240,6 +240,28 @@ describe("the browser surfaces", () => {
   });
 });
 
+describe("the action button", () => {
+  it("is at least 48px tall, square, with a 1px line", () => {
+    const button = rule(".btn");
+    expect(button).toContain("min-height: 48px");
+    expect(button).toContain("border: 1px solid var(--line-strong)");
+    expect(button).not.toContain("border-radius");
+    expect(button).not.toContain("box-shadow");
+  });
+
+  it("has a hi-vis form with dark text, which is the page's one main action", () => {
+    const hv = rule(".btn--hv");
+    expect(hv).toContain("background: var(--hivis)");
+    expect(hv).toContain("color: var(--bg)");
+    // The hover state keeps the dark text, which a plain link's hover colour would override.
+    expect(rule(".btn--hv:hover")).toContain("color: var(--bg)");
+  });
+
+  it("moves its arrow on hover, which the reduced-motion rule cuts short", () => {
+    expect(rule(".btn:hover svg")).toContain("transform: translateX(3px)");
+  });
+});
+
 describe("inspect mode", () => {
   it("outlines each labelled part in dashed hi-vis, without taking a sticky part out of its place", () => {
     // :where() has no weight of its own, so the bar's own position: sticky is not overridden.
@@ -267,6 +289,14 @@ describe("inspect mode", () => {
     // A label wraps, and is never cut short: a fact with its end missing says something else.
     expect(label).not.toContain("text-overflow");
     expect(label).not.toContain("white-space: nowrap");
+  });
+
+  it("sets the label's own letter spacing, not the part's: a heading's negative tracking would overprint it", () => {
+    // letter-spacing in em is inherited as a length, so the name's -0.04em at 117px reaches the
+    // 11px label as about -4.7px.
+    expect(rule("body.inspecting [data-inspect]::after")).toContain(
+      "letter-spacing: normal",
+    );
   });
 
   it("can write the label below instead, at the right, for a part at the top of the window", () => {
@@ -306,6 +336,13 @@ describe("inspect mode", () => {
     expect(grid).toContain("background-origin: content-box");
     expect(grid).not.toMatch(/\d+vw/);
     expect(grid).not.toContain("1520px");
+  });
+
+  it("moves the page's content down by one rule, for the bar's label and the content's own", () => {
+    // The bar's label hangs below it (up to three lines on a phone) and the first content's label
+    // sits above that content, so without room they overlap. It is room for both, and only here.
+    expect(rule("body.inspecting main")).toContain("padding-top: 6rem");
+    expect(rule("main")).not.toContain("padding-top");
   });
 
   it("styles nothing outside inspect mode, so a visitor never sees a label", () => {
