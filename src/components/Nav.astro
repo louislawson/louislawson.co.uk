@@ -1,0 +1,250 @@
+---
+// The hint and the label of each link sit against each other, with nothing between: compressHTML
+// keeps a line break as a space, so the formatter hugs the tags (`><kbd`) and they must stay so.
+import type { Section } from "../content/visibility";
+import { SECTION_LABELS, sectionHref } from "./section-labels";
+
+interface Props {
+  /** The sections this build shows, from visibleSections(): a hidden section has no link. */
+  sections: Section[];
+}
+
+const { sections } = Astro.props;
+// The current section is shown on the home page only, where the sections are.
+const home = Astro.url.pathname === "/";
+---
+
+<header class="nav" data-nav data-home={home ? "" : undefined}>
+  <div class="wrap nav__inner">
+    <a class="nav__home" href="/">louis<span>.</span>lawson</a>
+    {sections.length > 0 && <Fragment>
+      <button
+        class="nav__menu"
+        type="button"
+        aria-expanded="false"
+        aria-controls="links"
+        data-nav-menu
+      >
+        menu
+      </button>
+      <nav class="nav__nav" aria-label="Sections">
+        <div class="nav__links" id="links">
+          {sections.map(({ id, number }) => <a
+            href={sectionHref(id)}
+            data-number={number}
+            ><kbd class="hint" aria-hidden="true">{number}</kbd
+            >{SECTION_LABELS[id]}</a
+          >)}
+        </div>
+      </nav>
+    </Fragment>}
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav__inner {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: var(--nav-height);
+  }
+
+  .nav__home {
+    margin-right: auto;
+    flex: none;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .nav__home span {
+    color: var(--hivis);
+  }
+
+  .nav__links {
+    display: flex;
+    gap: 4px;
+  }
+
+  .nav__links a {
+    padding: 6px 10px;
+    color: var(--dim);
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+
+  .nav__links a:hover,
+  .nav__links a[aria-current="true"] {
+    color: var(--bone);
+    border-color: var(--line-strong);
+  }
+
+  /* Inside the bar a ring drawn outside the link would be cut off by the scrolling strip. */
+  .nav__links a:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* The number hints show only while the shortcuts are on. shortcuts-state.js sets that before the
+     first paint, so they neither flash nor jump in; with no script, they never show. */
+  .hint {
+    display: none;
+    margin-right: 4px;
+    color: var(--hivis);
+    font: inherit;
+  }
+
+  :global([data-shortcuts="on"]) .hint {
+    display: inline;
+  }
+
+  .nav__menu {
+    display: none;
+    min-height: 40px;
+    padding: 6px 12px;
+    color: var(--bone);
+    background: none;
+    border: 1px solid var(--line-strong);
+    cursor: pointer;
+  }
+
+  @media (max-width: 900px) {
+    /* Without script the links stay in the bar and scroll sideways, so the bar is the same height
+       when the script collapses them into the menu and nothing below it moves. */
+    .nav__nav {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .nav__home {
+      margin-right: 0;
+    }
+
+    .nav__links {
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .nav[data-collapsible] .nav__home {
+      margin-right: auto;
+    }
+
+    .nav[data-collapsible] .nav__nav {
+      flex: none;
+    }
+
+    .nav[data-collapsible] .nav__menu {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .nav[data-collapsible] .nav__links {
+      display: none;
+      position: absolute;
+      top: var(--nav-height);
+      right: 0;
+      left: 0;
+      flex-direction: column;
+      gap: 0;
+      padding: 8px var(--gutter) 14px;
+      overflow: visible;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav[data-collapsible][data-open] .nav__links {
+      display: flex;
+    }
+
+    .nav[data-collapsible] .nav__links a {
+      padding: 12px 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+    }
+  }
+</style>
+
+<script>
+  import { initNav } from "../scripts/nav";
+
+  const header = document.querySelector<HTMLElement>("[data-nav]");
+  const menu = header?.querySelector<HTMLButtonElement>("[data-nav-menu]");
+  if (header && menu) {
+    const links = [
+      ...header.querySelectorAll<HTMLAnchorElement>("a[data-number]"),
+    ].map((element) => ({
+      number: Number(element.dataset.number),
+      element,
+      section: document.getElementById(new URL(element.href).hash.slice(1)),
+    }));
+    const root = document.documentElement;
+
+    initNav({
+      nav: header,
+      menu,
+      links,
+      root,
+      home: header.hasAttribute("data-home"),
+      viewportHeight: () => window.innerHeight,
+      // At the end of a page that scrolls, to within a pixel or two of rounding.
+      atBottom: () => {
+        const page = document.documentElement;
+        return (
+          page.scrollHeight > window.innerHeight + 2 &&
+          window.scrollY + window.innerHeight >= page.scrollHeight - 2
+        );
+      },
+      onKeydown: (listener) =>
+        document.addEventListener("keydown", (event) =>
+          listener({
+            key: event.key,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            altKey: event.altKey,
+            shiftKey: event.shiftKey,
+            repeat: event.repeat,
+            isComposing: event.isComposing,
+            target: event.target as HTMLElement | null,
+          }),
+        ),
+      onViewportChange: (listener) => {
+        let queued = false;
+        const queue = () => {
+          if (queued) return;
+          queued = true;
+          requestAnimationFrame(() => {
+            queued = false;
+            listener();
+          });
+        };
+        window.addEventListener("scroll", queue, { passive: true });
+        window.addEventListener("resize", queue);
+        window.addEventListener("orientationchange", queue);
+      },
+      // The same width as the media query in this component's style: a media query cannot read
+      // the token, and the two have to change together.
+      onBreakpointChange: (listener) =>
+        window
+          .matchMedia("(max-width: 900px)")
+          .addEventListener("change", listener),
+      onOutsidePress: (listener) =>
+        document.addEventListener("pointerdown", (event) => {
+          if (!header.contains(event.target as Node)) listener();
+        }),
+      onShortcutsChange: (listener) =>
+        new MutationObserver(listener).observe(root, {
+          attributes: true,
+          attributeFilter: ["data-shortcuts"],
+        }),
+    });
+  }
+</script>

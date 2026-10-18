@@ -2,11 +2,12 @@
 import Base from "../layouts/Base.astro";
 import { getSiteContent } from "../content/site-content";
 
-// Read for validation only until the sections exist: bad content already fails the build.
-await getSiteContent();
+// Only the sections are used until the home page has its content (Phase 4): bad content already
+// fails the build here.
+const { sections } = await getSiteContent();
 ---
 
-<Base title="Louis Lawson">
+<Base title="Louis Lawson" sections={sections}>
   <h1>Louis Lawson</h1>
   <p>Site under construction.</p>
 </Base>

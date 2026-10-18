@@ -16,6 +16,8 @@
   --gutter: clamp(16px, 3.2vw, 44px);
   --col-gap: clamp(16px, 2vw, 32px);
   --section: clamp(4.5rem, 3rem + 6vw, 9rem);
+  /* The sticky navigation bar: its height, where its dropdown starts, and the scroll offset. */
+  --nav-height: 58px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
@@ -29,7 +31,7 @@
 html {
   scroll-behavior: smooth;
   /* Room for the sticky navigation, so a link to a section does not land under it. */
-  scroll-padding-top: 96px;
+  scroll-padding-top: calc(var(--nav-height) + 38px);
   scrollbar-color: var(--line-strong) var(--bg);
   -webkit-text-size-adjust: 100%;
 }
@@ -115,8 +117,7 @@ main:focus-visible {
   display: none !important;
 }
 
-/* Text for screen readers only: the placeholder label, the skip link until it has focus, the
-   number-key hints. */
+/* Text for screen readers only: the placeholder label, and the skip link until it has focus. */
 .vh {
   position: absolute;
   width: 1px;

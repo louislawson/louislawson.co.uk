@@ -47,7 +47,7 @@ function buildWithProsePage(): string {
       'import Base from "../layouts/Base.astro";',
       "---",
       "",
-      '<Base title="Prose">',
+      '<Base title="Prose" sections={[{ id: "projects", number: 1 }]}>',
       "  <p>",
       "    Body text that ends a line.",
       '    <a href="/somewhere">An ordinary link</a>',
@@ -86,6 +86,10 @@ describe("a built page with prose wrapped across lines", () => {
       'that ends a line. <a href="/somewhere">An ordinary link</a> and more text',
     );
     expect(html).toContain("then a <kbd>1</kbd> key hint.");
+  });
+
+  it("keeps a navigation hint against its label, with no space between", () => {
+    expect(html).toMatch(/<kbd[^>]*>1<\/kbd>projects<\/a>/);
   });
 
   // The copy has no .git, as a build from a source archive has none, so git cannot give a date.

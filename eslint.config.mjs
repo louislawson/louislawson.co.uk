@@ -18,4 +18,9 @@ export default defineConfig([
   {
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // A classic script that runs in the browser, not under Node.
+    files: ["src/scripts/shortcuts-state.js"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
 ]);
