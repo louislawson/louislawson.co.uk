@@ -1,0 +1,272 @@
+---
+// Text and a component sit against each other on one line (`<Placeholder … /> · <Placeholder … />`):
+// compressHTML keeps a line break as a space, and the meta line is " · " between its halves only.
+import { site, type DeployContext } from "../../config/site";
+import type { Project } from "../../content/schema";
+import { isPlaceholder } from "../../content/todo";
+import type { Section as SectionInfo } from "../../content/visibility";
+import { INSPECT_LABELS } from "../inspect-labels";
+import Placeholder from "../Placeholder.astro";
+import {
+  countLabel,
+  metaParts,
+  projectLayout,
+  statusLabel,
+} from "./project-display";
+import { SECTION_INTROS } from "./section-intros";
+import Section from "./Section.astro";
+
+interface Props {
+  /** The projects this build shows, in order: from getSiteContent(). */
+  projects: { data: Project }[];
+  /** The sections this build shows, from visibleSections(). */
+  sections: SectionInfo[];
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { projects, sections, context = site.deployContext } = Astro.props;
+
+// A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
+const shown =
+  projects.length > 0 && sections.some((section) => section.id === "projects");
+const layout = projectLayout(projects.length);
+---
+
+{shown && <Section
+  id="projects"
+  title="projects"
+  intro={SECTION_INTROS.projects}
+  inspect={INSPECT_LABELS.projects}
+  count={countLabel(projects.length)}
+>
+  <div class={`runs runs--${layout}`}>
+    {projects.map(({ data }) => {
+      const { lead, period } = metaParts(data);
+      const statusClass = `status status--${data.status}`;
+      return layout === "strip" ? (
+        <article class="run run--strip">
+          <div class="run__line">
+            <span class="run__code">{data.code}</span>
+            <h3 class="run__title">
+              <Placeholder value={data.title} context={context} />
+            </h3>
+            <span class="leader" aria-hidden="true"></span>
+            {data.featured && <span class="tag">featured</span>}
+            <span class="run__status">
+              {isPlaceholder(data.status) ? (
+                <Placeholder value={data.status} context={context} />
+              ) : (
+                <span class={statusClass}>{statusLabel(data.status)}</span>
+              )}
+            </span>
+          </div>
+          <p class="run__meta">
+            <Placeholder value={lead} context={context} /> ·
+            <Placeholder value={period} context={context} />
+          </p>
+          <div class="run__sheet">
+            <div>
+              <h4>setup</h4>
+              <p><Placeholder value={data.setup} context={context} /></p>
+            </div>
+            <div>
+              <h4>change</h4>
+              <p><Placeholder value={data.change} context={context} /></p>
+            </div>
+            <div class="res">
+              <h4>result</h4>
+              <p><Placeholder value={data.result} context={context} /></p>
+            </div>
+          </div>
+        </article>
+      ) : (
+        <article class="run run--row">
+          <span class="run__code">{data.code}</span>
+          <h3 class="run__title">
+            <Placeholder
+              value={data.title}
+              context={context}
+            />{data.featured && <Fragment>
+              <span class="tag">featured</span></Fragment>}
+          </h3>
+          <span class="headline"
+            ><Placeholder value={data.headline} context={context}
+          /></span>
+          <span class="run__status">
+            {isPlaceholder(data.status) ? (
+              <Placeholder value={data.status} context={context} />
+            ) : (
+              <span class={statusClass}>{statusLabel(data.status)}</span>
+            )}
+          </span>
+        </article>
+      );
+    })}
+  </div>
+</Section>}
+
+<style>
+  /* The square marker and the word. Only in service uses green, which is for live state alone. */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+
+  .status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    box-sizing: border-box;
+  }
+
+  .status--in-service {
+    color: var(--ok);
+  }
+
+  .status--in-service::before {
+    background: var(--ok);
+  }
+
+  .status--commissioning {
+    color: var(--hivis);
+  }
+
+  .status--commissioning::before {
+    border: 2px solid var(--hivis);
+  }
+
+  .status--complete {
+    color: var(--bone);
+  }
+
+  .status--complete::before {
+    background: var(--bone);
+  }
+
+  .status--archived {
+    color: var(--dim);
+  }
+
+  .status--archived::before {
+    border: 2px solid var(--dim);
+  }
+
+  .tag {
+    padding: 0 7px;
+    color: var(--hivis);
+    font-size: 0.82rem;
+    border: 1px solid var(--hivis);
+  }
+
+  .run__code {
+    color: var(--hivis);
+  }
+
+  /* Strips: the run sheet in full. */
+  .run--strip {
+    padding-block: 2rem 2.2rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .run__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .run--strip .run__title {
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* The dotted line from the title to the tag and the status. */
+  .leader {
+    flex: 1;
+    min-width: 2rem;
+    border-bottom: 1px dotted var(--line-strong);
+    transform: translateY(-0.3em);
+  }
+
+  .run__meta {
+    margin-top: 0.4rem;
+    color: var(--dim);
+  }
+
+  .run__sheet {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--col-gap);
+    margin-top: 1.4rem;
+  }
+
+  .run__sheet h4 {
+    margin-bottom: 0.35rem;
+    color: var(--dim);
+    font-weight: 500;
+  }
+
+  .run__sheet h4::before {
+    content: "$ ";
+    color: var(--hivis);
+  }
+
+  .run__sheet .res p {
+    color: var(--bone);
+    font-weight: 700;
+  }
+
+  .run__sheet .res h4::before {
+    content: "> ";
+  }
+
+  @media (max-width: 760px) {
+    .run__sheet {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    /* On a phone the status wraps under the title, and a dotted line that trails the title and
+       leads nowhere is clutter. */
+    .leader {
+      display: none;
+    }
+  }
+
+  /* Rows: the compact list, from four projects. */
+  .run--row {
+    display: grid;
+    grid-template-columns: 3.6rem minmax(0, 1.5fr) minmax(0, 1fr) 9.5rem;
+    gap: 14px;
+    align-items: center;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .run--row .run__title {
+    font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .run--row .headline {
+    color: var(--dim);
+  }
+
+  @media (max-width: 760px) {
+    .run--row {
+      grid-template-columns: 3rem minmax(0, 1fr);
+      row-gap: 3px;
+    }
+
+    /* The cell holds a status or a placeholder for one: both go under the title. */
+    .run--row .headline,
+    .run--row .run__status {
+      grid-column: 2;
+    }
+  }
+</style>

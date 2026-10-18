@@ -10,6 +10,7 @@ export const INSPECT_LABELS = {
   hero: "h1 · Martian Mono 800 · static HTML, no JavaScript",
   trace:
     "measured in your browser by the Navigation Timing API · nothing sent anywhere",
+  projects: "generated at build from src/content/projects/*.md",
   nav: "plain links, one per section with content · script adds the menu, number keys and current mark",
   footer:
     "served by Azure Static Web Apps · HTML revalidated on every load, hashed assets cached for a year",

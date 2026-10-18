@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS } from "./components/inspect-labels";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
@@ -90,23 +91,57 @@ function wordRuns(list: string[], size = 8): Set<string> {
 }
 
 /**
- * The text with each of these labels removed where a line of the document gives it, in quotes, as
- * the section's label (the line says "label", or is the "Inspect:" bullet): the wording the
- * document approves. A label quoted anywhere else is left in.
+ * The text with each of these pieces of wording removed where a line of the document gives it, in
+ * quotes, as the section's own (the line says "label", or is an "Inspect:" or "Intro:" bullet):
+ * the wording the document approves. Wording quoted anywhere else is left in.
  */
 function withoutApprovedLabels(text: string, labels: string[]): string {
   return text
     .split("\n")
     .map((line) =>
-      /\blabel\b|\*\*Inspect:\*\*/i.test(line)
+      /\blabel\b|\*\*(?:Inspect|Intro):\*\*/i.test(line)
         ? labels.reduce(
             (rest, label) => rest.split(`"${label}"`).join(" "),
-            line,
+            // Markdown escapes a * or an _ with a backslash, which the page's text does not have.
+            line.replace(/\\([*_`])/g, "$1"),
           )
         : line,
     )
     .join("\n");
 }
+
+/**
+ * Whether a script reads the address of the page: `location`, a path, and with `host` also the
+ * host name. The word in a string (`aria-current="location"` is a value, not a read) is not one.
+ */
+function readsAddress(code: string, options: { host: boolean }): boolean {
+  const withoutStrings = code.replace(/(["'`])location\1/g, "");
+  return (
+    options.host ? /location|pathname|hostname/ : /location|pathname/
+  ).test(withoutStrings);
+}
+
+describe("the check for a script that reads the address", () => {
+  it("finds a read of the location, the path and (when asked) the host", () => {
+    expect(readsAddress("a=location.href", { host: false })).toBe(true);
+    expect(readsAddress("a=window.location", { host: false })).toBe(true);
+    expect(readsAddress("a=u.pathname", { host: false })).toBe(true);
+    expect(readsAddress("a=u.hostname", { host: false })).toBe(false);
+    expect(readsAddress("a=u.hostname", { host: true })).toBe(true);
+  });
+
+  it("leaves the word alone when it is a value in a string, as aria-current's is", () => {
+    const code = 'e.setAttribute("aria-current","location")';
+    expect(readsAddress(code, { host: true })).toBe(false);
+    expect(readsAddress("e.setAttribute('a','location')", { host: true })).toBe(
+      false,
+    );
+    // But not when a read is next to it.
+    expect(readsAddress(`${code};x=location.search`, { host: true })).toBe(
+      true,
+    );
+  });
+});
 
 describe("the check for copied text", () => {
   it("lets a label through only where the document quotes it as approved wording", () => {
@@ -120,6 +155,19 @@ describe("the check for copied text", () => {
     // The same words in running prose, not in quotes, are still counted.
     const prose = `It says ${label} here.`;
     expect(withoutApprovedLabels(prose, [label])).toContain("Martian");
+    // A label the document writes with Markdown escapes is the same label.
+    const escaped = '- **Inspect:** "from src/content/projects/\\*.md", pinned';
+    expect(
+      withoutApprovedLabels(escaped, ["from src/content/projects/*.md"]),
+    ).not.toContain("projects");
+    // A section's intro line is approved the same way, on the "Intro:" bullet.
+    const intro = "Each one written up as setup, change and result.";
+    expect(
+      withoutApprovedLabels(`- **Intro:** "${intro}"`, [intro]),
+    ).not.toContain("written");
+    expect(
+      withoutApprovedLabels(`Copy this sentence: "${intro}"`, [intro]),
+    ).toContain("written");
     // A quotation on a line that is not giving the label is still counted.
     const elsewhere = `Copy this sentence: "${label}"`;
     expect(withoutApprovedLabels(elsewhere, [label])).toContain("Martian");
@@ -316,11 +364,10 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         // script of it reads the host either. The home page's trace names the host it was
         // fetched from ("DNS lookup for …"), and that is the only part of the address any script
         // of it reads.
-        const reads =
-          page === "404.html"
-            ? /location|pathname|hostname/
-            : /location|pathname/;
-        expect(text, scripts[index]).not.toMatch(reads);
+        expect(
+          readsAddress(text, { host: page === "404.html" }),
+          scripts[index],
+        ).toBe(false);
       }
     }
   });
@@ -386,7 +433,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   it.each([
-    ["index.html", 4],
+    ["index.html", 5],
     ["404.html", 3],
   ])(
     "labels only whole parts in %s, %i of them, each with a registered label",
@@ -482,6 +529,69 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     );
   });
 
+  it("has the projects section the navigation links to, in the page's own order after the hero", () => {
+    const html = read(dir, "index.html");
+    expect(html).toMatch(/<section[^>]*\sid="projects"/);
+    expect(html.indexOf('id="name"')).toBeLessThan(
+      html.indexOf('id="projects"'),
+    );
+    expect(html.indexOf('id="projects"')).toBeLessThan(html.indexOf("<footer"));
+    // The nav's link goes to it.
+    expect(html).toContain('href="/#projects"');
+    // No project has a page yet, so nothing in the section links anywhere.
+    const section = /<section[^>]*\sid="projects"[\s\S]*?<\/section>/.exec(
+      html,
+    )![0];
+    expect(section).not.toContain("<a ");
+    expect(section).not.toContain("href=");
+  });
+
+  if (deployContext === "preview") {
+    it("shows every project in a preview, as compact rows, with the placeholders hatched and the featured tag on R01", () => {
+      const html = read(dir, "index.html");
+      const section = /<section[^>]*\sid="projects"[\s\S]*?<\/section>/.exec(
+        html,
+      )![0];
+      // R01 to R03 are placeholders and R04 is real: four projects is where rows begin.
+      expect(section).toContain("runs--row");
+      expect(section).not.toContain("runs--strip");
+      expect(
+        [...section.matchAll(/class="run__code"[^>]*>(R\d\d)</g)].map(
+          (m) => m[1],
+        ),
+      ).toEqual(["R01", "R02", "R03", "R04"]);
+      expect(section).toMatch(/class="ph"/);
+      expect(section).toContain(">(04)<");
+      // Only R01 is featured, so the tag is on its row alone.
+      expect(section.match(/class="tag"/g)).toHaveLength(1);
+      expect(section.split("<article")[1]).toContain('class="tag"');
+    });
+  } else {
+    it("shows R04 alone on production, as a strip, with no placeholder and no featured tag", () => {
+      const html = read(dir, "index.html");
+      const section = /<section[^>]*\sid="projects"[\s\S]*?<\/section>/.exec(
+        html,
+      )![0];
+      expect(section).toContain("runs--strip");
+      expect(section).not.toContain("runs--row");
+      expect(section.match(/<article\b/g)).toHaveLength(1);
+      expect(
+        [...section.matchAll(/class="run__code"[^>]*>(R\d\d)</g)].map(
+          (m) => m[1],
+        ),
+      ).toEqual(["R04"]);
+      expect(section).toContain(">(01)<");
+      expect(section).toContain("This website");
+      expect(section).toContain("open-source project");
+      expect(section).not.toContain('class="ph"');
+      expect(section).not.toContain("Placeholder:");
+      // R01 was the featured project and is left out, and no other takes its tag.
+      expect(section).not.toContain('class="tag"');
+      // R04 is commissioning.
+      expect(section).toMatch(/status--commissioning[^>]*>\s*commissioning/);
+    });
+  }
+
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence
     // copied from it, not something the page says. The one exception is a label the plan itself
@@ -496,7 +606,11 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         words(
           withoutApprovedLabels(
             readFileSync(new URL(file, import.meta.url), "utf-8"),
-            Object.values(INSPECT_LABELS),
+            // The wording the plan approves for the page: each section's label and intro line.
+            [
+              ...Object.values(INSPECT_LABELS),
+              ...Object.values(SECTION_INTROS),
+            ],
           ),
         ),
       ),

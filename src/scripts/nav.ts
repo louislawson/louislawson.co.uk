@@ -136,7 +136,7 @@ export function initNav(page: NavPage): void {
       );
       links.forEach((link, index) => {
         if (index === current)
-          link.element.setAttribute("aria-current", "true");
+          link.element.setAttribute("aria-current", "location");
         else link.element.removeAttribute("aria-current");
       });
     };

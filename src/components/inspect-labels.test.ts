@@ -133,6 +133,36 @@ const facts: {
     because: "Hero renders the h1 as HTML and has no <script> block",
   },
   {
+    label: "projects",
+    phrase: "src/content/projects/*.md",
+    holds: () => {
+      // The label names the loader's own folder and pattern, read from the loader.
+      const loader = /glob\(\{([^}]*)\}\)/.exec(
+        read("src/content.config.ts"),
+      )?.[1];
+      const pattern = /pattern:\s*"([^"]+)"/.exec(loader ?? "")?.[1];
+      const base = /base:\s*"([^"]+)"/.exec(loader ?? "")?.[1];
+      return (
+        pattern !== undefined &&
+        base !== undefined &&
+        `${base.replace(/^\.\//, "")}/${pattern}` ===
+          "src/content/projects/*.md"
+      );
+    },
+    because:
+      "src/content.config.ts loads projects with glob({ pattern: '*.md', base: './src/content/projects' })",
+  },
+  {
+    label: "projects",
+    phrase: "generated at build",
+    holds: () => {
+      // A static build: nothing is generated when a page is asked for.
+      const config = read("astro.config.mjs");
+      return !/output:\s*["'](server|hybrid)["']/.test(config);
+    },
+    because: "astro.config.mjs does not set output to server or hybrid",
+  },
+  {
     label: "trace",
     phrase: "Navigation Timing API",
     holds: () =>
@@ -178,6 +208,7 @@ describe("the inspect labels", () => {
       "hero",
       "nav",
       "notFound",
+      "projects",
       "trace",
     ]);
   });

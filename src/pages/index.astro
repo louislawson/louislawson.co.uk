@@ -1,5 +1,6 @@
 ---
 import Hero from "../components/home/Hero.astro";
+import Projects from "../components/home/Projects.astro";
 import Trace from "../components/home/Trace.astro";
 import { buildInfo } from "../config/build-info";
 import { getSiteContent } from "../content/site-content";
@@ -7,11 +8,12 @@ import Base from "../layouts/Base.astro";
 
 // The page only composes the sections, in the contract's order. Each takes what it needs from
 // what getSiteContent() returns, which is already shaped for this build's deploy context.
-const { profile, sections } = await getSiteContent();
+const { profile, projects, sections } = await getSiteContent();
 ---
 
 <Base title="Louis Lawson" sections={sections}>
   <Hero profile={profile} sections={sections}>
     <Trace build={buildInfo} />
   </Hero>
+  <Projects projects={projects} sections={sections} />
 </Base>

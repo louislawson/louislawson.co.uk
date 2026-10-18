@@ -1,0 +1,39 @@
+import type { Project } from "../../content/schema";
+import { isPlaceholder } from "../../content/todo";
+
+/** Up to this many projects are shown in full, as strips; more are compact rows. */
+export const STRIP_LIMIT = 3;
+
+export type ProjectLayout = "strip" | "row";
+
+export function projectLayout(count: number): ProjectLayout {
+  return count <= STRIP_LIMIT ? "strip" : "row";
+}
+
+/**
+ * The two halves of a project's meta line. A work project says what kind of organisation it was
+ * for, which is anonymised. A personal or open-source project names its organisation when it has
+ * one, and otherwise says what kind of project it is. Either half may be a placeholder, which
+ * the page shows hatched.
+ */
+export function metaParts(data: Project): { lead: string; period: string } {
+  const lead =
+    data.kind === "work"
+      ? data.descriptor
+      : (data.org ??
+        (data.kind === "personal"
+          ? "personal project"
+          : "open-source project"));
+  return { lead, period: data.period };
+}
+
+/** The word a status is shown as. A placeholder is left as it is, for the hatch. */
+export function statusLabel(status: string): string {
+  if (isPlaceholder(status)) return status;
+  return status === "in-service" ? "in service" : status;
+}
+
+/** The number of projects shown, as the heading carries it: "(02)". */
+export function countLabel(count: number): string {
+  return `(${String(count).padStart(2, "0")})`;
+}

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import type { Section } from "../content/visibility";
@@ -145,6 +146,23 @@ describe("<Nav>", () => {
 
   it("has the inspect button even when no section is shown", async () => {
     expect(await render([])).toContain("data-inspect-toggle");
+  });
+
+  it("styles the current section by aria-current=location, the value for the current place in a page, and by no other", () => {
+    const source = readFileSync(
+      new URL("./Nav.astro", import.meta.url),
+      "utf-8",
+    );
+    const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+    expect(style).toContain('a[aria-current="location"]');
+    expect(style).not.toMatch(/aria-current="true"/);
+    // And the script that sets it sets that value.
+    const script = readFileSync(
+      new URL("../scripts/nav.ts", import.meta.url),
+      "utf-8",
+    );
+    expect(script).toContain('setAttribute("aria-current", "location")');
+    expect(script).not.toContain('"aria-current", "true"');
   });
 
   it("has no inline style and no inline script", async () => {
