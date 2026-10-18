@@ -81,7 +81,14 @@ export function visibleProjects<E extends ProjectLike>(
 
 export interface VisibleProfile extends Omit<
   Profile,
-  "roleLine" | "intro" | "careerLine" | "region" | "email" | "cv" | "links"
+  | "roleLine"
+  | "intro"
+  | "careerLine"
+  | "region"
+  | "email"
+  | "cv"
+  | "links"
+  | "garageIntro"
 > {
   roleLine?: string | undefined;
   intro?: string | undefined;
@@ -89,6 +96,7 @@ export interface VisibleProfile extends Omit<
   region?: string | undefined;
   email?: string | undefined;
   cv?: string | undefined;
+  garageIntro?: string | undefined;
   links: { github?: string | undefined; linkedin?: string | undefined };
 }
 
@@ -115,6 +123,7 @@ export function visibleProfile(
     region: real(profile.region),
     email: real(profile.email),
     cv: real(profile.cv),
+    garageIntro: real(profile.garageIntro),
     links: {
       github: real(profile.links.github),
       linkedin: real(profile.links.linkedin),

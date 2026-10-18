@@ -73,6 +73,7 @@ export function profileData(overrides: Record<string, unknown> = {}): Profile {
     certifications: [
       { title: "A certification", issuer: "An issuer", date: "2025-06" },
     ],
+    garageIntro: "Off the clock it is cars, trucks and tractors.",
     garage: [
       {
         name: "Cars",

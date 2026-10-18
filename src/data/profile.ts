@@ -34,13 +34,16 @@ export const profile = parseProfile({
       date: "TODO: date",
     },
   ],
+  garageIntro: "TODO: garage intro",
+  // A photo is imported from src/assets/garage/ with its metadata stripped, and its caption names
+  // the event and the vehicle, never the owner. The placeholders are short so a hatched one fits.
   garage: [
     {
       name: "TODO: cars, trucks or tractors",
       note: "TODO: a line on the interest",
-      photo: "TODO: import your own photo here, metadata stripped",
+      photo: "TODO: photo",
       alt: "TODO: describe the photo",
-      caption: "TODO: the event and vehicle, never the owner",
+      caption: "TODO: event and vehicle",
     },
   ],
 });
