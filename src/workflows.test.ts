@@ -228,3 +228,31 @@ describe("the daily schedule in deploy.yml", () => {
     );
   });
 });
+
+// The trace panel shows "build 412 · commit 0af5e05", which only the deploy build can know.
+describe("the build info in deploy.yml", () => {
+  const deploy = read(new URL(".github/workflows/deploy.yml", root));
+  /** The build job's Build step, from its name to the next step. */
+  const step =
+    /^ {6}- name: Build\n[\s\S]*?(?=\n {6}- )/m.exec(deploy)?.[0] ?? "";
+
+  it("has a Build step to read", () => {
+    expect(step).toContain("npm run build");
+  });
+
+  it("passes the run number to the build as BUILD_NUMBER", () => {
+    expect(step).toContain("BUILD_NUMBER: ${{ github.run_number }}");
+  });
+
+  it("passes the short head commit as GIT_SHA, from the pull request's head and not its merge commit", () => {
+    expect(step).toContain(
+      "HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
+    );
+    expect(step).toMatch(/GIT_SHA="\$\{HEAD_SHA::7\}" npm run build/);
+  });
+
+  it("gives them to the build step alone, which holds no credentials", () => {
+    expect(deploy.match(/BUILD_NUMBER:/g)).toHaveLength(1);
+    expect(deploy.match(/GIT_SHA=/g)).toHaveLength(1);
+  });
+});

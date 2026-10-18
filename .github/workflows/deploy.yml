@@ -149,9 +149,10 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL }}
           # Preview builds always send noindex: preview URLs are public.
           DEPLOY_CONTEXT: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
-          # BUILD_NUMBER and GIT_SHA are for the trace panel (BUILD-PLAN PR 4.2), which reads them;
-          # nothing in the site does yet. On a pull request GITHUB_SHA is the temporary merge
-          # commit, so use the head commit that the preview comment names.
+          # BUILD_NUMBER and GIT_SHA are for the trace panel, which shows them (src/config/
+          # build-info.ts reads both, and shows neither unless both are valid). On a pull request
+          # GITHUB_SHA is the temporary merge commit, so use the head commit that the preview
+          # comment names.
           BUILD_NUMBER: ${{ github.run_number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
