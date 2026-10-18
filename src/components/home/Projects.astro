@@ -6,13 +6,18 @@ import type { Project } from "../../content/schema";
 import type { Section as SectionInfo } from "../../content/visibility";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
-import { countLabel, metaParts, projectLayout } from "./project-display";
+import {
+  countLabel,
+  featuredFirst,
+  metaParts,
+  projectLayout,
+} from "./project-display";
 import { SECTION_INTROS } from "./section-intros";
 import Section from "./Section.astro";
 import Status from "./Status.astro";
 
 interface Props {
-  /** The projects this build shows, in order: from getSiteContent(). */
+  /** The projects this build shows, from getSiteContent(). The section puts them in its own order. */
   projects: { data: Project }[];
   /** The sections this build shows, from visibleSections(). */
   sections: SectionInfo[];
@@ -20,7 +25,10 @@ interface Props {
   context?: DeployContext;
 }
 
-const { projects, sections, context = site.deployContext } = Astro.props;
+const { projects: given, sections, context = site.deployContext } = Astro.props;
+
+// The featured run leads the list, then the rest by `order`.
+const projects = featuredFirst(given);
 
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
 const shown =

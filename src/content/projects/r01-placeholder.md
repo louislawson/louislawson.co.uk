@@ -3,7 +3,7 @@ code: R01
 title: "TODO: project title"
 summary: "TODO: one sentence on the result"
 headline: "TODO: a headline of two to five words"
-status: "TODO: in-service, commissioning, complete or archived"
+status: "TODO: status"
 period: "TODO: period, for example 2024 – 2025"
 featured: true
 order: 1

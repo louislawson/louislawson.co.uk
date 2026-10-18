@@ -10,6 +10,23 @@ export function projectLayout(count: number): ProjectLayout {
 }
 
 /**
+ * The projects in the order the section shows them: the featured one first, then the rest by
+ * `order`. The contract has the featured run lead the list, which `order` alone would only do
+ * while the featured project happened to be the first. A build can have no featured project
+ * (production leaves a placeholder one out and promotes no other), and then this is `order`
+ * alone. It returns a new list, and the entries themselves are the ones it was given.
+ */
+export function featuredFirst<
+  E extends { data: { featured: boolean; order: number } },
+>(projects: readonly E[]): E[] {
+  return [...projects].sort(
+    (a, b) =>
+      Number(b.data.featured) - Number(a.data.featured) ||
+      a.data.order - b.data.order,
+  );
+}
+
+/**
  * The two halves of a project's meta line. A work project says what kind of organisation it was
  * for, which is anonymised. A personal or open-source project names its organisation when it has
  * one, and otherwise says what kind of project it is. Either half may be a placeholder, which

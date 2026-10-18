@@ -33,7 +33,7 @@ describe("<Status>", () => {
 
   it("hatches a placeholder in the same cell, with no marker", async () => {
     const html = await render({
-      status: "TODO: in-service, commissioning, complete or archived",
+      status: "TODO: status",
       context: "preview",
     });
     expect(html).toMatch(/^<span class="run__status"[^>]*>\s*<span class="ph"/);
@@ -42,7 +42,7 @@ describe("<Status>", () => {
 
   it("shows nothing but the empty cell for a placeholder on production", async () => {
     const html = await render({
-      status: "TODO: in-service, commissioning, complete or archived",
+      status: "TODO: status",
       context: "production",
     });
     expect(html).not.toContain('class="ph"');

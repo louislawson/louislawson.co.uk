@@ -158,12 +158,43 @@ describe("<Projects>", () => {
       );
     });
 
-    it("keeps the order it is given", async () => {
+    it("is in `order` when no project is featured, whatever order it arrives in", async () => {
       const html = await render({
         projects: entries(work({ code: "R03" }), work({ code: "R01" })),
         sections: all,
       });
-      expect(text(html, "run__code")).toEqual(["R03", "R01"]);
+      expect(text(html, "run__code")).toEqual(["R01", "R03"]);
+    });
+
+    it.each([
+      ["strips", 3],
+      ["rows", 4],
+    ])(
+      "leads with the featured project in %s, even when it is third by order",
+      async (_name, count) => {
+        const projects = entries(
+          ...[1, 2, 3, 4]
+            .slice(0, count)
+            .map((n) => work({ code: `R0${n}`, featured: n === 3 })),
+        );
+        const html = await render({ projects, sections: all });
+        expect(text(html, "run__code")).toEqual(
+          count === 3 ? ["R03", "R01", "R02"] : ["R03", "R01", "R02", "R04"],
+        );
+        // And the tag is on that first one.
+        expect(html.split("<article")[1]).toContain('class="tag"');
+      },
+    );
+
+    it("counts the same projects whatever the order, so the layout does not change with it", async () => {
+      const reordered = entries(
+        work({ code: "R03", featured: true }),
+        work({ code: "R01" }),
+        work({ code: "R02" }),
+      );
+      expect(await render({ projects: reordered, sections: all })).toContain(
+        "runs--strip",
+      );
     });
   });
 
@@ -279,18 +310,19 @@ describe("<Projects>", () => {
         i === 1 ? { ...e, data: { ...e.data, featured: true } } : e,
       );
 
-    it("is on the featured project in a strip, and on no other", async () => {
+    it("is on the featured project in a strip, which leads, and on no other", async () => {
+      // R02 is featured, and a featured project leads the list.
       const html = await render({ projects: featured(three), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
-      const second = html.split("<article")[2]!;
-      expect(second).toContain('class="tag"');
+      expect(text(html, "run__code")[0]).toBe("R02");
+      expect(html.split("<article")[1]).toContain('class="tag"');
     });
 
-    it("is on the featured project in a row, and on no other", async () => {
+    it("is on the featured project in a row, which leads, and on no other", async () => {
       const html = await render({ projects: featured(four), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
-      const second = html.split("<article")[2]!;
-      expect(second).toContain('class="tag"');
+      expect(text(html, "run__code")[0]).toBe("R02");
+      expect(html.split("<article")[1]).toContain('class="tag"');
     });
 
     it.each([
@@ -405,7 +437,7 @@ describe("<Projects>", () => {
         code: "R01",
         title: "TODO: project title",
         setup: "TODO: where it started",
-        status: "TODO: in-service, commissioning, complete or archived",
+        status: "TODO: status",
         descriptor: "TODO: anonymised descriptor",
       }),
     );
@@ -436,8 +468,7 @@ describe("<Projects>", () => {
                 ...e,
                 data: {
                   ...e.data,
-                  status:
-                    "TODO: in-service, commissioning, complete or archived",
+                  status: "TODO: status",
                 },
               }
             : e,

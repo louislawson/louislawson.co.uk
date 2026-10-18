@@ -3,6 +3,7 @@ import type { Project } from "../../content/schema";
 import {
   STRIP_LIMIT,
   countLabel,
+  featuredFirst,
   metaParts,
   projectLayout,
   statusLabel,
@@ -53,6 +54,61 @@ describe("projectLayout", () => {
     for (const count of [4, 5, 12]) {
       expect(projectLayout(count), String(count)).toBe("row");
     }
+  });
+});
+
+describe("featuredFirst", () => {
+  /** An entry with only what the ordering reads. */
+  const entry = (code: string, order: number, featured = false) => ({
+    id: code.toLowerCase(),
+    data: { code, order, featured },
+  });
+  const codes = (list: { data: { code: string } }[]) =>
+    list.map((e) => e.data.code);
+
+  it("puts the featured project first, even when it is third by order", () => {
+    const list = [entry("R01", 1), entry("R02", 2), entry("R03", 3, true)];
+    expect(codes(featuredFirst(list))).toEqual(["R03", "R01", "R02"]);
+  });
+
+  it("keeps the rest in order after it", () => {
+    const list = [
+      entry("R01", 1),
+      entry("R02", 2, true),
+      entry("R03", 3),
+      entry("R04", 4),
+    ];
+    expect(codes(featuredFirst(list))).toEqual(["R02", "R01", "R03", "R04"]);
+  });
+
+  it("leaves a featured project that is already first where it is", () => {
+    const list = [entry("R01", 1, true), entry("R02", 2), entry("R03", 3)];
+    expect(codes(featuredFirst(list))).toEqual(["R01", "R02", "R03"]);
+  });
+
+  it("keeps the order when no project is featured", () => {
+    // Production can have none: the featured project may be left out as a placeholder.
+    const list = [entry("R01", 1), entry("R02", 2), entry("R04", 4)];
+    expect(codes(featuredFirst(list))).toEqual(["R01", "R02", "R04"]);
+  });
+
+  it("orders by `order` whatever order the list arrives in", () => {
+    const list = [entry("R04", 4), entry("R02", 2), entry("R03", 3, true)];
+    expect(codes(featuredFirst(list))).toEqual(["R03", "R02", "R04"]);
+  });
+
+  it("is an empty list for an empty list", () => {
+    expect(featuredFirst([])).toEqual([]);
+  });
+
+  it("returns a new list and leaves the one it was given as it was", () => {
+    const list = [entry("R01", 1), entry("R02", 2, true)];
+    const before = codes(list);
+    const result = featuredFirst(list);
+    expect(codes(list)).toEqual(before);
+    expect(result).not.toBe(list);
+    // The entries themselves are the same objects, not copies.
+    expect(result[0]).toBe(list[1]);
   });
 });
 
