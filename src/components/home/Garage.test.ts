@@ -90,14 +90,14 @@ describe("<Garage>", () => {
     expect(html).not.toContain('class="n"');
   });
 
-  it("has the fixed intro line, which makes no claims", async () => {
+  it("has the approved intro line, word for word", async () => {
     const html = await render({
       garageIntro: intro,
       garage: [tractor],
       sections: all,
     });
     expect(html).toMatch(
-      /<div class="shead"[^>]*>.*?<p[^>]*>\s*Photos and notes\.\s*<\/p>/,
+      /<div class="shead"[^>]*>.*?<p[^>]*>\s*Cars, trucks and tractors: photos from shows and meets\.\s*<\/p>/,
     );
   });
 
