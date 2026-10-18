@@ -1,8 +1,35 @@
 ---
+import NotFoundLinks from "../components/NotFoundLinks.astro";
+import { getSiteContent } from "../content/site-content";
 import Base from "../layouts/Base.astro";
+
+// The links are the sections this build shows, so a section left out of production has none here.
+const { sections } = await getSiteContent();
 ---
 
-<Base title="Not found | Louis Lawson">
-  <h1>Not found</h1>
-  <p>There is nothing at this address.</p>
+<Base title="Not found | Louis Lawson" canonical={false}>
+  <div class="wrap notfound">
+    <h1>404 · not found</h1>
+    <p>There is nothing at this address.</p>
+    <NotFoundLinks sections={sections} />
+  </div>
 </Base>
+
+<style>
+  .notfound {
+    padding-block: clamp(3rem, 7vw, 6rem) 0;
+  }
+
+  h1 {
+    font-size: clamp(2.2rem, 1rem + 5vw, 5.6rem);
+    font-stretch: 100%;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    text-wrap: balance;
+  }
+
+  p {
+    margin-block: 1.25rem 2.5rem;
+  }
+</style>

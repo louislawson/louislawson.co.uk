@@ -35,6 +35,11 @@ html {
 }
 
 body {
+  /* A page shorter than the screen still ends with the footer at the bottom. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--bg);
   color: var(--bone);
@@ -89,7 +94,29 @@ a:hover {
   outline-offset: 3px;
 }
 
-/* Text for screen readers only: the placeholder label, the skip link, the number-key hints. */
+main {
+  flex: 1 0 auto;
+}
+
+/* The skip link moves focus here, so the whole page must not light up as focused. */
+main:focus-visible {
+  outline: none;
+}
+
+/* The page's width and side gutters. */
+.wrap {
+  padding-inline: var(--gutter);
+  max-width: 1520px;
+  margin-inline: auto;
+}
+
+/* A component's own display rule must not undo the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+/* Text for screen readers only: the placeholder label, the skip link until it has focus, the
+   number-key hints. */
 .vh {
   position: absolute;
   width: 1px;
@@ -100,6 +127,23 @@ a:hover {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* The skip link is .vh until a keyboard user lands on it, then a hi-vis block at the top left. */
+.skip:focus {
+  z-index: 100;
+  top: 8px;
+  left: var(--gutter);
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 10px 16px;
+  overflow: visible;
+  clip-path: none;
+  background: var(--hivis);
+  color: var(--bg);
+  font-weight: 700;
+  text-decoration: none;
 }
 
 /* The browser sets controls in its own font, not the page's. */

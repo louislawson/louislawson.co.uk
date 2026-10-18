@@ -1,0 +1,77 @@
+---
+// The switch for the single-key shortcuts (WCAG 2.1.4). Hidden until the script runs: without
+// script there are no shortcuts, so a switch that does nothing would only get in the way.
+// "keyboard shortcuts:" is the label. The on/off word after it is a visual indicator of the state,
+// hidden from assistive technology: aria-pressed carries the state, so the accessible name stays
+// the same and a screen reader does not hear it twice.
+---
+
+<button
+  type="button"
+  class="switch"
+  aria-pressed="true"
+  hidden
+  data-shortcuts-switch
+>
+  <span class="mark" aria-hidden="true"></span>keyboard shortcuts:
+  <span class="state" aria-hidden="true" data-shortcuts-state>on</span>
+</button>
+
+<style>
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 6px 12px;
+    color: var(--bone);
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    cursor: pointer;
+    transition: border-color 160ms var(--ease);
+  }
+
+  .switch:hover {
+    border-color: var(--bone);
+  }
+
+  /* A square marker plus the word, as the status markers are: filled when on, an outline when off. */
+  .mark {
+    width: 8px;
+    height: 8px;
+    box-sizing: border-box;
+  }
+
+  .switch[aria-pressed="true"] .mark {
+    background: var(--hivis);
+  }
+
+  .switch[aria-pressed="false"] .mark {
+    border: 2px solid var(--dim);
+  }
+
+  .switch[aria-pressed="true"] .state {
+    color: var(--hivis);
+  }
+
+  .switch[aria-pressed="false"] .state {
+    color: var(--dim);
+  }
+</style>
+
+<script>
+  import { getStorage, initShortcutSwitch } from "../scripts/shortcuts";
+
+  const button = document.querySelector<HTMLButtonElement>(
+    "[data-shortcuts-switch]",
+  );
+  const state = button?.querySelector<HTMLElement>("[data-shortcuts-state]");
+  if (button && state) {
+    initShortcutSwitch({
+      storage: getStorage(window),
+      root: document.documentElement,
+      button,
+      state,
+    });
+  }
+</script>

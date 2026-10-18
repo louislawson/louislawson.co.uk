@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // The shipped pages have no wrapped prose yet, so this builds a copy of the project with one page
 // that has some, written the way Prettier wraps it, and reads what a deployment would serve.
@@ -76,11 +76,22 @@ function buildWithProsePage(): string {
 }
 
 describe("a built page with prose wrapped across lines", () => {
+  let html = "";
+  beforeAll(() => {
+    html = buildWithProsePage();
+  });
+
   it("keeps a space on each side of a link and of a key hint", () => {
-    const html = buildWithProsePage();
     expect(html).toContain(
       'that ends a line. <a href="/somewhere">An ordinary link</a> and more text',
     );
     expect(html).toContain("then a <kbd>1</kbd> key hint.");
+  });
+
+  // The copy has no .git, as a build from a source archive has none, so git cannot give a date.
+  it("builds, with a footer that leaves out the updated date, where there is no git history", () => {
+    expect(html).toContain("<footer");
+    expect(html).toContain("no cookies, no tracking");
+    expect(html).not.toContain("updated ");
   });
 });
