@@ -1,13 +1,13 @@
 ---
-import Base from "../layouts/Base.astro";
+import Hero from "../components/home/Hero.astro";
 import { getSiteContent } from "../content/site-content";
+import Base from "../layouts/Base.astro";
 
-// Only the sections are used until the home page has its content (Phase 4): bad content already
-// fails the build here.
-const { sections } = await getSiteContent();
+// The page only composes the sections, in the contract's order. Each takes what it needs from
+// what getSiteContent() returns, which is already shaped for this build's deploy context.
+const { profile, sections } = await getSiteContent();
 ---
 
 <Base title="Louis Lawson" sections={sections}>
-  <h1>Louis Lawson</h1>
-  <p>Site under construction.</p>
+  <Hero profile={profile} sections={sections} />
 </Base>

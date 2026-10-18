@@ -81,7 +81,46 @@ function wordRuns(list: string[], size = 8): Set<string> {
   return runs;
 }
 
+/**
+ * The text with each of these labels removed where a line of the document gives it, in quotes, as
+ * the section's label (the line says "label", or is the "Inspect:" bullet): the wording the
+ * document approves. A label quoted anywhere else is left in.
+ */
+function withoutApprovedLabels(text: string, labels: string[]): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      /\blabel\b|\*\*Inspect:\*\*/i.test(line)
+        ? labels.reduce(
+            (rest, label) => rest.split(`"${label}"`).join(" "),
+            line,
+          )
+        : line,
+    )
+    .join("\n");
+}
+
 describe("the check for copied text", () => {
+  it("lets a label through only where the document quotes it as approved wording", () => {
+    const label = "h1 · Martian Mono 800 · static HTML, no JavaScript";
+    const approved = `The label is "${label}".\nAnother line follows.`;
+    expect(withoutApprovedLabels(approved, [label])).not.toContain("Martian");
+    expect(withoutApprovedLabels(approved, [label])).toContain("Another line");
+    expect(
+      withoutApprovedLabels(`- **Inspect:** "${label}"`, [label]),
+    ).not.toContain("Martian");
+    // The same words in running prose, not in quotes, are still counted.
+    const prose = `It says ${label} here.`;
+    expect(withoutApprovedLabels(prose, [label])).toContain("Martian");
+    // A quotation on a line that is not giving the label is still counted.
+    const elsewhere = `Copy this sentence: "${label}"`;
+    expect(withoutApprovedLabels(elsewhere, [label])).toContain("Martian");
+    // And a label the document does not quote is left alone.
+    expect(withoutApprovedLabels(approved, ["something else"])).toContain(
+      "Martian",
+    );
+  });
+
   it("finds a sentence that was copied, and leaves different words alone", () => {
     const source = wordRuns(
       words(
@@ -332,16 +371,17 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   it.each([
-    ["index.html", 2],
+    ["index.html", 3],
     ["404.html", 3],
   ])(
-    "labels only the shell's parts in %s, %i of them, each with a registered label",
+    "labels only whole parts in %s, %i of them, each with a registered label",
     (page, count) => {
       const html = read(dir, page);
       const labels = [...html.matchAll(/\sdata-inspect="([^"]*)"/g)].map(
         (m) => m[1],
       );
-      // Section-level only: the bar, the footer, and on the 404 page its content. Never per element.
+      // Section-level only: the bar, the footer, and the content: on the home page the sections
+      // built so far, on the 404 page its content. Never per element.
       expect(labels).toHaveLength(count);
       for (const label of labels) {
         expect(Object.values(INSPECT_LABELS), label).toContain(label);
@@ -371,31 +411,39 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     for (const rule of rules) expect(rule).toContain("body.inspecting");
   });
 
-  it("makes room for the 404 content's label only in inspect mode, leaving the page's own layout alone", () => {
+  it("makes room for the first content's label with one rule on <main>, only in inspect mode", () => {
     // The label of content that starts under the sticky bar would sit behind the bar, so inspect
-    // mode moves the content down. A visitor who has not asked for inspect mode sees no change.
-    const rules = [
-      ...stylesheetText(dir).matchAll(/([^{}]*\.notfound[^{}]*)\{([^}]*)\}/g),
-    ].map(([, selector, body]) => ({ selector: selector!, body: body! }));
-    const inspecting = rules.filter((r) =>
-      r.selector.includes("body.inspecting"),
+    // mode moves every page's content down, with one rule and not one per page. A visitor who has
+    // not asked for inspect mode sees no change.
+    const css = stylesheetText(dir);
+    const rules = [...css.matchAll(/([^{}]*\bmain\b[^{}]*)\{([^}]*)\}/g)].map(
+      ([, selector, body]) => ({ selector: selector!, body: body! }),
     );
-    const ordinary = rules.filter(
-      (r) => !r.selector.includes("body.inspecting"),
-    );
-    expect(inspecting.some((r) => r.body.includes("margin-top"))).toBe(true);
-    expect(ordinary.length).toBeGreaterThan(0);
-    for (const rule of ordinary) expect(rule.body).not.toContain("margin-top");
+    const room = rules.filter((r) => /padding-top|margin-top/.test(r.body));
+    expect(room).toHaveLength(1);
+    expect(room[0]!.selector.trim()).toBe("body.inspecting main");
+    // No page makes the room itself.
+    expect(css).not.toMatch(/\.notfound[^{}]*\{[^}]*margin-top/);
   });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence
-    // copied from it, not something the page says.
+    // copied from it, not something the page says. The one exception is a label the plan itself
+    // quotes as the approved wording ("…" in the section's spec): that sentence is meant for the
+    // page, so it is taken out of the plan before the plan is compared, and every other word of
+    // the plan still counts.
     const sources = [
       "../.impeccable/surfaces/src-pages-index-astro.md",
       "../docs/BUILD-PLAN.md",
     ].map((file) =>
-      wordRuns(words(readFileSync(new URL(file, import.meta.url), "utf-8"))),
+      wordRuns(
+        words(
+          withoutApprovedLabels(
+            readFileSync(new URL(file, import.meta.url), "utf-8"),
+            Object.values(INSPECT_LABELS),
+          ),
+        ),
+      ),
     );
     for (const page of ["index.html", "404.html"]) {
       const html = read(dir, page);

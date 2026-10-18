@@ -21,14 +21,6 @@ const { sections } = await getSiteContent();
     padding-block: clamp(3rem, 7vw, 6rem) 0;
   }
 
-  /* Inspect mode writes this content's label above it, but the content starts right under the
-     sticky bar, which would hide it, and the bar's own label comes first. So in inspect mode only,
-     the content moves down: room for the bar's label (up to three lines on a phone), then this
-     one. A visitor who has not asked for inspect mode sees the page as it is. */
-  :global(body.inspecting) .notfound {
-    margin-top: 6rem;
-  }
-
   h1 {
     font-size: clamp(2.2rem, 1rem + 5vw, 5.6rem);
     font-stretch: 100%;
