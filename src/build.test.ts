@@ -81,23 +81,40 @@ function wordRuns(list: string[], size = 8): Set<string> {
   return runs;
 }
 
-/** The text with each of these labels removed where it stands in quotes: the wording a document approves. */
+/**
+ * The text with each of these labels removed where a line of the document gives it, in quotes, as
+ * the section's label (the line says "label", or is the "Inspect:" bullet): the wording the
+ * document approves. A label quoted anywhere else is left in.
+ */
 function withoutApprovedLabels(text: string, labels: string[]): string {
-  return labels.reduce(
-    (rest, label) => rest.split(`"${label}"`).join(" "),
-    text,
-  );
+  return text
+    .split("\n")
+    .map((line) =>
+      /\blabel\b|\*\*Inspect:\*\*/i.test(line)
+        ? labels.reduce(
+            (rest, label) => rest.split(`"${label}"`).join(" "),
+            line,
+          )
+        : line,
+    )
+    .join("\n");
 }
 
 describe("the check for copied text", () => {
   it("lets a label through only where the document quotes it as approved wording", () => {
     const label = "h1 · Martian Mono 800 · static HTML, no JavaScript";
-    const approved = `The label is "${label}". Another line follows.`;
+    const approved = `The label is "${label}".\nAnother line follows.`;
     expect(withoutApprovedLabels(approved, [label])).not.toContain("Martian");
     expect(withoutApprovedLabels(approved, [label])).toContain("Another line");
+    expect(
+      withoutApprovedLabels(`- **Inspect:** "${label}"`, [label]),
+    ).not.toContain("Martian");
     // The same words in running prose, not in quotes, are still counted.
     const prose = `It says ${label} here.`;
     expect(withoutApprovedLabels(prose, [label])).toContain("Martian");
+    // A quotation on a line that is not giving the label is still counted.
+    const elsewhere = `Copy this sentence: "${label}"`;
+    expect(withoutApprovedLabels(elsewhere, [label])).toContain("Martian");
     // And a label the document does not quote is left alone.
     expect(withoutApprovedLabels(approved, ["something else"])).toContain(
       "Martian",

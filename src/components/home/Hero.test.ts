@@ -61,16 +61,23 @@ describe("<Hero>", () => {
     const html = await render({ profile: real, sections: all });
     expect(html).toMatch(/<section[^>]*aria-labelledby="name"/);
     expect(html).toMatch(
-      /<h1[^>]*\sid="name"[^>]*>\s*Louis<br[^>]*>Lawson<span[^>]*class="caret"[^>]*><\/span>\s*<\/h1>/,
+      /<h1[^>]*\sid="name"[^>]*>\s*Louis <br[^>]*>Lawson<span[^>]*class="caret"[^>]*><\/span>\s*<\/h1>/,
     );
     // The caret is decoration: the name is "Louis Lawson" and nothing more.
     expect(html).toMatch(/<span[^>]*class="caret"[^>]*aria-hidden="true"/);
   });
 
+  it("reads as “Louis Lawson” with the tags taken out, so the region's name and a copy of the text have the space", async () => {
+    const html = await render({ profile: real, sections: all });
+    const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(html)?.[1] ?? "";
+    // A line break is not a space to every reader: textContent has none of it.
+    expect(h1.replace(/<[^>]+>/g, "").trim()).toBe("Louis Lawson");
+  });
+
   it("is the only h1, with the name as fixed text rather than profile data", async () => {
     const html = await render({ profile: placeholders, sections: all });
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
-    expect(html).toContain("Louis<br");
+    expect(html).toContain("Louis <br");
   });
 
   it("shows the role, the introduction and the career line as paragraphs, in that order", async () => {
@@ -144,7 +151,7 @@ describe("<Hero>", () => {
       sections: all,
       context: "production",
     });
-    expect(html).toContain("Louis<br");
+    expect(html).toContain("Louis <br");
     expect(actions(html)).toHaveLength(2);
   });
 

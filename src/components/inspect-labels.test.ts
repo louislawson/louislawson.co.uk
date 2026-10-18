@@ -125,7 +125,7 @@ const facts: {
         props: { profile: {}, sections: [] },
       });
       return (
-        /<h1[^>]*>\s*Louis<br[^>]*>Lawson/.test(html) &&
+        /<h1[^>]*>\s*Louis <br[^>]*>Lawson/.test(html) &&
         !html.includes("<script") &&
         !/<script/.test(read("src/components/home/Hero.astro"))
       );
