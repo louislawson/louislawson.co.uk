@@ -1,5 +1,6 @@
 ---
 import Certifications from "../components/home/Certifications.astro";
+import Garage from "../components/home/Garage.astro";
 import Hero from "../components/home/Hero.astro";
 import Projects from "../components/home/Projects.astro";
 import Skills from "../components/home/Skills.astro";
@@ -24,4 +25,9 @@ const { profile, projects, sections } = await getSiteContent();
     sections={sections}
   />
   <Certifications certifications={profile.certifications} sections={sections} />
+  <Garage
+    garageIntro={profile.garageIntro}
+    garage={profile.garage}
+    sections={sections}
+  />
 </Base>

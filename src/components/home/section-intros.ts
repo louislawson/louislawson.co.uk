@@ -7,4 +7,5 @@ export const SECTION_INTROS = {
   projects: "Each one written up as setup, change and result.",
   skills: "Where I've used each one, and the projects that show it.",
   certifications: "Certifications and achievements.",
+  garage: "Photos and notes.",
 } as const;

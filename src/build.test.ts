@@ -9,6 +9,7 @@ import { parseDeployContext } from "./config/site";
 import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
+import { FIRST_TICK, frame } from "./scripts/wheel";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -475,8 +476,16 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       [{}],
       visibleProfile(profile, new Set(), "production"),
     ).some((section) => section.id === "skills");
+  const shownGarage = visibleProfile(
+    profile,
+    new Set(),
+    parseDeployContext(deployContext),
+  ).garage;
   const homeLabels =
-    5 + (skillsShown ? 1 : 0) + (shownCerts.length > 0 ? 1 : 0);
+    5 +
+    (skillsShown ? 1 : 0) +
+    (shownCerts.length > 0 ? 1 : 0) +
+    (shownGarage.length > 0 ? 1 : 0);
 
   it.each([
     ["index.html", homeLabels],
@@ -715,6 +724,45 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(html.indexOf('id="certifications"')).toBeLessThan(
       html.indexOf("<footer"),
     );
+  });
+
+  it("shows the garage section, and its nav link, exactly when there is an entry to show", () => {
+    const html = read(dir, "index.html");
+    expect(html.includes('id="garage"')).toBe(shownGarage.length > 0);
+    expect(html.includes('href="/#garage"')).toBe(shownGarage.length > 0);
+  });
+
+  it("draws the wheel's first frame into the page, intact, so there is a still wheel without script", () => {
+    const html = read(dir, "index.html");
+    const section = /<section[^>]*\sid="garage"[\s\S]*?<\/section>/.exec(
+      html,
+    )?.[0];
+    if (shownGarage.length === 0) {
+      expect(section).toBeUndefined();
+      expect(html).not.toContain("data-wheel");
+      return;
+    }
+    expect(section, "no garage section").toBeDefined();
+    const pre = /<pre\b([^>]*\sdata-wheel[^>]*)>([\s\S]*?)<\/pre>/.exec(
+      section!,
+    );
+    expect(pre, "no wheel").not.toBeNull();
+    expect(pre![1]).toContain('aria-hidden="true"');
+    // Every space and line break of the frame survives the build's HTML compression.
+    expect(pre![2]).toBe(frame(FIRST_TICK));
+    expect(section!.match(/<figure[^>]*class="gcard[ "]/g)).toHaveLength(
+      shownGarage.length,
+    );
+    expect(section).not.toContain("<img");
+    // Every placeholder is hatched in a preview, and none is left on production.
+    expect(section).not.toContain("TODO:");
+    // After the certifications and before the footer.
+    expect(html.indexOf('id="garage"')).toBeLessThan(html.indexOf("<footer"));
+    if (html.includes('id="certifications"')) {
+      expect(html.indexOf('id="certifications"')).toBeLessThan(
+        html.indexOf('id="garage"'),
+      );
+    }
   });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
