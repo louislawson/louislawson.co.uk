@@ -10,6 +10,18 @@ async function render(props: Record<string, unknown> = {}): Promise<string> {
   return html.replace(/\s+/g, " ");
 }
 
+/**
+ * The code of a component's one script, whatever attributes its tag has. It fails when there is
+ * none or it is empty, so a check on it cannot pass for want of something to look at.
+ */
+function scriptOf(source: string): string {
+  const scripts = [...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
+  expect(scripts, "exactly one <script> block").toHaveLength(1);
+  const code = scripts[0]![1]!;
+  expect(code.length, "the script is empty").toBeGreaterThan(200);
+  return code;
+}
+
 /** The opening tag of the first element with this attribute. */
 const tagWith = (html: string, attribute: string) =>
   new RegExp(`<[a-z0-9]+[^>]*\\s${attribute}[\\s=>][^>]*>`).exec(html)?.[0];
@@ -86,11 +98,20 @@ describe("<Trace>", () => {
       new URL("./Trace.astro", import.meta.url),
       "utf-8",
     );
-    const script = /<script>([\s\S]*)<\/script>/.exec(source)?.[1] ?? "";
+    const script = scriptOf(source);
     expect(script).not.toMatch(/innerHTML|outerHTML|insertAdjacentHTML/);
     // And sets its custom properties through the CSSOM, which the policy allows, not as a style
     // attribute, which it does not.
     expect(script).not.toMatch(/setAttribute\(\s*["']style["']/);
+    expect(script).toContain("setProperty");
+  });
+
+  it("animates the steps themselves, never a pseudo-element: a browser that ignores that option would animate the whole row", () => {
+    const script = scriptOf(
+      readFileSync(new URL("./Trace.astro", import.meta.url), "utf-8"),
+    );
+    expect(script).toContain(".animate(");
+    expect(script).not.toContain("pseudoElement");
   });
 
   it("measures with the Navigation Timing API and the largest paint, in the browser", () => {

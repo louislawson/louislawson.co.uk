@@ -38,9 +38,13 @@ function kilobytes(entry: NavigationTimingLike): string | null {
   return bytes > 0 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : null;
 }
 
-/** Each step of the navigation as whole milliseconds, or nothing where it was not measured. */
+/**
+ * Each step of the navigation as whole milliseconds, or nothing where it was not measured. An entry
+ * with no response in it (a page restored from the back/forward cache, or one a browser has zeroed)
+ * records nothing about how this page arrived: its zeros are not measurements.
+ */
 export function readTimings(entry: NavigationTimingLike | undefined): Timings {
-  if (!entry) {
+  if (!entry || !(entry.responseEnd > 0)) {
     return {
       dns: null,
       connect: null,
@@ -74,7 +78,10 @@ export function lcpTime(
     : null;
 }
 
-/** A bar's width as a percentage of the longest step, at least 2 so a real, tiny step shows. */
+/**
+ * A bar's width as a percentage of the longest value shown, at least 2 so a real, tiny step shows.
+ * The longest is the time to paint once it is known, so each bar is that step's share of it.
+ */
 export function barPercent(ms: number | null, longest: number): number {
   if (ms === null) return 0;
   return Math.max(2, (ms / Math.max(1, longest)) * 100);
@@ -89,7 +96,7 @@ export interface Hop {
   /** "20 ms", an ellipsis for a step that was not measured, or nothing for the first hop. */
   value: string;
   measured: boolean;
-  /** Percentage of the longest step, or null for the hop that has no bar. */
+  /** Percentage of the longest value shown (see barPercent), or null for the hop with no bar. */
   bar: number | null;
   /** How long into the replay this hop arrives. */
   delay: number;
@@ -184,7 +191,8 @@ export function traceView(
 /** The parts of the page the trace needs, so the loop below can run without a browser. */
 export interface TracePage {
   host: string;
-  reducedMotion: boolean;
+  /** Asked each time, not once: the visitor can change the preference during the visit. */
+  reducedMotion(): boolean;
   navigation(): NavigationTimingLike | undefined;
   /** Called with the time of the largest paint so far, each time it grows. */
   onPaint(listener: (ms: number) => void): void;
@@ -203,12 +211,12 @@ export function initTrace(page: TracePage): void {
   const show = () =>
     page.show(
       traceView(page.host, readTimings(page.navigation()), paint, {
-        reducedMotion: page.reducedMotion,
+        reducedMotion: page.reducedMotion(),
       }),
     );
 
   show();
-  if (!page.reducedMotion) page.replay();
+  if (!page.reducedMotion()) page.replay();
   page.onPaint((ms) => {
     paint = ms;
     show();
@@ -217,6 +225,6 @@ export function initTrace(page: TracePage): void {
   page.onLoad(show);
   page.onReplay(() => {
     show();
-    if (!page.reducedMotion) page.replay();
+    if (!page.reducedMotion()) page.replay();
   });
 }

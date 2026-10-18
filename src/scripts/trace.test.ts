@@ -48,6 +48,28 @@ describe("readTimings", () => {
     });
   });
 
+  it("measures nothing from an entry with no response in it, because a zeroed entry is not a record of this page's arrival", () => {
+    // A page restored from the back/forward cache, or an entry a browser has zeroed, reads 0 in
+    // every field. Those zeros are not measurements, so each step stays an ellipsis.
+    const zeroed: NavigationTimingLike = {
+      domainLookupStart: 0,
+      domainLookupEnd: 0,
+      connectStart: 0,
+      connectEnd: 0,
+      requestStart: 0,
+      responseStart: 0,
+      responseEnd: 0,
+      transferSize: 0,
+      encodedBodySize: 0,
+      domContentLoadedEventEnd: 0,
+    };
+    expect(readTimings(zeroed)).toEqual(readTimings(undefined));
+    // The same when only the response is missing: the steps before it are no use without it.
+    expect(readTimings({ ...recorded, responseEnd: 0 })).toEqual(
+      readTimings(undefined),
+    );
+  });
+
   it("keeps a real zero: a cached lookup and a reused connection took no time", () => {
     const reused = {
       ...recorded,
@@ -113,7 +135,7 @@ describe("lcpTime", () => {
 });
 
 describe("barPercent", () => {
-  it("is the value's share of the longest step", () => {
+  it("is the value's share of the longest value shown", () => {
     expect(barPercent(50, 200)).toBe(25);
     expect(barPercent(200, 200)).toBe(100);
   });
@@ -165,7 +187,7 @@ describe("traceView", () => {
     ]);
   });
 
-  it("sizes the bars against the longest step, with none for 'you'", () => {
+  it("sizes each bar as its share of the time to paint, the longest value, with none for 'you'", () => {
     expect(view.hops.map((h) => h.bar)).toEqual([
       null,
       barPercent(20, 613),
@@ -260,9 +282,10 @@ function fakePage(over: Partial<TracePage> = {}) {
   const loadListeners: (() => void)[] = [];
   const replayListeners: (() => void)[] = [];
   let entry: NavigationTimingLike | undefined = recorded;
+  let reduced = false;
   const page: TracePage = {
     host: "example.test",
-    reducedMotion: false,
+    reducedMotion: () => reduced,
     navigation: () => entry,
     onPaint: (l) => void paintListeners.push(l),
     onLoad: (l) => void loadListeners.push(l),
@@ -279,6 +302,7 @@ function fakePage(over: Partial<TracePage> = {}) {
     load: () => loadListeners.forEach((l) => l()),
     press: () => replayListeners.forEach((l) => l()),
     setEntry: (e: NavigationTimingLike | undefined) => (entry = e),
+    setReducedMotion: (value: boolean) => (reduced = value),
   };
 }
 
@@ -326,13 +350,27 @@ describe("initTrace", () => {
   });
 
   it("is still under reduced motion: it shows the values, and never replays or offers to", () => {
-    const f = fakePage({ reducedMotion: true });
+    const f = fakePage({ reducedMotion: () => true });
     initTrace(f.page);
     f.paint(613);
     f.press();
     expect(f.replays()).toBe(0);
     expect(f.shown.every((v) => !v.canReplay)).toBe(true);
     expect(f.shown.at(-1)!.hops[5]!.value).toBe("613 ms");
+  });
+
+  it("follows a change to reduced motion made during the visit: no more replays, and no offer of one", () => {
+    const f = fakePage();
+    initTrace(f.page);
+    expect(f.shown[0]!.canReplay).toBe(true);
+    f.setReducedMotion(true);
+    f.press();
+    expect(f.replays()).toBe(1); // only the one on arrival
+    expect(f.shown.at(-1)!.canReplay).toBe(false);
+    // And back again: the offer returns with the preference.
+    f.setReducedMotion(false);
+    f.paint(613);
+    expect(f.shown.at(-1)!.canReplay).toBe(true);
   });
 
   it("shows ellipses, and says nothing was measured, when the browser has no navigation entry", () => {

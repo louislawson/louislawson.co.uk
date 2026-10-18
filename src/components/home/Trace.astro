@@ -267,7 +267,8 @@ const { build } = Astro.props;
 
     initTrace({
       host,
-      reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+      reducedMotion: () =>
+        matchMedia("(prefers-reduced-motion: reduce)").matches,
       navigation: () =>
         performance.getEntriesByType("navigation")[0] as
           PerformanceNavigationTiming | undefined,
@@ -307,7 +308,9 @@ const { build } = Astro.props;
         replayButton.hidden = !view.canReplay;
       },
       replay: () => {
-        // The steps arrive in order and the bars fill, each at its own delay.
+        // The steps arrive in order, connector and all, and the bars fill, each at its own delay.
+        // A browser without the Web Animations API just shows the finished panel.
+        if (typeof Element.prototype.animate !== "function") return;
         const ease = "cubic-bezier(0.16, 1, 0.3, 1)";
         for (const row of rows) {
           const { delay } = row;
@@ -317,16 +320,6 @@ const { build } = Astro.props;
               { opacity: 1, transform: "none" },
             ],
             { duration: 260, delay, easing: ease, fill: "backwards" },
-          );
-          row.item.animate(
-            [{ transform: "scaleY(0)" }, { transform: "none" }],
-            {
-              duration: 240,
-              delay: delay + 160,
-              easing: ease,
-              fill: "backwards",
-              pseudoElement: "::before",
-            },
           );
           row.fill?.animate(
             [{ transform: "scaleX(0)" }, { transform: "none" }],

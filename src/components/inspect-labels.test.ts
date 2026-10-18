@@ -152,11 +152,14 @@ const facts: {
     phrase: "nothing sent anywhere",
     holds: () => {
       // Neither the panel's script nor its functions make a request, beacon, socket or image.
-      const script =
-        /<script>([\s\S]*)<\/script>/.exec(
-          read("src/components/home/Trace.astro"),
-        )?.[1] ?? "";
-      const code = [script, read("src/scripts/trace.ts")]
+      const scripts = [
+        ...read("src/components/home/Trace.astro").matchAll(
+          /<script[^>]*>([\s\S]*?)<\/script>/g,
+        ),
+      ];
+      // No script to look at would pass for want of something to check, so it does not hold.
+      if (scripts.length !== 1 || scripts[0]![1]!.length < 200) return false;
+      const code = [scripts[0]![1]!, read("src/scripts/trace.ts")]
         .join("\n")
         .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
       return !/\b(fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|new Image|import\()/.test(
