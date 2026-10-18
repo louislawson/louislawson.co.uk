@@ -81,7 +81,7 @@ describe("<Certifications>", () => {
   it("has the fixed intro line, which makes no claims", async () => {
     const html = await render({ certifications: [checked], sections: all });
     expect(html).toMatch(
-      /<p[^>]*>\s*Certifications and achievements, each with a way to check it\.\s*<\/p>/,
+      /<p[^>]*>\s*Certifications and achievements\.\s*<\/p>/,
     );
   });
 
