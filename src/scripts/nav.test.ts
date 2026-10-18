@@ -360,12 +360,12 @@ describe("the current section", () => {
     expect(link(1).attributes["aria-current"]).toBeUndefined();
 
     scrollTo([100, 900, 1700]);
-    expect(link(1).attributes["aria-current"]).toBe("true");
+    expect(link(1).attributes["aria-current"]).toBe("location");
     expect(link(2).attributes["aria-current"]).toBeUndefined();
 
     scrollTo([-500, 150, 1000]);
     expect(link(1).attributes["aria-current"]).toBeUndefined();
-    expect(link(2).attributes["aria-current"]).toBe("true");
+    expect(link(2).attributes["aria-current"]).toBe("location");
   });
 
   it("is marked from the first paint, not only after a scroll", () => {
@@ -407,26 +407,26 @@ describe("the current section", () => {
       onShortcutsChange: () => undefined,
     });
     expect(attributes[0]!["aria-current"]).toBeUndefined();
-    expect(attributes[1]!["aria-current"]).toBe("true");
+    expect(attributes[1]!["aria-current"]).toBe("location");
   });
 
   it("marks the last section at the bottom of the page, where a short one cannot reach the line", () => {
     const { link, scrollTo } = page({ home: true });
     scrollTo([-1500, -600, 650], false);
-    expect(link(2).attributes["aria-current"]).toBe("true");
+    expect(link(2).attributes["aria-current"]).toBe("location");
     expect(link(3).attributes["aria-current"]).toBeUndefined();
 
     scrollTo([-1500, -600, 650], true);
-    expect(link(3).attributes["aria-current"]).toBe("true");
+    expect(link(3).attributes["aria-current"]).toBe("location");
     expect(link(2).attributes["aria-current"]).toBeUndefined();
   });
 
   it("is worked out again when the window is resized or turned, with no scroll", () => {
     const { link, resizeTo } = page({ home: true });
     resizeTo([100, 900, 1700]);
-    expect(link(1).attributes["aria-current"]).toBe("true");
+    expect(link(1).attributes["aria-current"]).toBe("location");
     resizeTo([-500, 150, 1000]);
-    expect(link(2).attributes["aria-current"]).toBe("true");
+    expect(link(2).attributes["aria-current"]).toBe("location");
     expect(link(1).attributes["aria-current"]).toBeUndefined();
   });
 
@@ -439,7 +439,7 @@ describe("the current section", () => {
   it("ignores a link whose section is not on the page", () => {
     const { link, scrollTo } = page({ home: true, missing: [2, 3] });
     scrollTo([-500, 0, 0]);
-    expect(link(1).attributes["aria-current"]).toBe("true");
+    expect(link(1).attributes["aria-current"]).toBe("location");
     expect(link(2).attributes["aria-current"]).toBeUndefined();
   });
 });

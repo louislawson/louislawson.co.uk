@@ -1,0 +1,80 @@
+---
+// The title and its count hug each other, and the count's words follow on the same line:
+// compressHTML keeps a line break as a space, which would widen the gap the mock sets.
+interface Props {
+  /** The id the navigation links to (`/#projects`), and the stem of the heading's id. */
+  id: string;
+  title: string;
+  /** One line of fixed copy that makes no claims. */
+  intro: string;
+  /** What inspect mode says about this section: how it is built and served. */
+  inspect: string;
+  /** Shown after the title, for example "(02)". */
+  count?: string | undefined;
+}
+
+const { id, title, intro, inspect, count } = Astro.props;
+---
+
+<section
+  class="section wrap"
+  id={id}
+  aria-labelledby={`${id}-title`}
+  data-inspect={inspect}
+>
+  <div class="shead">
+    <h2 id={`${id}-title`}>
+      {title}{count && <span class="n" aria-hidden="true"
+        >{count}</span
+      >}{count && <span class="vh"> {count}</span>}
+    </h2>
+    <p>{intro}</p>
+  </div>
+  <slot />
+</section>
+
+<style>
+  .section {
+    padding-top: var(--section);
+  }
+
+  .shead {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem var(--col-gap);
+    align-items: end;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--line-strong);
+  }
+
+  .shead h2 {
+    grid-column: 1 / span 7;
+    font-size: clamp(2rem, 1.2rem + 3.2vw, 4.4rem);
+    font-stretch: 100%;
+    font-weight: 750;
+    letter-spacing: -0.04em;
+  }
+
+  .shead h2 .n {
+    position: relative;
+    top: 0.4em;
+    margin-left: 0.2em;
+    color: var(--hivis);
+    font-size: 0.42em;
+    font-weight: 500;
+    letter-spacing: 0;
+    vertical-align: top;
+  }
+
+  .shead p {
+    grid-column: 8 / span 5;
+    color: var(--dim);
+  }
+
+  @media (max-width: 860px) {
+    .shead h2,
+    .shead p {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
