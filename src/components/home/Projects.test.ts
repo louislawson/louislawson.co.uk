@@ -208,6 +208,42 @@ describe("<Projects>", () => {
       );
     });
 
+    it("keeps the leader, the tag and the status together, so when the line wraps they go as one and the leader never trails the title", async () => {
+      const featured = three.map((e, i) =>
+        i === 0 ? { ...e, data: { ...e.data, featured: true } } : e,
+      );
+      const html = await render({
+        projects: featured.slice(0, 1),
+        sections: all,
+      });
+      const line = /class="run__line"[^>]*>(.*?)<p class="run__meta/.exec(
+        html,
+      )?.[1];
+      expect(line).toBeDefined();
+      const aside = /<div[^>]*class="run__aside"[^>]*>(.*)<\/div>/.exec(
+        line!,
+      )?.[1];
+      expect(aside, "no run__aside").toBeDefined();
+      expect(aside).toContain('class="leader"');
+      expect(aside).toContain('class="tag"');
+      expect(aside).toContain("run__status");
+      // The title is outside it, in front of it.
+      expect(line!.indexOf("run__title")).toBeLessThan(
+        line!.indexOf("run__aside"),
+      );
+    });
+
+    it("sets the $ and > prefixes of the sheet's headings as generated content with an empty alt text, so a screen reader does not read them", () => {
+      const source = readFileSync(
+        new URL("./Projects.astro", import.meta.url),
+        "utf-8",
+      );
+      const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+      // A browser without the alt-text form ignores the second line and keeps the first.
+      expect(style).toMatch(/content:\s*"\$ ";\s*content:\s*"\$ "\s*\/\s*"";/);
+      expect(style).toMatch(/content:\s*"> ";\s*content:\s*"> "\s*\/\s*"";/);
+    });
+
     it("has the meta line under the top line", async () => {
       const html = await render({ projects: three.slice(0, 1), sections: all });
       expect(text(html, "run__meta")).toEqual([

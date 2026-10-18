@@ -45,9 +45,11 @@ const layout = projectLayout(projects.length);
             <h3 class="run__title">
               <Placeholder value={data.title} context={context} />
             </h3>
-            <span class="leader" aria-hidden="true"></span>
-            {data.featured && <span class="tag">featured</span>}
-            <Status status={data.status} context={context} />
+            <div class="run__aside">
+              <span class="leader" aria-hidden="true"></span>
+              {data.featured && <span class="tag">featured</span>}
+              <Status status={data.status} context={context} />
+            </div>
           </div>
           <p class="run__meta">
             <Placeholder value={lead} context={context} /> ·
@@ -118,6 +120,15 @@ const layout = projectLayout(projects.length);
     letter-spacing: -0.02em;
   }
 
+  /* The leader, the tag and the status are one piece, so when the line is too short for the title
+     and all three they wrap as one, and the dotted line never trails the title alone. */
+  .run__aside {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: baseline;
+    gap: 12px;
+  }
+
   /* The dotted line from the title to the tag and the status. */
   .leader {
     flex: 1;
@@ -144,8 +155,11 @@ const layout = projectLayout(projects.length);
     font-weight: 500;
   }
 
+  /* The prompts are decoration: the second line gives them an empty alt text, so a screen reader
+     reads the heading as "setup", and a browser without that form keeps the first. */
   .run__sheet h4::before {
     content: "$ ";
+    content: "$ " / "";
     color: var(--hivis);
   }
 
@@ -156,6 +170,7 @@ const layout = projectLayout(projects.length);
 
   .run__sheet .res h4::before {
     content: "> ";
+    content: "> " / "";
   }
 
   @media (max-width: 760px) {

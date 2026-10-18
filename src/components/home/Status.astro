@@ -44,8 +44,11 @@ const { status, context = site.deployContext } = Astro.props;
     color: var(--ok);
   }
 
+  /* Every marker has a border, and a filled one has a fill as well: forced colours (Windows High
+     Contrast) drop a background and keep a border, so a fill alone would vanish. */
   .status--in-service::before {
     background: var(--ok);
+    border: 2px solid var(--ok);
   }
 
   .status--commissioning {
@@ -62,6 +65,7 @@ const { status, context = site.deployContext } = Astro.props;
 
   .status--complete::before {
     background: var(--bone);
+    border: 2px solid var(--bone);
   }
 
   .status--archived {
