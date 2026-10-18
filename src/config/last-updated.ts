@@ -46,3 +46,12 @@ export function lastCommitDate(
     return undefined;
   }
 }
+
+/** Runs `fn` the first time and hands back that result every time after, even if it was nothing. */
+export function once<T>(fn: () => T): () => T {
+  let result: { value: T } | undefined;
+  return () => (result ??= { value: fn() }).value;
+}
+
+/** What every page's layout asks for: git is asked once per build, not once per page. */
+export const buildCommitDate = once(() => lastCommitDate());

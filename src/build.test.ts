@@ -42,6 +42,14 @@ function pagesAndStyles(dir: string): Record<string, string> {
   return files;
 }
 
+/** All the stylesheets of a build as one text. */
+function stylesheetText(dir: string): string {
+  return Object.entries(pagesAndStyles(dir))
+    .filter(([name]) => name.endsWith(".css"))
+    .map(([, text]) => text)
+    .join("\n");
+}
+
 // What the content security policy refuses is a style attribute in a tag, and a data: URL where a
 // URL is expected. The checks look for those, not for the words in prose or in an attribute value.
 const STYLE_ATTRIBUTE = /<[a-z][^>]*\sstyle\s*=/i;
@@ -133,10 +141,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   it("serves Martian Mono from the site and preloads the Latin file the page needs", () => {
-    const css = Object.entries(pagesAndStyles(dir))
-      .filter(([name]) => name.endsWith(".css"))
-      .map(([, text]) => text)
-      .join("\n");
+    const css = stylesheetText(dir);
     expect(css).toContain("Martian Mono Variable");
 
     const html = read(dir, "index.html");
@@ -158,10 +163,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   it("ships the visually hidden class in the stylesheet every page loads", () => {
     // The placeholder label, the skip link and the key hints rely on it, so a layout that stopped
     // importing global.css would show that text to everyone.
-    const css = Object.entries(pagesAndStyles(dir))
-      .filter(([name]) => name.endsWith(".css"))
-      .map(([, text]) => text)
-      .join("\n");
+    const css = stylesheetText(dir);
     const hidden = /\.vh\{([^}]*)\}/.exec(css)?.[1] ?? "";
     for (const declaration of [
       "position:absolute",

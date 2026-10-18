@@ -3,7 +3,7 @@
 // file. Astro's <Font /> is not used: it writes an inline style, which the site's policy blocks.
 import latinFont from "@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url";
 import Footer from "../components/Footer.astro";
-import { lastCommitDate } from "../config/last-updated";
+import { buildCommitDate } from "../config/last-updated";
 import { site } from "../config/site";
 import "../styles/global.css";
 
@@ -42,6 +42,6 @@ const canonicalUrl = canonical
     <main id="main" tabindex="-1">
       <slot />
     </main>
-    <Footer updated={lastCommitDate()} />
+    <Footer updated={buildCommitDate()} />
   </body>
 </html>

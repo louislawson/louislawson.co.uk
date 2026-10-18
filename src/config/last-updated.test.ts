@@ -2,7 +2,30 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { lastCommitDate, parseCommitDate } from "./last-updated";
+import { lastCommitDate, once, parseCommitDate } from "./last-updated";
+
+describe("once", () => {
+  // Every page's layout asks for the date, and git should be asked once per build, not per page.
+  it("runs the function the first time and hands back that result after", () => {
+    let calls = 0;
+    const next = once(() => ++calls);
+    expect(next()).toBe(1);
+    expect(next()).toBe(1);
+    expect(next()).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+  it("remembers that there was no result, rather than asking again", () => {
+    let calls = 0;
+    const none = once(() => {
+      calls++;
+      return undefined;
+    });
+    expect(none()).toBeUndefined();
+    expect(none()).toBeUndefined();
+    expect(calls).toBe(1);
+  });
+});
 
 describe("parseCommitDate", () => {
   it("takes the date as git writes it, without the line ending", () => {
