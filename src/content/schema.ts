@@ -174,6 +174,8 @@ export const profileSchema = z.strictObject({
       verify: url.optional(),
     }),
   ),
+  /** The sentence beside the garage's wheel figure: what the machines mean to Louis. */
+  garageIntro: text,
   garage: z.array(
     z.strictObject({ name: text, note: text, photo, alt: text, caption: text }),
   ),

@@ -226,6 +226,7 @@ describe("visibleProfile", () => {
           region: placeholder,
           email: "hello@louislawson.co.uk",
           cv: placeholder,
+          garageIntro: placeholder,
           links: {
             github: placeholder,
             linkedin: "https://www.linkedin.com/in/x",
@@ -234,6 +235,7 @@ describe("visibleProfile", () => {
         allReal,
         "production",
       );
+      expect(view.garageIntro).toBeUndefined();
       expect(view.roleLine).toBeUndefined();
       expect(view.intro).toBe("A real intro.");
       expect(view.careerLine).toBeUndefined();
@@ -242,6 +244,16 @@ describe("visibleProfile", () => {
       expect(view.cv).toBeUndefined();
       expect(view.links.github).toBeUndefined();
       expect(view.links.linkedin).toBe("https://www.linkedin.com/in/x");
+    });
+
+    it("keeps a real garage intro", () => {
+      expect(
+        visibleProfile(
+          profileData({ garageIntro: "Cars, trucks and tractors." }),
+          allReal,
+          "production",
+        ).garageIntro,
+      ).toBe("Cars, trucks and tractors.");
     });
 
     it("keeps a real cv path", () => {

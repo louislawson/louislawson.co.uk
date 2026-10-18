@@ -14,6 +14,7 @@ export const INSPECT_LABELS = {
   skills: "from profile.ts · 'seen in' codes checked at build",
   certifications:
     "from profile.ts · every verify link checked as a web address at build",
+  garage: "photos: metadata stripped before commit · Metadata check in CI",
   nav: "plain links, one per section with content · script adds the menu, number keys and current mark",
   footer:
     "served by Azure Static Web Apps · HTML revalidated on every load, hashed assets cached for a year",

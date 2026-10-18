@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 import { assembleSiteContent } from "../content/assemble";
 import { profileSchema } from "../content/schema";
 import { validateContent } from "../content/validate";
+import { isCheckedPath } from "../metadata/check";
+import { TAGS, tiff } from "../metadata/__fixtures__/exif";
+import { jpeg } from "../metadata/__fixtures__/jpeg";
+import { checkImage } from "../metadata/image";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
 import Hero from "./home/Hero.astro";
@@ -243,6 +247,43 @@ const facts: {
       "profileSchema accepts a certification whose verify is an https URL and rejects javascript:alert(1) and ftp://example.com",
   },
   {
+    label: "garage",
+    phrase: "Metadata check in CI",
+    holds: () => {
+      // The label names the CI job by its name, so the job has to be called that and run the check.
+      const ci = read(".github/workflows/ci.yml");
+      const job = /^ {2}metadata:\n(?:(?! {2}\S).*\n?)*/m.exec(ci)?.[0] ?? "";
+      const scripts = (
+        JSON.parse(read("package.json")) as { scripts: Record<string, string> }
+      ).scripts;
+      return (
+        /^ {4}name: Metadata check$/m.test(job) &&
+        job.includes("npm run metadata:check") &&
+        scripts["metadata:check"] !== undefined
+      );
+    },
+    because:
+      "ci.yml's metadata job is named exactly 'Metadata check' and runs npm run metadata:check",
+  },
+  {
+    label: "garage",
+    phrase: "metadata stripped before commit",
+    holds: async () => {
+      // The check refuses a photo that carries a location and passes a clean one, and it looks in
+      // the folder the garage's photos live in.
+      const located = jpeg({
+        exif: tiff([], { gps: [{ tag: TAGS.gpsLatitudeRef, text: "N" }] }),
+      });
+      return (
+        isCheckedPath("src/assets/garage/car.jpg") &&
+        (await checkImage(located)).length > 0 &&
+        (await checkImage(jpeg({}))).length === 0
+      );
+    },
+    because:
+      "the metadata check reports a JPEG with a GPS tag, passes a clean one, and checks src/assets/garage",
+  },
+  {
     label: "projects",
     phrase: "generated at build",
     holds: () => {
@@ -296,6 +337,7 @@ describe("the inspect labels", () => {
     expect(Object.keys(INSPECT_LABELS).sort()).toEqual([
       "certifications",
       "footer",
+      "garage",
       "hero",
       "nav",
       "notFound",

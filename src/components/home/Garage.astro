@@ -1,0 +1,216 @@
+---
+// The caption's words and the intro hug their tags: compressHTML keeps a line break as a space.
+// The name is lower-cased by the style, never in code, so a placeholder name is still one.
+import { site, type DeployContext } from "../../config/site";
+import type { Profile } from "../../content/schema";
+import {
+  renderDecision,
+  type Section as SectionInfo,
+} from "../../content/visibility";
+import { FIRST_TICK, frame } from "../../scripts/wheel";
+import { INSPECT_LABELS } from "../inspect-labels";
+import Placeholder from "../Placeholder.astro";
+import { SECTION_INTROS } from "./section-intros";
+import Section from "./Section.astro";
+
+interface Props {
+  /** The sentence beside the wheel. Production leaves it out while it is a placeholder. */
+  garageIntro?: string | undefined;
+  /** The entries this build shows, from getSiteContent(). */
+  garage: Profile["garage"];
+  /** The sections this build shows, from visibleSections(). */
+  sections: SectionInfo[];
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const {
+  garageIntro,
+  garage,
+  sections,
+  context = site.deployContext,
+} = Astro.props;
+
+// A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
+const shown =
+  garage.length > 0 && sections.some((section) => section.id === "garage");
+
+// The first frame is drawn here, at build, so a page with no script or with reduced motion has a
+// still wheel. The script carries on from the tick after it. A section that is not shown draws none.
+const firstFrame = shown ? frame(FIRST_TICK) : "";
+
+// Until the photos arrive (the next change) a card's photo is an empty frame: hatched on a preview
+// where the photo is a placeholder, so it is easy to find, and hidden from assistive technology
+// where there is nothing to say about it.
+const cards = garage.map((entry) => ({
+  entry,
+  hatched:
+    typeof entry.photo === "string" &&
+    renderDecision(entry.photo, context) === "hatch",
+}));
+---
+
+{shown && <Section
+  id="garage"
+  title="garage"
+  intro={SECTION_INTROS.garage}
+  inspect={INSPECT_LABELS.garage}
+>
+  <figure class="garage-wheel">
+    <pre data-wheel aria-hidden="true">{firstFrame}</pre>
+    <figcaption>
+      <b>fig.01 · wheel.</b
+      >{garageIntro !== undefined && " "}{garageIntro !== undefined && (
+        <Placeholder value={garageIntro} context={context} />
+      )}
+    </figcaption>
+  </figure>
+  <div class="garage">
+    {cards.map(({ entry, hatched }) => <figure class="gcard">
+      {hatched ? (
+        <div class="gcard__photo">
+          <Placeholder value={entry.photo as string} context={context} />
+        </div>
+      ) : (
+        <div class="gcard__photo" aria-hidden="true"></div>
+      )}
+      <figcaption>
+        <h3><Placeholder value={entry.name} context={context} /></h3>
+        <p><Placeholder value={entry.note} context={context} /></p>
+        <small><Placeholder value={entry.caption} context={context} /></small>
+      </figcaption>
+    </figure>)}
+  </div>
+</Section>}
+
+<style>
+  .garage-wheel {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem var(--col-gap);
+    align-items: center;
+    margin: var(--col-gap) 0;
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  .garage-wheel pre {
+    grid-column: 1 / span 5;
+    margin: 0;
+    padding: 14px;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 75;
+    font-size: clamp(6px, 0.55vw, 9px);
+    line-height: 1.12;
+    color: var(--bone);
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .garage-wheel figcaption {
+    grid-column: 6 / span 6;
+    color: var(--dim);
+  }
+
+  .garage-wheel figcaption b {
+    color: var(--bone);
+    font-weight: 600;
+  }
+
+  .garage {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--col-gap);
+  }
+
+  .gcard {
+    margin: 0;
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  .gcard__photo {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 4 / 3;
+    padding: 14px;
+    overflow: hidden;
+    color: var(--dim);
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .gcard figcaption {
+    padding: 14px 16px 16px;
+  }
+
+  .gcard h3 {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-transform: lowercase;
+  }
+
+  .gcard p {
+    margin-top: 0.4rem;
+    color: var(--bone);
+  }
+
+  .gcard small {
+    display: block;
+    margin-top: 0.6rem;
+    color: var(--dim);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 900px) {
+    .garage {
+      grid-template-columns: 1fr;
+      max-width: 560px;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .garage-wheel pre,
+    .garage-wheel figcaption {
+      grid-column: 1 / -1;
+    }
+
+    .garage-wheel figcaption {
+      padding: 0 14px 14px;
+    }
+
+    .garage-wheel pre {
+      font-size: clamp(6px, 1.8vw, 9px);
+    }
+  }
+</style>
+
+<script>
+  import { initWheel } from "../../scripts/wheel";
+
+  const pre = document.querySelector<HTMLElement>("[data-wheel]");
+
+  if (pre) {
+    initWheel({
+      reducedMotion: () =>
+        matchMedia("(prefers-reduced-motion: reduce)").matches,
+      tabHidden: () => document.hidden,
+      watchOnScreen: (listener) => {
+        // A browser that cannot say when the wheel is on screen never reports it, and the wheel
+        // stays still.
+        if (typeof IntersectionObserver === "undefined") return;
+        new IntersectionObserver((entries) => {
+          const latest = entries[entries.length - 1];
+          if (latest) listener(latest.isIntersecting);
+        }).observe(pre);
+      },
+      watchTab: (listener) =>
+        document.addEventListener("visibilitychange", listener),
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (handle) => cancelAnimationFrame(handle),
+      draw: (text) => {
+        pre.textContent = text;
+      },
+    });
+  }
+</script>

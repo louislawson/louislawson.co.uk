@@ -32,6 +32,7 @@ const valid = {
   certifications: [
     { title: "A certification", issuer: "An issuer", date: "2025-06" },
   ],
+  garageIntro: "Off the clock it is cars, trucks and tractors.",
   garage: [
     {
       name: "Cars",
@@ -95,6 +96,7 @@ describe("the profile", () => {
           verify: placeholder,
         },
       ],
+      garageIntro: placeholder,
       garage: [
         {
           name: placeholder,
@@ -228,6 +230,20 @@ describe("the profile", () => {
     });
   });
 
+  describe("garageIntro", () => {
+    it("is required: a profile without it is rejected", () => {
+      const without = structuredClone(valid) as Record<string, unknown>;
+      delete without.garageIntro;
+      expect(problems(without).join("\n")).toContain("garageIntro");
+    });
+
+    it("rejects a value of only spaces", () => {
+      expect(problems(withValue("garageIntro", "  ")).join("\n")).toContain(
+        "garageIntro",
+      );
+    });
+  });
+
   describe("garage", () => {
     it("takes an imported image or a placeholder for the photo", () => {
       expect(
@@ -273,6 +289,7 @@ describe("the profile", () => {
       ["exploring", ["Platform engineering", "todo: pick one"]],
       ["certifications.0.title", "A certification TODO: exact name"],
       ["garage.0.caption", "Event, vehicle TODO"],
+      ["garageIntro", "Cars and trucks. TODO: add the tractor"],
       ["intro", "An intro with TODOs left"],
     ])("rejects %s = %j", (path, value) => {
       expect(problems(withValue(path, value)).join("\n")).toContain(path);
