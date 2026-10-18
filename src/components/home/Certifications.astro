@@ -1,0 +1,125 @@
+---
+// The verify link hugs its icon and the row's text hugs its tags: compressHTML keeps a line break
+// as a space, which would show as a gap before the arrow.
+import { site, type DeployContext } from "../../config/site";
+import type { Profile } from "../../content/schema";
+import {
+  renderDecision,
+  type Section as SectionInfo,
+} from "../../content/visibility";
+import Icon from "../Icon.astro";
+import Placeholder from "../Placeholder.astro";
+import { SECTION_INTROS } from "./section-intros";
+import Section from "./Section.astro";
+
+interface Props {
+  /** The certifications this build shows, from getSiteContent(). */
+  certifications: Profile["certifications"];
+  /** The sections this build shows, from visibleSections(). */
+  sections: SectionInfo[];
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { certifications, sections, context = site.deployContext } = Astro.props;
+
+// A link only when there is a real address. No address is no link, and a placeholder is hatched
+// on a preview (as the place a link will go) and left out of production.
+const verifyDecision = (verify: string | undefined) =>
+  verify === undefined ? "omit" : renderDecision(verify, context);
+
+// A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
+const shown =
+  certifications.length > 0 &&
+  sections.some((section) => section.id === "certifications");
+---
+
+{shown && <Section
+  id="certifications"
+  title="certifications"
+  intro={SECTION_INTROS.certifications}
+>
+  <ul role="list">
+    {certifications.map((cert, index) => <li class="cert">
+      <span class="t" id={`cert-${index}-title`}
+        ><Placeholder value={cert.title} context={context}
+      /></span>
+      <span class="g iss"
+        ><Placeholder value={cert.issuer} context={context}
+      /></span>
+      <span class="g dt"
+        ><Placeholder value={cert.date} context={context}
+      /></span>
+      {verifyDecision(cert.verify) === "show" ? (
+        <a
+          href={cert.verify}
+          id={`cert-${index}-verify`}
+          aria-labelledby={`cert-${index}-verify cert-${index}-title`}
+          >verify<Icon name="external" size={14}
+        /></a>
+      ) : verifyDecision(cert.verify) === "hatch" ? (
+        <span class="verify"
+          ><Placeholder value={cert.verify!} context={context}
+        /></span>
+      ) : null}
+    </li>)}
+  </ul>
+</Section>}
+
+<style>
+  .cert {
+    display: grid;
+    /* The mock's 9rem, 4rem and 6rem are drawn for a narrower face: 2025-06 would wrap in this one,
+       so the date holds its eight characters and the issuer a little more than the mock gives it. */
+    grid-template-columns: minmax(0, 1fr) 11rem 8ch 7rem;
+    gap: 14px;
+    align-items: baseline;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cert .t {
+    font-weight: 600;
+  }
+
+  .cert .g {
+    color: var(--dim);
+  }
+
+  .cert .dt {
+    white-space: nowrap;
+  }
+
+  .cert a,
+  .cert .verify {
+    justify-self: end;
+  }
+
+  .cert a {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--hivis);
+  }
+
+  @media (max-width: 760px) {
+    .cert {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .cert .iss {
+      grid-column: 1;
+    }
+
+    .cert .dt {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .cert a,
+    .cert .verify {
+      grid-column: 1;
+      justify-self: start;
+    }
+  }
+</style>

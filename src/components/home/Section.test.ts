@@ -61,6 +61,12 @@ describe("<Section>", () => {
     );
   });
 
+  it("has no inspect label when it is given none, rather than an empty one", async () => {
+    const html = await render({ inspect: undefined });
+    expect(html).toMatch(/^<section/);
+    expect(html).not.toContain("data-inspect");
+  });
+
   it("shows a count after the title, as it is given", async () => {
     const html = await render({ count: "(02)" });
     // Hugging the title, as the mock sets it: a space would widen the gap.

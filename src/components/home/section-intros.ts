@@ -6,4 +6,6 @@
 export const SECTION_INTROS = {
   projects: "Each one written up as setup, change and result.",
   skills: "Where I've used each one, and the projects that show it.",
+  certifications:
+    "Certifications and achievements, each with a way to check it.",
 } as const;

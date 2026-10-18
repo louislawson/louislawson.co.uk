@@ -664,6 +664,45 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     });
   }
 
+  // Certifications are shown on production once one is real, so the check follows the real profile
+  // and correct content cannot fail it.
+  const certificationsShown =
+    deployContext === "preview" ||
+    visibleSections(
+      [{}],
+      visibleProfile(profile, new Set(), "production"),
+    ).some((section) => section.id === "certifications");
+
+  if (deployContext === "preview") {
+    it("shows the certifications in a preview: a hatched row, with no link, after the skills", () => {
+      const html = read(dir, "index.html");
+      const section =
+        /<section[^>]*\sid="certifications"[\s\S]*?<\/section>/.exec(html)?.[0];
+      expect(section, "no certifications section").toBeDefined();
+      expect(html.indexOf('id="skills"')).toBeLessThan(
+        html.indexOf('id="certifications"'),
+      );
+      expect(html.indexOf('id="certifications"')).toBeLessThan(
+        html.indexOf("<footer"),
+      );
+      expect(html).toContain('href="/#certifications"');
+      // The one placeholder row: its title, issuer and date.
+      expect(section!.match(/class="cert"/g)).toHaveLength(1);
+      expect(section!.match(/class="ph"/g)).toHaveLength(3);
+      // No verify link: the placeholder has none, and no dead one is made up.
+      expect(section).not.toContain("<a ");
+      expect(section).toContain("Certifications and achievements");
+    });
+  } else {
+    it("shows the certifications on production exactly when one is real, and its nav link with it, so the page and the nav agree", () => {
+      const html = read(dir, "index.html");
+      expect(html.includes('id="certifications"')).toBe(certificationsShown);
+      expect(html.includes('href="/#certifications"')).toBe(
+        certificationsShown,
+      );
+    });
+  }
+
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence
     // copied from it, not something the page says. The one exception is a label the plan itself
