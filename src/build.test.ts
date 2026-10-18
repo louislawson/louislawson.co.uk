@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS } from "./components/inspect-labels";
+import { parseDeployContext } from "./config/site";
 import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
@@ -454,17 +455,28 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
   });
 
+  // The certifications this build shows follow the real profile (a preview shows all of them,
+  // production the ones that are real), so correct content cannot fail the checks on them: they
+  // test that the page agrees with the rule, which visibility.test.ts tests itself.
+  const shownCerts = visibleProfile(
+    profile,
+    new Set(),
+    parseDeployContext(deployContext),
+  ).certifications;
+
   // The home page's labelled parts: the bar, the footer, the hero, the trace and the projects, and
-  // the skills where the section is shown. A preview always shows it. Production shows it once a
-  // skill row or an item to explore is real, and that follows the real profile, so it is worked
-  // out from the profile and not fixed: correct content must not fail this test.
+  // the skills and the certifications where each section is shown. A preview always shows them.
+  // Production shows the skills once a skill row or an item to explore is real, and the
+  // certifications once one is, and that follows the real profile, so it is worked out from the
+  // profile and not fixed: correct content must not fail this test.
   const skillsShown =
     deployContext === "preview" ||
     visibleSections(
       [{}],
       visibleProfile(profile, new Set(), "production"),
     ).some((section) => section.id === "skills");
-  const homeLabels = 5 + (skillsShown ? 1 : 0);
+  const homeLabels =
+    5 + (skillsShown ? 1 : 0) + (shownCerts.length > 0 ? 1 : 0);
 
   it.each([
     ["index.html", homeLabels],
@@ -663,6 +675,47 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
     });
   }
+
+  it("shows the certifications section, and its nav link, exactly when there is a certification to show", () => {
+    const html = read(dir, "index.html");
+    expect(html.includes('id="certifications"')).toBe(shownCerts.length > 0);
+    expect(html.includes('href="/#certifications"')).toBe(
+      shownCerts.length > 0,
+    );
+  });
+
+  it("renders each certification it shows, with a link only for a real verify address and a hatch only in a preview", () => {
+    const html = read(dir, "index.html");
+    const section =
+      /<section[^>]*\sid="certifications"[\s\S]*?<\/section>/.exec(html)?.[0];
+    if (shownCerts.length === 0) {
+      expect(section).toBeUndefined();
+      return;
+    }
+    expect(section, "no certifications section").toBeDefined();
+    expect(section!.match(/class="cert"/g)).toHaveLength(shownCerts.length);
+    // No link is made up: one per real address, and none for a placeholder or a missing one.
+    expect(section!.match(/<a /g) ?? []).toHaveLength(
+      shownCerts.filter(
+        (cert) => cert.verify !== undefined && !isPlaceholder(cert.verify),
+      ).length,
+    );
+    // Every placeholder value is hatched in a preview, and none is left on production.
+    const placeholders = shownCerts
+      .flatMap((cert) => [cert.title, cert.issuer, cert.date, cert.verify])
+      .filter((value) => value !== undefined && isPlaceholder(value));
+    expect(section!.match(/class="ph"/g) ?? []).toHaveLength(
+      deployContext === "preview" ? placeholders.length : 0,
+    );
+    expect(section).not.toContain("TODO:");
+    // After the projects, where the nav's link goes, and before the footer.
+    expect(html.indexOf('id="projects"')).toBeLessThan(
+      html.indexOf('id="certifications"'),
+    );
+    expect(html.indexOf('id="certifications"')).toBeLessThan(
+      html.indexOf("<footer"),
+    );
+  });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence

@@ -1,4 +1,5 @@
 ---
+import Certifications from "../components/home/Certifications.astro";
 import Hero from "../components/home/Hero.astro";
 import Projects from "../components/home/Projects.astro";
 import Skills from "../components/home/Skills.astro";
@@ -22,4 +23,5 @@ const { profile, projects, sections } = await getSiteContent();
     exploring={profile.exploring}
     sections={sections}
   />
+  <Certifications certifications={profile.certifications} sections={sections} />
 </Base>

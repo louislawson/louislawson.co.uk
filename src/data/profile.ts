@@ -31,7 +31,7 @@ export const profile = parseProfile({
     {
       title: "TODO: certification or milestone",
       issuer: "TODO: issuer",
-      date: "TODO: YYYY or YYYY-MM",
+      date: "TODO: date",
     },
   ],
   garage: [
