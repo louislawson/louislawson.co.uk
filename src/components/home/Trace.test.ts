@@ -123,6 +123,20 @@ describe("<Trace>", () => {
     expect(source).toContain('"largest-contentful-paint"');
   });
 
+  it("lets a long host name break anywhere, so a preview's address stays inside the panel on a phone", () => {
+    // "DNS lookup for black-cliff-0bfcda103-41.westeurope.3.azurestaticapps.net" has no space to
+    // break at, and would run out of the panel without this.
+    const source = readFileSync(
+      new URL("./Trace.astro", import.meta.url),
+      "utf-8",
+    );
+    const rule =
+      /\.hop__what\)\s*\{([^}]*)\}/.exec(source)?.[1] ??
+      /\.hop__what[^{]*\{([^}]*)\}/.exec(source)?.[1] ??
+      "";
+    expect(rule).toContain("overflow-wrap: anywhere");
+  });
+
   it("keeps the total on one line, so on a phone it is the caption that wraps", () => {
     const source = readFileSync(
       new URL("./Trace.astro", import.meta.url),

@@ -125,6 +125,8 @@ const { build } = Astro.props;
     color: var(--dim);
     font-size: 0.82rem;
     line-height: 1.5;
+    /* A host name has no space to break at: a preview's runs well past a phone's width. */
+    overflow-wrap: anywhere;
   }
 
   .trace__hops :global(.hop__ms) {
