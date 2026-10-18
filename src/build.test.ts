@@ -211,18 +211,88 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "index.html")).toContain(`updated ${expected}`);
   });
 
-  it("serves the footer's switch as a script file, not inline, and the shortcut script reads no address", () => {
-    const html = read(dir, "index.html");
-    const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
-      (match) => match[1]!,
-    );
-    expect(scripts.length).toBeGreaterThan(0);
-    for (const src of scripts) {
-      const code = read(dir, src.replace(/^\//, ""));
-      expect(code, src).toContain("keyboard-shortcuts");
-      // The 404 page is served for any address and shows none of it.
-      expect(code, src).not.toMatch(/location|pathname/);
+  it("serves every script as a file, not inline, and none of them reads the address", () => {
+    for (const page of ["index.html", "404.html"]) {
+      const html = read(dir, page);
+      const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
+        (match) => match[1]!,
+      );
+      expect(scripts.length, page).toBeGreaterThan(1);
+      const code = scripts.map((src) => read(dir, src.replace(/^\//, "")));
+      // Between them they hold the switch's storage key.
+      expect(code.join("\n"), page).toContain("keyboard-shortcuts");
+      for (const [index, text] of code.entries()) {
+        // The 404 page is served for any address and shows none of it.
+        expect(text, scripts[index]).not.toMatch(/location|pathname/);
+      }
     }
+  });
+
+  it.each(["index.html", "404.html"])(
+    "loads the saved shortcut choice in the head of %s before the stylesheet, as a hashed classic script",
+    (page) => {
+      const html = read(dir, page);
+      const head = html.slice(html.indexOf("<head"), html.indexOf("</head>"));
+      const tag = /<script\b[^>]*>/.exec(head)?.[0] ?? "";
+      const src = /\ssrc="(\/_astro\/shortcuts-state\.[\w-]+\.js)"/.exec(
+        tag,
+      )?.[1];
+      expect(src, `no head script in ${page}`).toBeDefined();
+      // Blocks rendering, runs before anything shows, and is not a module.
+      expect(tag).not.toMatch(/\s(async|defer)\b/);
+      expect(tag).not.toMatch(/type="module"/);
+      // Before the stylesheet's link, so it is not held back waiting for the CSS.
+      expect(head.indexOf("<script")).toBeLessThan(
+        head.indexOf('<link rel="stylesheet"'),
+      );
+      // A hashed file under /_astro/, which the baseline config caches for a year.
+      const code = read(dir, src!.replace(/^\//, ""));
+      expect(code).toContain("keyboard-shortcuts");
+      expect(code).toContain("shortcuts");
+      expect(code.length).toBeLessThan(600);
+    },
+  );
+
+  it.each(["index.html", "404.html"])(
+    "has the navigation in %s: the way home, and a link for each section shown, from 1",
+    (page) => {
+      const html = read(dir, page);
+      const header = /<header class="nav"[\s\S]*?<\/header>/.exec(html)?.[0];
+      expect(header, `no navigation in ${page}`).toBeDefined();
+      expect(header).toMatch(/<a class="nav__home" href="\/"/);
+      const links = [
+        ...header!.matchAll(/<a href="(\/#[^"]+)" data-number="(\d+)"/g),
+      ].map((m) => [m[1], Number(m[2])] as const);
+      // Numbered 1 to n with no gap, as the sections are.
+      expect(links.map(([, number]) => number)).toEqual(
+        links.map((_, index) => index + 1),
+      );
+      if (deployContext === "preview") {
+        expect(links.map(([href]) => href)).toEqual([
+          "/#projects",
+          "/#skills",
+          "/#certifications",
+          "/#garage",
+          "/#contact",
+        ]);
+      } else {
+        // Production shows only what is real: at least the projects and the contact details.
+        expect(links.map(([href]) => href)).toContain("/#projects");
+        expect(links.map(([href]) => href)).toContain("/#contact");
+      }
+    },
+  );
+
+  it("marks only the home page for the current-section highlight", () => {
+    expect(read(dir, "index.html")).toMatch(/<header[^>]*\sdata-home/);
+    expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
+  });
+
+  it("shows the number hints only while data-shortcuts is on, so they never show without script", () => {
+    const css = stylesheetText(dir);
+    expect(css).toMatch(/\[data-shortcuts=["']?on["']?\][^{]*\.hint/);
+    // Hidden by default: the plain rule for the hint has display:none.
+    expect(css).toMatch(/\.hint\[[^\]]+\]\{[^}]*display:none/);
   });
 
   it("makes the 404 page from the same world, with a heading, a line and links, and no script of its own", () => {

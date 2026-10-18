@@ -1,7 +1,13 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { site } from "../config/site";
+import type { Section } from "../content/visibility";
 import Base from "./Base.astro";
+
+const sections: Section[] = [
+  { id: "projects", number: 1 },
+  { id: "contact", number: 2 },
+];
 
 async function render(
   props: Record<string, unknown> = {},
@@ -9,7 +15,7 @@ async function render(
 ): Promise<string> {
   const container = await AstroContainer.create();
   return container.renderToString(Base, {
-    props: { title: "A page", ...props },
+    props: { title: "A page", sections, ...props },
     slots: { default: "<p>the page</p>" },
     request: new Request(`http://localhost${path}`),
     partial: false,
@@ -37,6 +43,36 @@ describe("the base layout", () => {
     );
     expect(html.indexOf("<main")).toBeLessThan(html.indexOf("<footer"));
     expect(html.indexOf('href="#main"')).toBeLessThan(html.indexOf("<main"));
+  });
+
+  it("puts the navigation between the skip link and <main>, on every page", async () => {
+    const html = await render();
+    expect(html).toMatch(/<header class="nav"/);
+    expect(html.indexOf('href="#main"')).toBeLessThan(html.indexOf("<header"));
+    expect(html.indexOf("<header")).toBeLessThan(html.indexOf("<main"));
+  });
+
+  it("links the navigation to the sections it is given, and no others", async () => {
+    const html = await render();
+    const header = html.slice(
+      html.indexOf("<header"),
+      html.indexOf("</header>"),
+    );
+    expect([...header.matchAll(/href="(\/#[^"]+)"/g)].map((m) => m[1])).toEqual(
+      ["/#projects", "/#contact"],
+    );
+  });
+
+  it("loads the saved shortcut choice in <head>, as a classic script file that blocks rendering", async () => {
+    // So the number hints show or hide on the first paint, with no flash. A file, because the
+    // content security policy allows no inline code; classic and not deferred, so it runs first.
+    const html = await render();
+    const head = html.slice(html.indexOf("<head"), html.indexOf("</head>"));
+    const tag = /<script\b[^>]*shortcuts-state[^>]*>/.exec(head)?.[0];
+    expect(tag).toBeDefined();
+    expect(tag).toMatch(/\ssrc="[^"]+\.js"/);
+    expect(tag).not.toMatch(/\s(async|defer)\b/);
+    expect(tag).not.toMatch(/type="module"/);
   });
 
   it("points the canonical URL at this page on the site URL", async () => {

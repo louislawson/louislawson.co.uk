@@ -3,21 +3,33 @@
 // file. Astro's <Font /> is not used: it writes an inline style, which the site's policy blocks.
 import latinFont from "@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url";
 import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
 import { buildCommitDate } from "../config/last-updated";
 import { site } from "../config/site";
+import type { Section } from "../content/visibility";
+import shortcutsState from "../scripts/shortcuts-state.js?url";
 import "../styles/global.css";
 
 interface Props {
   title: string;
   /** The 404 page is served for every missing address, so it has no canonical URL of its own. */
   canonical?: boolean;
+  /**
+   * The sections this build shows, from visibleSections(), for the navigation. A page passes what
+   * getSiteContent() returned, and a page that forgets fails `astro check`.
+   */
+  sections: Section[];
 }
 
-const { title, canonical = true } = Astro.props;
+const { title, canonical = true, sections } = Astro.props;
 const canonicalUrl = canonical
   ? new URL(Astro.url.pathname, site.url).href
   : undefined;
-// The navigation (PR 3.3) goes between the skip link and <main>.
+// shortcutsState sets <html data-shortcuts> before the first paint, so the number hints do not
+// flash. It is a file, as the policy allows no inline code; a classic script in <head>, so it
+// blocks rendering and runs before anything shows; and a hashed asset (cached for good, so a repeat
+// visit makes no request for it), which a file in public/ would not be: that is revalidated on
+// every load, and this one blocks the first paint.
 ---
 
 <!doctype html>
@@ -28,6 +40,7 @@ const canonicalUrl = canonical
     <meta name="color-scheme" content="dark" />
     {site.noindex && <meta name="robots" content="noindex" />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <script is:inline src={shortcutsState}></script>
     <link
       rel="preload"
       href={latinFont}
@@ -39,6 +52,7 @@ const canonicalUrl = canonical
   </head>
   <body>
     <a class="vh skip" href="#main">Skip to content</a>
+    <Nav sections={sections} />
     <main id="main" tabindex="-1">
       <slot />
     </main>
