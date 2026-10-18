@@ -113,12 +113,6 @@ describe("statusLabel", () => {
     expect(statusLabel("complete")).toBe("complete");
     expect(statusLabel("archived")).toBe("archived");
   });
-
-  it("leaves a placeholder alone", () => {
-    expect(
-      statusLabel("TODO: in-service, commissioning, complete or archived"),
-    ).toBe("TODO: in-service, commissioning, complete or archived");
-  });
 });
 
 describe("countLabel", () => {

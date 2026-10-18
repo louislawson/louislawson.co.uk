@@ -1,0 +1,74 @@
+---
+// A project's status: a square marker and the word, in a cell that the layout places. A
+// placeholder takes the same cell, hatched, so the layout treats the two alike.
+import { site, type DeployContext } from "../../config/site";
+import { isPlaceholder } from "../../content/todo";
+import Placeholder from "../Placeholder.astro";
+import { statusLabel } from "./project-display";
+
+interface Props {
+  /** A status, or a placeholder for one. */
+  status: string;
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { status, context = site.deployContext } = Astro.props;
+---
+
+<span class="run__status">
+  {isPlaceholder(status) ? (
+    <Placeholder value={status} context={context} />
+  ) : (
+    <span class={`status status--${status}`}>{statusLabel(status)}</span>
+  )}
+</span>
+
+<style>
+  /* The square marker and the word. Only in service uses green, which is for live state alone. */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+
+  .status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    box-sizing: border-box;
+  }
+
+  .status--in-service {
+    color: var(--ok);
+  }
+
+  .status--in-service::before {
+    background: var(--ok);
+  }
+
+  .status--commissioning {
+    color: var(--hivis);
+  }
+
+  .status--commissioning::before {
+    border: 2px solid var(--hivis);
+  }
+
+  .status--complete {
+    color: var(--bone);
+  }
+
+  .status--complete::before {
+    background: var(--bone);
+  }
+
+  .status--archived {
+    color: var(--dim);
+  }
+
+  .status--archived::before {
+    border: 2px solid var(--dim);
+  }
+</style>

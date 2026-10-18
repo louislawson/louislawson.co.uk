@@ -112,10 +112,15 @@ function withoutApprovedLabels(text: string, labels: string[]): string {
 
 /**
  * Whether a script reads the address of the page: `location`, a path, and with `host` also the
- * host name. The word in a string (`aria-current="location"` is a value, not a read) is not one.
+ * host name. The one use of the word that is no read is the value of aria-current, which is
+ * allowed as that exact call and nothing wider: `window["location"]` names the word in a string
+ * too, and is a read.
  */
 function readsAddress(code: string, options: { host: boolean }): boolean {
-  const withoutStrings = code.replace(/(["'`])location\1/g, "");
+  const withoutStrings = code.replace(
+    /setAttribute\(\s*(["'`])aria-current\1\s*,\s*(["'`])location\2\s*\)/g,
+    "",
+  );
   return (
     options.host ? /location|pathname|hostname/ : /location|pathname/
   ).test(withoutStrings);
@@ -130,14 +135,28 @@ describe("the check for a script that reads the address", () => {
     expect(readsAddress("a=u.hostname", { host: true })).toBe(true);
   });
 
-  it("leaves the word alone when it is a value in a string, as aria-current's is", () => {
+  it("leaves aria-current's value alone, the one string that is the word and no read", () => {
     const code = 'e.setAttribute("aria-current","location")';
     expect(readsAddress(code, { host: true })).toBe(false);
-    expect(readsAddress("e.setAttribute('a','location')", { host: true })).toBe(
-      false,
-    );
+    expect(
+      readsAddress("e.setAttribute( 'aria-current' , 'location' )", {
+        host: true,
+      }),
+    ).toBe(false);
     // But not when a read is next to it.
     expect(readsAddress(`${code};x=location.search`, { host: true })).toBe(
+      true,
+    );
+  });
+
+  it("still finds a read made through a string: bracket access names the word too", () => {
+    expect(readsAddress('a=window["location"].href', { host: false })).toBe(
+      true,
+    );
+    expect(readsAddress("a=self['location'].pathname", { host: false })).toBe(
+      true,
+    );
+    expect(readsAddress("e.setAttribute('a','location')", { host: true })).toBe(
       true,
     );
   });

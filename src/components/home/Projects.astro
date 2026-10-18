@@ -3,18 +3,13 @@
 // compressHTML keeps a line break as a space, and the meta line is " · " between its halves only.
 import { site, type DeployContext } from "../../config/site";
 import type { Project } from "../../content/schema";
-import { isPlaceholder } from "../../content/todo";
 import type { Section as SectionInfo } from "../../content/visibility";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
-import {
-  countLabel,
-  metaParts,
-  projectLayout,
-  statusLabel,
-} from "./project-display";
+import { countLabel, metaParts, projectLayout } from "./project-display";
 import { SECTION_INTROS } from "./section-intros";
 import Section from "./Section.astro";
+import Status from "./Status.astro";
 
 interface Props {
   /** The projects this build shows, in order: from getSiteContent(). */
@@ -43,7 +38,6 @@ const layout = projectLayout(projects.length);
   <div class={`runs runs--${layout}`}>
     {projects.map(({ data }) => {
       const { lead, period } = metaParts(data);
-      const statusClass = `status status--${data.status}`;
       return layout === "strip" ? (
         <article class="run run--strip">
           <div class="run__line">
@@ -53,13 +47,7 @@ const layout = projectLayout(projects.length);
             </h3>
             <span class="leader" aria-hidden="true"></span>
             {data.featured && <span class="tag">featured</span>}
-            <span class="run__status">
-              {isPlaceholder(data.status) ? (
-                <Placeholder value={data.status} context={context} />
-              ) : (
-                <span class={statusClass}>{statusLabel(data.status)}</span>
-              )}
-            </span>
+            <Status status={data.status} context={context} />
           </div>
           <p class="run__meta">
             <Placeholder value={lead} context={context} /> ·
@@ -83,23 +71,16 @@ const layout = projectLayout(projects.length);
       ) : (
         <article class="run run--row">
           <span class="run__code">{data.code}</span>
-          <h3 class="run__title">
-            <Placeholder
-              value={data.title}
-              context={context}
-            />{data.featured && <Fragment>
-              <span class="tag">featured</span></Fragment>}
-          </h3>
+          <div class="run__name">
+            <h3 class="run__title">
+              <Placeholder value={data.title} context={context} />
+            </h3>
+            {data.featured && <span class="tag">featured</span>}
+          </div>
           <span class="headline"
             ><Placeholder value={data.headline} context={context}
           /></span>
-          <span class="run__status">
-            {isPlaceholder(data.status) ? (
-              <Placeholder value={data.status} context={context} />
-            ) : (
-              <span class={statusClass}>{statusLabel(data.status)}</span>
-            )}
-          </span>
+          <Status status={data.status} context={context} />
         </article>
       );
     })}
@@ -107,53 +88,6 @@ const layout = projectLayout(projects.length);
 </Section>}
 
 <style>
-  /* The square marker and the word. Only in service uses green, which is for live state alone. */
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    white-space: nowrap;
-  }
-
-  .status::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    box-sizing: border-box;
-  }
-
-  .status--in-service {
-    color: var(--ok);
-  }
-
-  .status--in-service::before {
-    background: var(--ok);
-  }
-
-  .status--commissioning {
-    color: var(--hivis);
-  }
-
-  .status--commissioning::before {
-    border: 2px solid var(--hivis);
-  }
-
-  .status--complete {
-    color: var(--bone);
-  }
-
-  .status--complete::before {
-    background: var(--bone);
-  }
-
-  .status--archived {
-    color: var(--dim);
-  }
-
-  .status--archived::before {
-    border: 2px solid var(--dim);
-  }
-
   .tag {
     padding: 0 7px;
     color: var(--hivis);
@@ -247,6 +181,14 @@ const layout = projectLayout(projects.length);
     border-bottom: 1px solid var(--line);
   }
 
+  /* The title and the featured tag side by side, the tag outside the heading. */
+  .run__name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+
   .run--row .run__title {
     font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem);
     font-weight: 700;
@@ -265,7 +207,7 @@ const layout = projectLayout(projects.length);
 
     /* The cell holds a status or a placeholder for one: both go under the title. */
     .run--row .headline,
-    .run--row .run__status {
+    .run--row :global(.run__status) {
       grid-column: 2;
     }
   }

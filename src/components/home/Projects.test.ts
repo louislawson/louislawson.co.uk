@@ -257,6 +257,24 @@ describe("<Projects>", () => {
       expect(second).toContain('class="tag"');
     });
 
+    it.each([
+      ["a strip", three],
+      ["a row", four],
+    ])(
+      "sits beside the title and not inside the heading, in %s, so the heading is the title alone",
+      async (_name, list) => {
+        const marked = list.map((e, i) =>
+          i === 0 ? { ...e, data: { ...e.data, featured: true } } : e,
+        );
+        const html = await render({ projects: marked, sections: all });
+        const headings = [...html.matchAll(/<h3[^>]*>(.*?)<\/h3>/g)].map((m) =>
+          m[1]!.replace(/<[^>]+>/g, "").trim(),
+        );
+        expect(headings[0]).toBe("Title R01");
+        expect(text(html, "tag")).toEqual(["featured"]);
+      },
+    );
+
     it("is on nothing when no project is featured", async () => {
       expect(await render({ projects: three, sections: all })).not.toContain(
         'class="tag"',
@@ -415,7 +433,7 @@ describe("<Projects>", () => {
         .map((m) => m[1])
         .join("\n");
       expect(phone).toMatch(
-        /\.run--row \.run__status[^{]*\{[^}]*grid-column:\s*2/,
+        /\.run--row :global\(\.run__status\)[^{]*\{[^}]*grid-column:\s*2/,
       );
       expect(phone).toMatch(/\.leader\s*\{[^}]*display:\s*none/);
     });

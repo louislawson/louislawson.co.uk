@@ -1,5 +1,4 @@
 import type { Project } from "../../content/schema";
-import { isPlaceholder } from "../../content/todo";
 
 /** Up to this many projects are shown in full, as strips; more are compact rows. */
 export const STRIP_LIMIT = 3;
@@ -27,9 +26,8 @@ export function metaParts(data: Project): { lead: string; period: string } {
   return { lead, period: data.period };
 }
 
-/** The word a status is shown as. A placeholder is left as it is, for the hatch. */
+/** The word a status is shown as. A placeholder never gets here: <Status> hatches it instead. */
 export function statusLabel(status: string): string {
-  if (isPlaceholder(status)) return status;
   return status === "in-service" ? "in service" : status;
 }
 

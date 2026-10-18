@@ -149,6 +149,8 @@ describe("<Nav>", () => {
   });
 
   it("styles the current section by aria-current=location, the value for the current place in a page, and by no other", () => {
+    // The script's own value is held by nav.test.ts, which runs it. A selector is only text to a
+    // test that has no browser, so this one reads it.
     const source = readFileSync(
       new URL("./Nav.astro", import.meta.url),
       "utf-8",
@@ -156,13 +158,6 @@ describe("<Nav>", () => {
     const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
     expect(style).toContain('a[aria-current="location"]');
     expect(style).not.toMatch(/aria-current="true"/);
-    // And the script that sets it sets that value.
-    const script = readFileSync(
-      new URL("../scripts/nav.ts", import.meta.url),
-      "utf-8",
-    );
-    expect(script).toContain('setAttribute("aria-current", "location")');
-    expect(script).not.toContain('"aria-current", "true"');
   });
 
   it("has no inline style and no inline script", async () => {
