@@ -58,7 +58,9 @@ function samples(): Sample[] {
   return points;
 }
 
-const POINTS = samples();
+// About 22,000 points, worked out on the first frame and not when the module loads: a visitor who
+// asked for less motion, or whose browser never reports the wheel on screen, never pays for them.
+let points: Sample[] | undefined;
 
 // The light, as a unit vector.
 const LIGHT = (() => {
@@ -81,7 +83,7 @@ export function frame(t: number): string {
   const sy = Math.sin(yaw);
   const ct = Math.cos(TILT);
   const st = Math.sin(TILT);
-  for (const [x0, y0, z0, nx0, ny0, nz0] of POINTS) {
+  for (const [x0, y0, z0, nx0, ny0, nz0] of (points ??= samples())) {
     // Roll about the axle, yaw about the vertical, then a small tilt about x.
     const x = x0 * cr - y0 * sr;
     const y = x0 * sr + y0 * cr;
@@ -150,7 +152,9 @@ export interface WheelPage {
 
 /**
  * Animates the wheel from the tick the build drew. Under reduced motion it does nothing, and the
- * still wheel stays. Otherwise it runs only while the wheel is on screen in a visible tab.
+ * still wheel stays. Otherwise it runs only while the wheel is on screen in a visible tab. Whether
+ * to start is decided once, when the page loads; the preference is read again before every frame,
+ * so asking for less motion later stops the wheel, and turning it off again waits for a reload.
  */
 export function initWheel(page: WheelPage): void {
   if (page.reducedMotion()) return;

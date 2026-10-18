@@ -31,13 +31,13 @@ const {
   context = site.deployContext,
 } = Astro.props;
 
-// The first frame is drawn here, at build, so a page with no script or with reduced motion has a
-// still wheel. The script carries on from the tick after it.
-const firstFrame = frame(FIRST_TICK);
-
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
 const shown =
   garage.length > 0 && sections.some((section) => section.id === "garage");
+
+// The first frame is drawn here, at build, so a page with no script or with reduced motion has a
+// still wheel. The script carries on from the tick after it. A section that is not shown draws none.
+const firstFrame = shown ? frame(FIRST_TICK) : "";
 
 // Until the photos arrive (the next change) a card's photo is an empty frame: hatched on a preview
 // where the photo is a placeholder, so it is easy to find, and hidden from assistive technology
