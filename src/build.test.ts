@@ -451,8 +451,12 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
   });
 
+  // The home page's labelled parts: the bar, the footer, the hero, the trace and the projects, and
+  // the skills where they are shown. A preview shows them; production has nothing real for them.
+  const homeLabels = deployContext === "preview" ? 6 : 5;
+
   it.each([
-    ["index.html", 5],
+    ["index.html", homeLabels],
     ["404.html", 3],
   ])(
     "labels only whole parts in %s, %i of them, each with a registered label",
@@ -608,6 +612,39 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(section).not.toContain('class="tag"');
       // R04 is commissioning.
       expect(section).toMatch(/status--commissioning[^>]*>\s*commissioning/);
+    });
+  }
+
+  if (deployContext === "preview") {
+    it("shows the skills in a preview: a hatched row, with no seen-in line, and a hatched item to explore", () => {
+      const html = read(dir, "index.html");
+      const section = /<section[^>]*\sid="skills"[\s\S]*?<\/section>/.exec(
+        html,
+      )?.[0];
+      expect(section, "no skills section").toBeDefined();
+      // After the projects and before the footer, where the nav's link goes.
+      expect(html.indexOf('id="projects"')).toBeLessThan(
+        html.indexOf('id="skills"'),
+      );
+      expect(html.indexOf('id="skills"')).toBeLessThan(html.indexOf("<footer"));
+      expect(html).toContain('href="/#skills"');
+      // The one placeholder row: its group, its context and its tool, and the item to explore.
+      expect(section!.match(/class="skill"/g)).toHaveLength(1);
+      expect(section!.match(/class="ph"/g)!.length).toBeGreaterThanOrEqual(4);
+      expect(section).not.toContain('class="seen"');
+      // The heading is the template's own text; the intro goes through an expression, which
+      // escapes its apostrophe.
+      expect(section).toContain("what I'm exploring next");
+      expect(section).toContain("Where I&#39;ve used each one");
+      // Plain text throughout: nothing links to a project yet.
+      expect(section).not.toContain("<a ");
+    });
+  } else {
+    it("leaves the skills out of production, with their nav link, because nothing in them is real yet", () => {
+      const html = read(dir, "index.html");
+      expect(html).not.toContain('id="skills"');
+      expect(html).not.toContain('href="/#skills"');
+      expect(html).not.toContain("what I'm exploring next");
     });
   }
 

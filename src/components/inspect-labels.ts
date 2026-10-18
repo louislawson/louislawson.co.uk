@@ -11,6 +11,7 @@ export const INSPECT_LABELS = {
   trace:
     "measured in your browser by the Navigation Timing API · nothing sent anywhere",
   projects: "generated at build from src/content/projects/*.md",
+  skills: "from profile.ts · 'seen in' codes checked at build",
   nav: "plain links, one per section with content · script adds the menu, number keys and current mark",
   footer:
     "served by Azure Static Web Apps · HTML revalidated on every load, hashed assets cached for a year",

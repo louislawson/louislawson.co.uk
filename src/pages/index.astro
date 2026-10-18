@@ -1,6 +1,7 @@
 ---
 import Hero from "../components/home/Hero.astro";
 import Projects from "../components/home/Projects.astro";
+import Skills from "../components/home/Skills.astro";
 import Trace from "../components/home/Trace.astro";
 import { buildInfo } from "../config/build-info";
 import { getSiteContent } from "../content/site-content";
@@ -16,4 +17,9 @@ const { profile, projects, sections } = await getSiteContent();
     <Trace build={buildInfo} />
   </Hero>
   <Projects projects={projects} sections={sections} />
+  <Skills
+    skills={profile.skills}
+    exploring={profile.exploring}
+    sections={sections}
+  />
 </Base>
