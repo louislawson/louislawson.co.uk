@@ -17,6 +17,11 @@ async function render(
 }
 
 describe("the base layout", () => {
+  it("says the page is in British English, for the voice a screen reader picks", async () => {
+    const html = await render();
+    expect(html).toMatch(/<html lang="en-GB"/);
+  });
+
   it("starts the page with a skip link to the main content", async () => {
     const html = await render();
     const body = html.slice(html.indexOf("<body"));

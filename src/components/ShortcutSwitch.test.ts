@@ -26,6 +26,27 @@ describe("<ShortcutSwitch>", () => {
     expect(html).not.toContain("style=");
   });
 
+  it("keeps its accessible name the same whatever the state, because aria-pressed carries the state", async () => {
+    // A toggle button's label must not change with its state (WAI-ARIA Authoring Practices), or a
+    // screen reader says "keyboard shortcuts: off, toggle button, not pressed". The word stays on
+    // screen; it is hidden from assistive technology.
+    const html = await render();
+    const name = html
+      .replace(/<(\w+)[^>]*aria-hidden="true"[^>]*>.*?<\/\1>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(name).toBe("keyboard shortcuts:");
+    expect(name).not.toMatch(/\b(on|off)\b/);
+  });
+
+  it("still shows the state as a word, after the colon", async () => {
+    const html = await render();
+    expect(html).toMatch(
+      /keyboard shortcuts: <span[^>]*aria-hidden="true"[^>]*>on<\/span>/,
+    );
+  });
+
   it("can be found by the script", async () => {
     const html = await render();
     expect(html).toContain("data-shortcuts-switch");

@@ -1,6 +1,8 @@
 ---
 // The switch for the single-key shortcuts (WCAG 2.1.4). Hidden until the script runs: without
 // script there are no shortcuts, so a switch that does nothing would only get in the way.
+// The on/off word is for the eye only: aria-pressed carries the state, so the accessible name stays
+// "keyboard shortcuts" and a screen reader does not hear the state twice.
 ---
 
 <button
@@ -11,7 +13,7 @@
   data-shortcuts-switch
 >
   <span class="mark" aria-hidden="true"></span>keyboard shortcuts:
-  <span class="state" data-shortcuts-state>on</span>
+  <span class="state" aria-hidden="true" data-shortcuts-state>on</span>
 </button>
 
 <style>
