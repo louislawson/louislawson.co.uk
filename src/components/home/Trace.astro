@@ -214,7 +214,12 @@ const { build } = Astro.props;
 </style>
 
 <script>
-  import { initTrace, lcpTime, type Hop } from "../../scripts/trace";
+  import {
+    HOP_STAGGER_MS,
+    initTrace,
+    lcpTime,
+    type Hop,
+  } from "../../scripts/trace";
 
   const figure = document.querySelector<HTMLElement>("[data-trace]");
   const note = figure?.querySelector<HTMLElement>("[data-trace-nojs]");
@@ -238,8 +243,6 @@ const { build } = Astro.props;
     ms: HTMLElement;
     what: HTMLElement;
     fill: HTMLElement | null;
-    /** How long into the replay this step arrives, as the view said. */
-    delay: number;
   }
 
   /** One step: built once, then updated in place, so a late paint never cuts a replay short. */
@@ -259,7 +262,7 @@ const { build } = Astro.props;
       bar.append(fill);
       item.append(bar);
     }
-    return { item, ms, what, fill, delay: hop.delay };
+    return { item, ms, what, fill };
   }
 
   if (figure && note && list && total && measured && replayButton) {
@@ -293,7 +296,6 @@ const { build } = Astro.props;
       show: (view) => {
         view.hops.forEach((hop, index) => {
           const row = (rows[index] ??= build(hop));
-          row.delay = hop.delay;
           row.ms.textContent = hop.value;
           row.ms.classList.toggle("is-measured", hop.measured);
           row.what.textContent = hop.what;
@@ -310,12 +312,13 @@ const { build } = Astro.props;
         replayButton.hidden = !view.canReplay;
       },
       replay: () => {
-        // The steps arrive in order, connector and all, and the bars fill, each at its own delay.
-        // A browser without the Web Animations API just shows the finished panel.
+        // The steps arrive in order, connector and all, and the bars fill: each step HOP_STAGGER_MS
+        // after the one before. A browser without the Web Animations API just shows the finished
+        // panel.
         if (typeof Element.prototype.animate !== "function") return;
         const ease = "cubic-bezier(0.16, 1, 0.3, 1)";
-        for (const row of rows) {
-          const { delay } = row;
+        for (const [index, row] of rows.entries()) {
+          const delay = index * HOP_STAGGER_MS;
           row.item.animate(
             [
               { opacity: 0, transform: "translateY(4px)" },

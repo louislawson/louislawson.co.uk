@@ -107,15 +107,35 @@ describe("readTimings", () => {
     ).toBeNull();
   });
 
-  it("falls back to the encoded size when the transfer size is 0 (served from cache), and leaves it out when both are", () => {
+  it("sizes the page by its encoded body, not the transfer size: that counts headers, and is a few hundred bytes on a 304", () => {
+    // The page is revalidated on every load, so a repeat visit is a 304 with a tiny transfer.
+    expect(readTimings({ ...recorded, transferSize: 300 }).size).toBe("12 KB");
     expect(readTimings({ ...recorded, transferSize: 0 }).size).toBe("12 KB");
+  });
+
+  it("leaves the size out when the body's size is not known, rather than showing the transfer size", () => {
     expect(
-      readTimings({ ...recorded, transferSize: 0, encodedBodySize: 0 }).size,
+      readTimings({ ...recorded, encodedBodySize: 0, transferSize: 12430 })
+        .size,
     ).toBeNull();
   });
 
   it("rounds a small size up to 1 KB, never to 0", () => {
-    expect(readTimings({ ...recorded, transferSize: 200 }).size).toBe("1 KB");
+    expect(readTimings({ ...recorded, encodedBodySize: 200 }).size).toBe(
+      "1 KB",
+    );
+  });
+
+  it("measures a step only when it has a start time: a start of 0 is a field the browser zeroed", () => {
+    // Taken from 0, the step would show the whole time since the navigation began.
+    expect(readTimings({ ...recorded, domainLookupStart: 0 }).dns).toBeNull();
+    expect(readTimings({ ...recorded, connectStart: 0 }).connect).toBeNull();
+    expect(readTimings({ ...recorded, requestStart: 0 }).ttfb).toBeNull();
+    // The other steps in the same entry are still measured.
+    const t = readTimings({ ...recorded, requestStart: 0 });
+    expect(t.dns).toBe(20);
+    expect(t.connect).toBe(67);
+    expect(t.download).toBe(13);
   });
 });
 
@@ -199,9 +219,9 @@ describe("traceView", () => {
     expect(view.hops[5]!.bar).toBe(100);
   });
 
-  it("staggers the hops 170 ms apart, in order", () => {
+  it("staggers the hops 170 ms apart in the replay", () => {
+    // Each hop arrives at its position times this; the page's script applies it.
     expect(HOP_STAGGER_MS).toBe(170);
-    expect(view.hops.map((h) => h.delay)).toEqual([0, 170, 340, 510, 680, 850]);
   });
 
   it("marks the page hop and the you hop, which the styles give their own colour", () => {
