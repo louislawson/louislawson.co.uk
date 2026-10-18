@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-17): **Phases 0, 1a, 1b and 2 are built.** **Phase 3 is approved for build.** Phases 4–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-18): **Phases 0 to 3 are built.** Phase 4 has been reviewed with Louis but is **not yet approved for build**. Phases 5–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -317,41 +317,189 @@ Reviewed with Louis on 2026-10-17, against the Astro 7 source and the reference 
 
 ## Phase 4 · Home page
 
+Reviewed with Louis on 2026-10-18, against the reference mock. Each PR is deliberately narrow: one component, one mock section.
+
+**The shape.** Each section is one component in `src/components/home/`: `Hero`, `Trace`, `Projects`, `Skills`, `Certifications`, `Garage` and `Contact`.
+
+- **Composition:** `src/pages/index.astro` only composes them, in the contract's order.
+- **Data:** each component takes its data as props from what `getSiteContent()` returns, and renders content values through `<Placeholder>`.
+- **Hidden sections:** a section that `visibleSections()` leaves out is not rendered, so the nav and the page always agree.
+- **Section heads:** a shared `<Section id title intro inspect>` component, built from the mock's `.shead`, arrives with the first section that needs it (PR 4.3).
+
+**Every PR in this phase,** in addition to Phase 3's rules (CSP unchanged and nothing inline, tests in Vitest and the Container API, `pr-assets/phase-4` screenshots after the metadata check):
+
+- **Mock source:** the exact lines it rebuilds, and every way it must differ from them.
+- **Data:** the exact `getSiteContent()` fields it reads.
+- **States:**
+  - preview: placeholders hatched
+  - production: placeholders omitted
+  - what the section does when it is empty
+- **Tests:** render the component in both the preview and the production context.
+- **Screenshots:** desktop and mobile of the preview, plus the production rendering (the same build with `DEPLOY_CONTEXT=production`).
+- **Fixed copy:**
+  - Each section's intro line is fixed UI copy that makes no claims. The approved lines are listed per PR.
+  - Anything personal is a profile field, and starts as a `TODO:`.
+- **Inspect label:** each section's label is the approved one below, pinned by a test where it states a setting.
+- **No links to project pages yet.** They arrive with the pages in PR 5.1. Until then, project codes are plain text.
+
 ### PR 4.1 · `feat(home): hero`
 
-Name with block caret (still under reduced motion), role, intro, career line, actions. Matches the mock hero (left column).
+- **Mock source:** `docs/design/mock/index.html:33–45` (the left column of `.hero`); `styles.css:70–86` (hero, caret, buttons).
+- **Data:** `profile.roleLine`, `profile.intro`, `profile.careerLine`; `sections` (whether `#projects` is visible).
+- **Markup:**
+  - **Name:** `h1` "Louis Lawson" on two lines, with the hi-vis block caret. The name is a confirmed fact, so it is fixed text, not profile data.
+  - **Text:** the role, intro and career line as paragraphs.
+  - **Actions:**
+    - "see projects", in hi-vis with the arrow icon, goes to `#projects`, and only when that section is visible.
+    - "get in touch" goes to `#contact`.
+  - **Right column:** left empty for PR 4.2's trace panel.
+- **Caret:** it blinks, and stays still under reduced motion.
+- **Inspect:**
+  - The `h1` label is "h1 · Martian Mono 800 · static HTML, no JavaScript".
+  - One global rule in `global.css` gives `main` top padding while inspecting, so the nav's label never covers the first content on a phone.
+  - It replaces the 404 page's own `margin-top` rule, which this PR removes.
+- **Acceptance:**
+  - Placeholders are hatched in preview and the hero omits them in production.
+  - The caret is still under reduced motion.
+  - In inspect mode, the hero's label and the nav's label are both readable on a phone.
 
 ### PR 4.2 · `feat(home): trace panel`
 
-- Harvest the trace logic into pure functions (hop list and timings from Navigation Timing, bar proportions, LCP) with unit tests; a small client script renders and replays it.
-- Hop labels are generic and name no providers: "DNS lookup for `<host>`", "connection", "first byte from the nearest edge server", "this page", "painted".
-- Build number and commit come from build env; local builds show "local build".
-- Without JavaScript the panel explains that timings need JavaScript, rather than showing empty values. Unmeasured steps show an ellipsis, never a guess.
-- **Acceptance:** real values on the preview URL; replay works; reduced motion shows a still panel.
+- **Mock source:** `docs/design/mock/index.html:46–50`; `mock.js:186–252`; `styles.css:232–254`.
+- **Pure logic:** harvest the trace logic into pure functions, with unit tests:
+  - the hop list and timings from Navigation Timing
+  - bar proportions
+  - LCP
+
+  A small client script renders the panel and replays it.
+
+- **Hop labels:** generic, naming no providers: "DNS lookup for `<host>`", "connection", "first byte from the nearest edge server", "this page", "painted".
+- **Build and commit:**
+  - The footer shows "build 412 · commit 0af5e05". The deploy build step already passes `GIT_SHA`; this PR adds `BUILD_NUMBER: ${{ github.run_number }}` to the same step, pinned by `src/workflows.test.ts`.
+  - A local build shows "local build".
+- **Without JavaScript:** the panel explains that timings need JavaScript, rather than showing empty values. An unmeasured step shows an ellipsis, never a guess.
+- **Inspect:** "measured in your browser by the Navigation Timing API · nothing sent anywhere".
+- **Acceptance:**
+  - Real values on the preview URL.
+  - Replay works.
+  - Reduced motion shows a still panel.
 
 ### PR 4.3 · `feat(home): projects section`
 
-Full run-sheet strips for ≤3 projects, compact rows for ≥4; curated order with periods; featured first and tagged; whole entry links to its run sheet. Tests for the strip/row switch.
+- **Mock source:** `docs/design/mock/index.html:53–56`; `mock.js:105–132` (`renderRuns`); `styles.css:90–131` (section head, status, tag, strips, rows).
+- **Data:** the visible `projects`, already sorted by `order`, and `sections`.
+- **Shared component:** this PR introduces `<Section>`, which later sections use too.
+- **Intro:** "Each one written up as setup, change and result."
+- **Heading:** "projects" with the count of visible projects, as "(02)".
+- **Strip or row:** 3 or fewer visible projects render as strips; 4 or more as compact rows.
+  - **Strip:**
+    - top line: code, title, a `featured` tag on the featured project, then status
+    - a meta line
+    - setup, change and result under their `h4`s
+  - **Row:** code, title, `featured` tag, headline, status.
+  - **Meta line:**
+    - work: `descriptor · period`
+    - personal and open-source: `org · period` when `org` is set, otherwise "personal project · period" or "open-source project · period"
+  - **Status:** a square marker and the word: "in service", "commissioning", "complete", "archived". Only "in service" uses `ok` green.
+  - **No links yet:** neither the entry nor a "read the run sheet" line links anywhere. PR 5.1 adds both.
+- **Nav:** the current-section highlight changes from `aria-current="true"` to `aria-current="location"`, with the CSS selector and the tests to match.
+- **Inspect:** "generated at build from src/content/projects/\*.md", pinned to the loader pattern.
+- **Acceptance:**
+  - Tests cover the strip and row switch at 3 and 4.
+  - Tests cover the meta line for each `kind`.
+  - Tests cover the featured tag.
+  - Production shows R04 alone, as a strip.
 
-### PR 4.4 · `feat(home): skills, exploring and certifications`
+### PR 4.4 · `feat(home): skills and exploring`
 
-Context-first skill rows with "seen in" links (absent when no public project); quieter exploring list; certifications with verify links.
+- **Mock source:** `docs/design/mock/index.html:58–62`; `mock.js:134–141` (`renderSkills`); `styles.css:135–146`.
+- **Data:** `profile.skills`, `profile.exploring`.
+- **Intro:** "Where I've used each one, and the projects that show it."
+- **Skill row:**
+  - The group as `h3`, the one-line context, and the tools joined with " / ".
+  - "seen in R01 R04" as plain codes. A row with no `runs` has no "seen in" line.
+  - In production, a row with a placeholder group or context is already dropped by PR 2.2's rules.
+- **Exploring:**
+  - Under `h3` "what I'm exploring next", after the rows.
+  - Up to 5 plain items, no links.
+  - Left out when empty.
+- **Inspect:** "from profile.ts · 'seen in' codes checked at build", pinned to `validateContent`'s run check.
+- **Acceptance:** tests cover a row with and without runs, and an empty exploring list.
 
-### PR 4.5 · `feat(home): garage with ASCII wheel and photo dither`
+### PR 4.5 · `feat(home): certifications`
 
-- Harvest the wheel renderer as a pure frame function (unit-tested); animation at ~30fps pauses off-screen and when the tab is hidden; still under reduced motion.
-- Build-time photo pipeline: `sharp` reads each photo and writes the ASCII dither into the HTML; Astro image optimisation strips metadata; full-colour photo loads lazily on hover/focus. Designed empty state when a photo is missing.
-- **Acceptance:** zero client-side image processing; captions name event and vehicle only.
+- **Mock source:** `docs/design/mock/index.html:64–67`; `mock.js:143–146` (`renderCerts`); `styles.css:149–152`.
+- **Data:** `profile.certifications`.
+- **Intro:** "Certifications and achievements, each with a way to check it."
+- **Row:**
+  - The title, the issuer, and the date as written (`2025` or `2025-06`).
+  - When `verify` is set and real, a "verify ↗" link with the external icon, in the same tab. Without one, the row has no link rather than a dead one.
+- **Acceptance:** tests cover a row with and without a verify link, and a placeholder verify link in both contexts.
 
-### PR 4.6 · `feat(home): contact and availability`
+### PR 4.6 · `feat(home): garage section and wheel`
 
-Mailto alias, LinkedIn, GitHub, CV (disabled-looking in preview when unset), availability that disappears after its `until` date, region.
+- **Mock source:** `docs/design/mock/index.html:69–73`; `mock.js:12–79` (the wheel) and `148–153` (`renderGarage`); `styles.css:156–162`.
+- **Data:** `profile.garage` and a new profile field, `garageIntro`.
+  - `garageIntro` is added to the schema with tests, and starts as a `TODO:` in `profile.ts`.
+- **Intro:** "Cars, trucks and tractors: photos from shows and meets."
+- **Wheel:**
+  - Harvest it as a pure, unit-tested frame function, `frame(t)` → text.
+  - The first frame is rendered at build into the `aria-hidden` `<pre>`, so with no JavaScript, or under reduced motion, there is a still wheel, never an empty box.
+  - A client script animates it at about 30fps, and pauses off-screen and in a hidden tab.
+  - The caption is "fig.01 · wheel." followed by `garageIntro`.
+- **Cards:**
+  - The name as a lower-case `h3`, the note, and the caption (event and vehicle only, never the owner).
+  - The photo slot is a hatched placeholder in preview; PR 4.7 fills it.
+- **Inspect:** "photos: metadata stripped before commit · Metadata check in CI", pinned to the Metadata check job name.
+- **Acceptance:**
+  - Unit tests on the frame function.
+  - The wheel is still under reduced motion and without JavaScript.
+  - The animation stops off-screen.
+
+### PR 4.7 · `feat(home): garage photo dither`
+
+- **Mock source:** `mock.js:85–102` (the placeholder dither, which shows the look only; the real one comes from the photo) and `styles.css:157–158`.
+- **Photos:**
+  - They live in `src/assets/garage/`.
+  - They are found only through documented Astro or Vite APIs, for example `import.meta.glob`, never through Astro's hidden `fsPath`.
+  - `sharp` becomes a direct dependency.
+- **Dither:**
+  - At build, each photo becomes a grid of 72 × 26 characters from greyscale brightness on the ramp `" .:-=+*#"`, written into an `aria-hidden` `<pre>`.
+  - Zero client-side image processing.
+- **Full-colour photo:**
+  - The dither is a link to the optimised photo (Astro's image pipeline, which strips metadata), so without JavaScript it opens the photo.
+  - With JavaScript, hover, focus or tap swaps the photo into the card in place. It is downloaded only then.
+  - The photo's `alt` goes on the link and on the image.
+- **Missing photo:** a designed empty state, in preview only. Production omits an entry whose photo is a placeholder.
+- **Tests:** the pipeline is tested on an image generated in memory, so no photo is committed for tests.
+- **Acceptance:**
+  - The page loads no full-colour photo until asked.
+  - Captions name the event and the vehicle only.
+
+### PR 4.8 · `feat(home): contact`
+
+- **Mock source:** `docs/design/mock/index.html:75–88`; `styles.css:166–171`.
+- **Data:** `profile.email`, `profile.links`, `profile.cv`, `profile.availability`, `profile.region`.
+- **Intro:** "About a role, a project, or just a conversation."
+- **Email:** `hello@louislawson.co.uk` as a large `mailto:` link, with `<wbr>` after the `@`.
+- **Links:** "linkedin ↗" and "github ↗", with the external icon.
+- **CV:**
+  - "download cv" goes to `/cv.pdf`, with the `download` attribute.
+  - While `cv` is a placeholder, preview shows "cv not added yet" as an `aria-disabled` span, and production leaves it out.
+- **Facts:** a `<dl>` with:
+  - "availability": its row is gone once the statement has expired or is absent.
+  - "based in": from `region`.
+- **Inspect:** "mailto only · no forms, no backend, no cookies".
+- **Acceptance:**
+  - Tests cover the CV in both contexts.
+  - Tests cover availability present, expired and absent.
+  - Production shows the email, which is real.
 
 ## Phase 5 · Project pages and sharing
 
 ### PR 5.1 · `feat(projects): run-sheet pages`
 
-`/projects/[slug]`: setup/change/result panel, measurements as a before/after diff (hidden when empty), tools, write-up prose styles, next project. R04 "This website" written for real (Terraform, OIDC, GitHub Actions, Static Web Apps), status `commissioning` until launch.
+`/projects/[slug]`: setup/change/result panel, measurements as a before/after diff (hidden when empty), tools, write-up prose styles, next project. R04 "This website" written for real (Terraform, OIDC, GitHub Actions, Static Web Apps), status `commissioning` until launch. It also adds the links Phase 4 left out (they arrive with the pages): each project entry links to its run sheet, the strips gain "read the run sheet", and the skills' "seen in" codes become links to the run sheets.
 
 ### PR 5.2 · `feat(seo): social preview images, sitemap and robots`
 
@@ -403,7 +551,7 @@ Each phase is handed to a fresh Sonnet session using the **`handoff` skill** (`m
 - **Suggested skills and tools:**
   - All phases: `code-review`, Snyk MCP scans, context7 for docs.
   - Phase 1: `terraform-style-guide`, `terraform-skill`, the Terraform MCP (provider docs and versions).
-  - Phases 2, 4.2, 4.5: `mattpocock-skills:tdd`.
+  - Phases 2–4: `mattpocock-skills:tdd` (pure logic such as the trace, the wheel frame and the dither).
   - Phases 3–7: `impeccable` (load `craft-floor.md` before UI edits), Playwright MCP or the built-in browser for checking previews.
 - **Constraints:** `CLAUDE.md` (loaded automatically), especially the privacy guardrails and no invented content.
 
