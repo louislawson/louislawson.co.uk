@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
+import { assembleSiteContent } from "../content/assemble";
+import { validateContent } from "../content/validate";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
 import Hero from "./home/Hero.astro";
@@ -153,6 +155,51 @@ const facts: {
       "src/content.config.ts loads projects with glob({ pattern: '*.md', base: './src/content/projects' })",
   },
   {
+    label: "skills",
+    phrase: "from profile.ts",
+    holds: () => {
+      // The skills and the exploring list come from the profile data file, through the one loader
+      // every page reads content by, and the home page hands them to the section from there.
+      const page = read("src/pages/index.astro");
+      return (
+        /import \{ profile \} from "\.\.\/data\/profile"/.test(
+          read("src/content/site-content.ts"),
+        ) &&
+        /^export const profile\b/m.test(read("src/data/profile.ts")) &&
+        /const \{[^}]*\bprofile\b[^}]*\} = await getSiteContent\(\)/.test(
+          page,
+        ) &&
+        /skills=\{profile\.skills\}/.test(page) &&
+        /exploring=\{profile\.exploring\}/.test(page)
+      );
+    },
+    because:
+      "site-content.ts imports `profile` from src/data/profile.ts, and index.astro gives the section profile.skills and profile.exploring from getSiteContent()",
+  },
+  {
+    label: "skills",
+    phrase: "'seen in' codes checked at build",
+    holds: () => {
+      // A skill's run that no project has is a problem validateContent reports, and the content
+      // loader's assembly throws on it, so the build stops.
+      const project = {
+        id: "r01",
+        data: { code: "R01", order: 1, featured: true },
+      };
+      const fakeProfile = { skills: [{ group: "Delivery", runs: ["R09"] }] };
+      const problems = validateContent([project], fakeProfile);
+      let threw = false;
+      try {
+        assembleSiteContent([project], fakeProfile, new Date());
+      } catch (error) {
+        threw = String(error).includes("R09");
+      }
+      return problems.some((p) => p.includes("R09")) && threw;
+    },
+    because:
+      "validateContent reports a skill's run that no project has, and assembleSiteContent throws on it",
+  },
+  {
     label: "projects",
     phrase: "generated at build",
     holds: () => {
@@ -209,6 +256,7 @@ describe("the inspect labels", () => {
       "nav",
       "notFound",
       "projects",
+      "skills",
       "trace",
     ]);
   });

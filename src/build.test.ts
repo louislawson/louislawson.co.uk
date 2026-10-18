@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS } from "./components/inspect-labels";
+import { isPlaceholder } from "./content/todo";
+import { visibleProfile, visibleSections } from "./content/visibility";
+import { profile } from "./data/profile";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -451,8 +454,20 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(read(dir, "404.html")).not.toMatch(/<header[^>]*\sdata-home/);
   });
 
+  // The home page's labelled parts: the bar, the footer, the hero, the trace and the projects, and
+  // the skills where the section is shown. A preview always shows it. Production shows it once a
+  // skill row or an item to explore is real, and that follows the real profile, so it is worked
+  // out from the profile and not fixed: correct content must not fail this test.
+  const skillsShown =
+    deployContext === "preview" ||
+    visibleSections(
+      [{}],
+      visibleProfile(profile, new Set(), "production"),
+    ).some((section) => section.id === "skills");
+  const homeLabels = 5 + (skillsShown ? 1 : 0);
+
   it.each([
-    ["index.html", 5],
+    ["index.html", homeLabels],
     ["404.html", 3],
   ])(
     "labels only whole parts in %s, %i of them, each with a registered label",
@@ -608,6 +623,44 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(section).not.toContain('class="tag"');
       // R04 is commissioning.
       expect(section).toMatch(/status--commissioning[^>]*>\s*commissioning/);
+    });
+  }
+
+  if (deployContext === "preview") {
+    it("shows the skills in a preview: a hatched row, with no seen-in line, and a hatched item to explore", () => {
+      const html = read(dir, "index.html");
+      const section = /<section[^>]*\sid="skills"[\s\S]*?<\/section>/.exec(
+        html,
+      )?.[0];
+      expect(section, "no skills section").toBeDefined();
+      // After the projects and before the footer, where the nav's link goes.
+      expect(html.indexOf('id="projects"')).toBeLessThan(
+        html.indexOf('id="skills"'),
+      );
+      expect(html.indexOf('id="skills"')).toBeLessThan(html.indexOf("<footer"));
+      expect(html).toContain('href="/#skills"');
+      // The one placeholder row: its group, its context and its tool, and the item to explore.
+      expect(section!.match(/class="skill"/g)).toHaveLength(1);
+      expect(section!.match(/class="ph"/g)!.length).toBeGreaterThanOrEqual(4);
+      expect(section).not.toContain('class="seen"');
+      // The heading is the template's own text; the intro goes through an expression, which
+      // escapes its apostrophe.
+      expect(section).toContain("what I'm exploring next");
+      expect(section).toContain("Where I&#39;ve used each one");
+      // Plain text throughout: nothing links to a project yet.
+      expect(section).not.toContain("<a ");
+    });
+  } else {
+    it("shows the skills on production exactly when something in them is real, and its nav link with it, so the page and the nav agree", () => {
+      // While the profile's skill row and exploring item are placeholders, nothing is real: the
+      // section, its link and the exploring heading are all out. A real row or item brings all of
+      // them in.
+      const html = read(dir, "index.html");
+      expect(html.includes('id="skills"')).toBe(skillsShown);
+      expect(html.includes('href="/#skills"')).toBe(skillsShown);
+      expect(html.includes("what I'm exploring next")).toBe(
+        skillsShown && profile.exploring.some((item) => !isPlaceholder(item)),
+      );
     });
   }
 

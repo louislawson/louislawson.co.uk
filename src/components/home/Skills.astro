@@ -1,0 +1,153 @@
+---
+// The tools are one line: each is its own value (a placeholder is hatched on its own, beside real
+// ones), with " / " between them. compressHTML keeps a line break as a space, which a space on
+// each side of the slash makes no different.
+import { site, type DeployContext } from "../../config/site";
+import type { Profile } from "../../content/schema";
+import {
+  renderDecision,
+  type Section as SectionInfo,
+} from "../../content/visibility";
+import { INSPECT_LABELS } from "../inspect-labels";
+import Placeholder from "../Placeholder.astro";
+import { SECTION_INTROS } from "./section-intros";
+import Section from "./Section.astro";
+
+interface Props {
+  /** The skill rows this build shows, from getSiteContent(). */
+  skills: Profile["skills"];
+  /** What is being explored next, up to five items. */
+  exploring: string[];
+  /** The sections this build shows, from visibleSections(). */
+  sections: SectionInfo[];
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const {
+  skills,
+  exploring,
+  sections,
+  context = site.deployContext,
+} = Astro.props;
+
+// The tools that are shown: a placeholder that production leaves out takes no " / " with it.
+const shownTools = (tools: string[]) =>
+  tools.filter((tool) => renderDecision(tool, context) !== "omit");
+
+// A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
+const shown =
+  (skills.length > 0 || exploring.length > 0) &&
+  sections.some((section) => section.id === "skills");
+---
+
+{shown && <Section
+  id="skills"
+  title="skills"
+  intro={skills.length > 0 ? SECTION_INTROS.skills : undefined}
+  inspect={INSPECT_LABELS.skills}
+>
+  {skills.map((skill) => <div class="skill">
+    <h3><Placeholder value={skill.group} context={context} /></h3>
+    <p class="ctx"><Placeholder value={skill.context} context={context} /></p>
+    <p class="tools">
+      {shownTools(skill.tools).map((tool, index) => <Fragment
+        >{index > 0 && " / "}<Placeholder value={tool} context={context}
+      /></Fragment>)}
+    </p>
+    {skill.runs.length > 0 && <p class="seen">
+      seen in <span class="codes">{skill.runs.join(" ")}</span>
+    </p>}
+  </div>)}
+  {exploring.length > 0 && <div class="explore">
+    <h3>what I'm exploring next</h3>
+    <ul role="list">
+      {exploring.map((item) => <li>
+        <Placeholder value={item} context={context} />
+      </li>)}
+    </ul>
+  </div>}
+</Section>}
+
+<style>
+  .skill {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.4rem var(--col-gap);
+    padding-block: 1.3rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .skill h3 {
+    grid-column: 1 / span 3;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .skill .ctx {
+    grid-column: 4 / span 6;
+  }
+
+  .skill .tools {
+    grid-column: 4 / span 6;
+    color: var(--dim);
+    font-size: 0.85rem;
+  }
+
+  /* Last in the markup, so a row reads as name, context, tools and then the evidence, on a phone
+     and to a screen reader; on a wide screen it sits top right, on the group's own line. The codes
+     are the evidence: the accent is for codes. */
+  .skill .seen {
+    grid-column: 10 / span 3;
+    grid-row: 1;
+    color: var(--dim);
+    font-size: 0.85rem;
+    text-align: right;
+  }
+
+  .skill .codes {
+    color: var(--hivis);
+  }
+
+  @media (max-width: 860px) {
+    .skill h3,
+    .skill .ctx,
+    .skill .tools,
+    .skill .seen {
+      grid-column: 1 / -1;
+      grid-row: auto;
+      text-align: left;
+    }
+  }
+
+  /* The quieter list of what is next: no links, and set apart from the evidence above it. */
+  .explore {
+    margin-top: 2.25rem;
+    padding: clamp(14px, 2vw, 22px);
+    border: 1px solid var(--line);
+  }
+
+  .explore h3 {
+    color: var(--dim);
+    font-weight: 500;
+  }
+
+  /* The prompt and the dashes are decoration: the second line gives them an empty alt text, so a
+     screen reader reads the heading and the items alone, and a browser without that form keeps
+     the first. */
+  .explore h3::before {
+    content: "# ";
+    content: "# " / "";
+    color: var(--hivis);
+  }
+
+  .explore li {
+    margin-top: 0.5rem;
+  }
+
+  .explore li::before {
+    content: "- ";
+    content: "- " / "";
+    color: var(--dim);
+  }
+</style>
