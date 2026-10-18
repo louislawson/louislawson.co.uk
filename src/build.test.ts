@@ -177,6 +177,81 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       `href="/_astro/${listing(dir, "_astro").find((name) => name.startsWith("Base.") && name.endsWith(".css"))}"`,
     );
   });
+
+  it("gives the home page a canonical URL on the site URL, and the 404 page none", () => {
+    expect(read(dir, "index.html")).toContain(
+      '<link rel="canonical" href="https://louislawson.co.uk/">',
+    );
+    expect(read(dir, "404.html")).not.toContain('rel="canonical"');
+  });
+
+  it.each(["index.html", "404.html"])(
+    "starts %s with a skip link to <main>, and ends it with the footer",
+    (page) => {
+      const html = read(dir, page);
+      expect(html).toMatch(
+        /<body[^>]*>\s*<a class="vh skip" href="#main">Skip to content<\/a>/,
+      );
+      expect(html).toMatch(/<main id="main" tabindex="-1"/);
+      expect(html.indexOf("<main")).toBeLessThan(html.indexOf("<footer"));
+      expect(html).toContain("no cookies, no tracking");
+      expect(html).toContain("source on GitHub");
+    },
+  );
+
+  it("shows the date of the last commit in the footer, as git writes it", () => {
+    const expected = execFileSync("git", ["log", "-1", "--format=%cs"], {
+      encoding: "utf-8",
+    }).trim();
+    expect(expected).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(read(dir, "index.html")).toContain(`updated ${expected}`);
+  });
+
+  it("serves the footer's switch as a script file, not inline, and the shortcut script reads no address", () => {
+    const html = read(dir, "index.html");
+    const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
+      (match) => match[1]!,
+    );
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const src of scripts) {
+      const code = read(dir, src.replace(/^\//, ""));
+      expect(code, src).toContain("keyboard-shortcuts");
+      // The 404 page is served for any address and shows none of it.
+      expect(code, src).not.toMatch(/location|pathname/);
+    }
+  });
+
+  it("makes the 404 page from the same world, with a heading, a line and links, and no script of its own", () => {
+    const html = read(dir, "404.html");
+    expect(html).toContain("404 · not found");
+    expect(html).toContain("There is nothing at this address.");
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/);
+  });
+
+  it("links the 404 page to the home page and the sections this build shows", () => {
+    const html = read(dir, "404.html");
+    const nav = /<nav aria-label="Pages on this site"[\s\S]*?<\/nav>/.exec(
+      html,
+    )?.[0];
+    expect(nav).toBeDefined();
+    const links = [...nav!.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
+    expect(links[0]).toBe("/");
+    if (deployContext === "preview") {
+      // A preview shows every section, with its placeholders hatched.
+      expect(links).toEqual([
+        "/",
+        "/#projects",
+        "/#skills",
+        "/#certifications",
+        "/#garage",
+        "/#contact",
+      ]);
+    } else {
+      // Production shows only what is real, so which sections it links to follows the content.
+      expect(links).toContain("/#projects");
+      expect(links).toContain("/#contact");
+    }
+  });
 });
 
 describe("a build with an unknown DEPLOY_CONTEXT", () => {

@@ -7,6 +7,10 @@ const LAUNCH = false;
 
 const DEFAULT_SITE_URL = "https://louislawson.co.uk";
 
+/** The public repository, which the footer links to. */
+export const REPOSITORY_URL =
+  "https://github.com/louislawson/louislawson.co.uk";
+
 function parseSiteUrl(value: string | undefined): string {
   const raw = value === undefined || value === "" ? DEFAULT_SITE_URL : value;
   let url: URL;

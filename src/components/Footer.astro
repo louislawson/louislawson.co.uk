@@ -1,0 +1,58 @@
+---
+import { REPOSITORY_URL } from "../config/site";
+import ShortcutSwitch from "./ShortcutSwitch.astro";
+
+interface Props {
+  /** The date of the last commit, as written. Left out when git could not say. */
+  updated?: string | undefined;
+}
+
+const { updated } = Astro.props;
+---
+
+<footer class="foot">
+  <div class="wrap foot__mark" aria-hidden="true">LAWSON</div>
+  <div class="wrap foot__row">
+    {updated && <span>updated {updated}</span>}
+    <span
+      >built with Astro, hosted on Azure Static Web Apps ·
+      <a href={REPOSITORY_URL}>source on GitHub</a></span
+    >
+    <span>no cookies, no tracking</span>
+    <ShortcutSwitch />
+  </div>
+</footer>
+
+<style>
+  .foot {
+    margin-top: var(--section);
+    border-top: 1px solid var(--line);
+  }
+
+  /* The outline wordmark: decoration, hidden from assistive technology and from selection. */
+  .foot__mark {
+    padding-top: 2rem;
+    font-size: clamp(3.4rem, 1rem + 15.5vw, 17rem);
+    font-stretch: 112.5%;
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    line-height: 0.8;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--line-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .foot__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 2rem;
+    padding-block: 1.5rem 6rem;
+    border-top: 1px solid var(--line);
+    color: var(--dim);
+    font-size: 0.82rem;
+  }
+</style>

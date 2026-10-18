@@ -2,14 +2,22 @@
 // The font comes from the @fontsource package through global.css, with a preload for the Latin
 // file. Astro's <Font /> is not used: it writes an inline style, which the site's policy blocks.
 import latinFont from "@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url";
+import Footer from "../components/Footer.astro";
+import { lastCommitDate } from "../config/last-updated";
 import { site } from "../config/site";
 import "../styles/global.css";
 
 interface Props {
   title: string;
+  /** The 404 page is served for every missing address, so it has no canonical URL of its own. */
+  canonical?: boolean;
 }
 
-const { title } = Astro.props;
+const { title, canonical = true } = Astro.props;
+const canonicalUrl = canonical
+  ? new URL(Astro.url.pathname, site.url).href
+  : undefined;
+// The navigation (PR 3.3) goes between the skip link and <main>.
 ---
 
 <!doctype html>
@@ -19,6 +27,7 @@ const { title } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     {site.noindex && <meta name="robots" content="noindex" />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <link
       rel="preload"
       href={latinFont}
@@ -29,6 +38,10 @@ const { title } = Astro.props;
     <title>{title}</title>
   </head>
   <body>
-    <slot />
+    <a class="vh skip" href="#main">Skip to content</a>
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer updated={lastCommitDate()} />
   </body>
 </html>

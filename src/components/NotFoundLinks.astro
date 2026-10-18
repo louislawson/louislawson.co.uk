@@ -1,0 +1,60 @@
+---
+import type { Section } from "../content/visibility";
+import Icon from "./Icon.astro";
+import { SECTION_LABELS, sectionHref } from "./section-labels";
+
+interface Props {
+  /** The sections this build shows, from visibleSections(), so a hidden section has no link. */
+  sections: Section[];
+}
+
+const { sections } = Astro.props;
+const links = [
+  { href: "/", label: "home" },
+  ...sections.map(({ id }) => ({
+    href: sectionHref(id),
+    label: SECTION_LABELS[id],
+  })),
+];
+---
+
+<nav aria-label="Pages on this site">
+  <ul>
+    {links.map(({ href, label }) => <li>
+      <a href={href}>
+        {label}
+        <Icon name="arrow" size={16} />
+      </a>
+    </li>)}
+  </ul>
+</nav>
+
+<style>
+  ul {
+    max-width: 32rem;
+    border-top: 1px solid var(--line);
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+    transition: background-color 140ms var(--ease);
+  }
+
+  a:hover {
+    background: var(--panel);
+  }
+
+  a :global(svg) {
+    color: var(--hivis);
+    transition: transform 220ms var(--ease);
+  }
+
+  a:hover :global(svg) {
+    transform: translateX(3px);
+  }
+</style>

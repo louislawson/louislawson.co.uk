@@ -187,6 +187,45 @@ describe("the browser surfaces", () => {
     }
   });
 
+  it("keeps the footer at the foot of a short page", () => {
+    const body = rule("body");
+    expect(body).toContain("display: flex");
+    expect(body).toContain("flex-direction: column");
+    expect(body).toContain("min-height: 100dvh");
+    expect(rule("main")).toContain("flex: 1 0 auto");
+  });
+
+  it("has the page's width and gutters in one class", () => {
+    const wrap = rule(".wrap");
+    expect(wrap).toContain("padding-inline: var(--gutter)");
+    expect(wrap).toContain("max-width: 1520px");
+    expect(wrap).toContain("margin-inline: auto");
+  });
+
+  it("shows the skip link, in hi-vis, only while it has focus", () => {
+    // It starts as the visually hidden utility (the markup carries both classes) and this is
+    // what it becomes on focus. The page is dark, so the link is a hi-vis block: bg on hi-vis.
+    const focused = rule(".skip:focus");
+    for (const declaration of [
+      "background: var(--hivis)",
+      "color: var(--bg)",
+      "clip-path: none",
+      "overflow: visible",
+      "width: auto",
+      "height: auto",
+    ]) {
+      expect(focused).toContain(declaration);
+    }
+  });
+
+  it("does not outline <main> when the skip link moves focus there", () => {
+    expect(rule("main:focus-visible")).toContain("outline: none");
+  });
+
+  it("lets the hidden attribute win over a component's display rule", () => {
+    expect(rule("[hidden]")).toContain("display: none !important");
+  });
+
   it("sets controls in the page font instead of the browser's", () => {
     const controls = rule("button,\ninput,\ntextarea,\nselect");
     expect(controls).toContain("font: inherit");
