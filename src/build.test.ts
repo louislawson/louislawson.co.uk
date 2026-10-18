@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS } from "./components/inspect-labels";
+import { parseDeployContext } from "./config/site";
 import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
@@ -664,44 +665,55 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     });
   }
 
-  // Certifications are shown on production once one is real, so the check follows the real profile
-  // and correct content cannot fail it.
-  const certificationsShown =
-    deployContext === "preview" ||
-    visibleSections(
-      [{}],
-      visibleProfile(profile, new Set(), "production"),
-    ).some((section) => section.id === "certifications");
+  // The certifications this build shows follow the real profile (a preview shows all of them,
+  // production the ones that are real), so correct content cannot fail these checks: they test
+  // that the page agrees with the rule, which visibility.test.ts tests itself.
+  const shownCerts = visibleProfile(
+    profile,
+    new Set(),
+    parseDeployContext(deployContext),
+  ).certifications;
 
-  if (deployContext === "preview") {
-    it("shows the certifications in a preview: a hatched row, with no link, after the skills", () => {
-      const html = read(dir, "index.html");
-      const section =
-        /<section[^>]*\sid="certifications"[\s\S]*?<\/section>/.exec(html)?.[0];
-      expect(section, "no certifications section").toBeDefined();
-      expect(html.indexOf('id="skills"')).toBeLessThan(
-        html.indexOf('id="certifications"'),
-      );
-      expect(html.indexOf('id="certifications"')).toBeLessThan(
-        html.indexOf("<footer"),
-      );
-      expect(html).toContain('href="/#certifications"');
-      // The one placeholder row: its title, issuer and date.
-      expect(section!.match(/class="cert"/g)).toHaveLength(1);
-      expect(section!.match(/class="ph"/g)).toHaveLength(3);
-      // No verify link: the placeholder has none, and no dead one is made up.
-      expect(section).not.toContain("<a ");
-      expect(section).toContain("Certifications and achievements");
-    });
-  } else {
-    it("shows the certifications on production exactly when one is real, and its nav link with it, so the page and the nav agree", () => {
-      const html = read(dir, "index.html");
-      expect(html.includes('id="certifications"')).toBe(certificationsShown);
-      expect(html.includes('href="/#certifications"')).toBe(
-        certificationsShown,
-      );
-    });
-  }
+  it("shows the certifications section, and its nav link, exactly when there is a certification to show", () => {
+    const html = read(dir, "index.html");
+    expect(html.includes('id="certifications"')).toBe(shownCerts.length > 0);
+    expect(html.includes('href="/#certifications"')).toBe(
+      shownCerts.length > 0,
+    );
+  });
+
+  it("renders each certification it shows, with a link only for a real verify address and a hatch only in a preview", () => {
+    const html = read(dir, "index.html");
+    const section =
+      /<section[^>]*\sid="certifications"[\s\S]*?<\/section>/.exec(html)?.[0];
+    if (shownCerts.length === 0) {
+      expect(section).toBeUndefined();
+      return;
+    }
+    expect(section, "no certifications section").toBeDefined();
+    expect(section!.match(/class="cert"/g)).toHaveLength(shownCerts.length);
+    // No link is made up: one per real address, and none for a placeholder or a missing one.
+    expect(section!.match(/<a /g) ?? []).toHaveLength(
+      shownCerts.filter(
+        (cert) => cert.verify !== undefined && !isPlaceholder(cert.verify),
+      ).length,
+    );
+    // Every placeholder value is hatched in a preview, and none is left on production.
+    const placeholders = shownCerts
+      .flatMap((cert) => [cert.title, cert.issuer, cert.date, cert.verify])
+      .filter((value) => value !== undefined && isPlaceholder(value));
+    expect(section!.match(/class="ph"/g) ?? []).toHaveLength(
+      deployContext === "preview" ? placeholders.length : 0,
+    );
+    expect(section).not.toContain("TODO:");
+    // After the projects, where the nav's link goes, and before the footer.
+    expect(html.indexOf('id="projects"')).toBeLessThan(
+      html.indexOf('id="certifications"'),
+    );
+    expect(html.indexOf('id="certifications"')).toBeLessThan(
+      html.indexOf("<footer"),
+    );
+  });
 
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence

@@ -25,8 +25,12 @@ const { certifications, sections, context = site.deployContext } = Astro.props;
 
 // A link only when there is a real address. No address is no link, and a placeholder is hatched
 // on a preview (as the place a link will go) and left out of production.
-const verifyDecision = (verify: string | undefined) =>
-  verify === undefined ? "omit" : renderDecision(verify, context);
+const rows = certifications.map((cert, index) => {
+  const { verify } = cert;
+  const decision =
+    verify === undefined ? "omit" : renderDecision(verify, context);
+  return { cert, index, verify, decision };
+});
 
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
 const shown =
@@ -40,7 +44,7 @@ const shown =
   intro={SECTION_INTROS.certifications}
 >
   <ul role="list">
-    {certifications.map((cert, index) => <li class="cert">
+    {rows.map(({ cert, index, verify, decision }) => <li class="cert">
       <span class="t" id={`cert-${index}-title`}
         ><Placeholder value={cert.title} context={context}
       /></span>
@@ -50,16 +54,16 @@ const shown =
       <span class="g dt"
         ><Placeholder value={cert.date} context={context}
       /></span>
-      {verifyDecision(cert.verify) === "show" ? (
+      {verify !== undefined && decision === "show" ? (
         <a
-          href={cert.verify}
+          href={verify}
           id={`cert-${index}-verify`}
           aria-labelledby={`cert-${index}-verify cert-${index}-title`}
           >verify<Icon name="external" size={14}
         /></a>
-      ) : verifyDecision(cert.verify) === "hatch" ? (
+      ) : verify !== undefined && decision === "hatch" ? (
         <span class="verify"
-          ><Placeholder value={cert.verify!} context={context}
+          ><Placeholder value={verify} context={context}
         /></span>
       ) : null}
     </li>)}

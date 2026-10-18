@@ -36,21 +36,35 @@ async function render(props: Record<string, unknown>): Promise<string> {
   return html.replace(/\s+/g, " ");
 }
 
-/** The text of every element with this class, tags taken out. */
-const text = (html: string, className: string) =>
-  [
-    ...html.matchAll(
-      new RegExp(
-        `<(\\w+)[^>]*class="[^"]*\\b${className}\\b[^"]*"[^>]*>(.*?)</\\1>`,
-        "g",
-      ),
-    ),
-  ].map((m) =>
-    m[2]!
+/**
+ * The text of every element with this class, tags taken out. A hatched value nests spans inside
+ * the span, so the end of an element is found by counting the tags of its own name.
+ */
+function text(html: string, className: string): string[] {
+  const start = new RegExp(
+    `<(\\w+)[^>]*class="[^"]*\\b${className}\\b[^"]*"[^>]*>`,
+    "g",
+  );
+  return [...html.matchAll(start)].map((open) => {
+    const name = open[1]!;
+    const tags = new RegExp(`<(/?)${name}\\b[^>]*>`, "g");
+    tags.lastIndex = open.index + open[0].length;
+    let depth = 1;
+    let end = html.length;
+    for (let tag = tags.exec(html); tag; tag = tags.exec(html)) {
+      depth += tag[1] ? -1 : 1;
+      if (depth === 0) {
+        end = tag.index;
+        break;
+      }
+    }
+    return html
+      .slice(open.index + open[0].length, end)
       .replace(/<[^>]+>/g, "")
       .replace(/\s+/g, " ")
-      .trim(),
-  );
+      .trim();
+  });
+}
 
 /** The `<li>` of each row, so a test can look at one row alone. */
 const rows = (html: string) =>
@@ -235,6 +249,12 @@ describe("<Certifications>", () => {
       });
       expect(preview.match(/class="ph"/g)).toHaveLength(3);
       expect(preview).not.toContain("TODO:");
+      // The hint is the placeholder's own words, read whole through the nested spans.
+      expect(text(preview, "t")).toEqual([
+        "Placeholder: certification or milestone",
+      ]);
+      expect(text(preview, "iss")).toEqual(["Placeholder: issuer"]);
+      expect(text(preview, "dt")).toEqual(["Placeholder: YYYY or YYYY-MM"]);
       const production = await render({
         certifications: [placeholderRow],
         sections: all,
