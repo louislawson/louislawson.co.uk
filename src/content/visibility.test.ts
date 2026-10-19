@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { placeholder, profileData, projectEntry } from "./__fixtures__/content";
 import {
+  garageShown,
   isRealProject,
   presentSiteContent,
   renderDecision,
@@ -214,6 +215,75 @@ describe("visibleProfile", () => {
         profile,
       );
     }
+  });
+
+  describe("garageShown", () => {
+    const sections = (...ids: string[]) =>
+      ids.map((id, index) => ({ id, number: index + 1 })) as Parameters<
+        typeof garageShown
+      >[1];
+    const entries = profileData().garage;
+
+    it("is true when there are entries and the garage is one of the sections", () => {
+      expect(garageShown(entries, sections("projects", "garage"))).toBe(true);
+    });
+
+    it("is false without entries, because the section is not rendered", () => {
+      expect(garageShown([], sections("projects", "garage"))).toBe(false);
+    });
+
+    it("is false when the garage is not one of the sections", () => {
+      expect(garageShown(entries, sections("projects", "contact"))).toBe(false);
+    });
+  });
+
+  describe("a garage entry's imported photo", () => {
+    // Astro publishes the original of an image it sees used, and reading an imported image's `src`
+    // is how it sees that. Looking for placeholders in an entry must not read it.
+    function trackedPhoto(onSrcRead: () => void) {
+      const imported = { width: 800, height: 600, format: "jpg" };
+      Object.defineProperty(imported, "src", {
+        enumerable: true,
+        get() {
+          onSrcRead();
+          return "/_astro/car.abc123.jpg";
+        },
+      });
+      return imported;
+    }
+    const entry = (photo: unknown) => ({
+      name: "Cars",
+      note: "A note.",
+      photo,
+      alt: "A car at a show.",
+      caption: "Event, vehicle.",
+    });
+
+    it("is not read for its address when production looks for placeholders", () => {
+      let reads = 0;
+      const photo = trackedPhoto(() => reads++);
+      const view = visibleProfile(
+        profileData({ garage: [entry(photo)] }),
+        allReal,
+        "production",
+      );
+      expect(view.garage).toHaveLength(1);
+      expect(view.garage[0]?.photo).toBe(photo);
+      expect(reads).toBe(0);
+    });
+
+    it("does not stop an entry with a placeholder in another part from being left out", () => {
+      let reads = 0;
+      const view = visibleProfile(
+        profileData({
+          garage: [{ ...entry(trackedPhoto(() => reads++)), alt: placeholder }],
+        }),
+        allReal,
+        "production",
+      );
+      expect(view.garage).toEqual([]);
+      expect(reads).toBe(0);
+    });
   });
 
   describe("in production", () => {

@@ -20,11 +20,21 @@ export function renderDecision(
   return context === "production" ? "omit" : "hatch";
 }
 
+/** The values an object holds as data. An accessor is not called: see hasPlaceholder. */
+function dataValues(object: object): unknown[] {
+  return Object.values(Object.getOwnPropertyDescriptors(object))
+    .filter((descriptor) => descriptor.enumerable && "value" in descriptor)
+    .map((descriptor) => descriptor.value);
+}
+
+// An imported image's `src` is an accessor, and Astro publishes the original of an image whose `src`
+// is read. Looking for a placeholder in an entry that holds one must not call it: there can be no
+// placeholder in an address Astro made.
 function hasPlaceholder(value: unknown): boolean {
   if (isPlaceholder(value)) return true;
   if (Array.isArray(value)) return value.some(hasPlaceholder);
   if (value !== null && typeof value === "object") {
-    return Object.values(value).some(hasPlaceholder);
+    return dataValues(value).some(hasPlaceholder);
   }
   return false;
 }
@@ -186,6 +196,19 @@ export function visibleSections(
   return (Object.keys(hasContent) as SectionId[])
     .filter((id) => hasContent[id])
     .map((id, index) => ({ id, number: index + 1 }));
+}
+
+/**
+ * Whether the garage is on the page: it has entries and is one of the sections shown. The page
+ * prepares the photos only then, and the component renders only then, by this one rule.
+ */
+export function garageShown(
+  garage: readonly unknown[],
+  sections: readonly Section[],
+): boolean {
+  return (
+    garage.length > 0 && sections.some((section) => section.id === "garage")
+  );
 }
 
 /** What the pages render: the content for one deploy context, and the sections it fills. */

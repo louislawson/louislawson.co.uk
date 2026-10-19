@@ -7,11 +7,25 @@ import Skills from "../components/home/Skills.astro";
 import Trace from "../components/home/Trace.astro";
 import { buildInfo } from "../config/build-info";
 import { getSiteContent } from "../content/site-content";
+import { garageShown } from "../content/visibility";
+import { profile as fullProfile } from "../data/profile";
+import { garagePhotos } from "../garage/load-photos";
 import Base from "../layouts/Base.astro";
 
 // The page only composes the sections, in the contract's order. Each takes what it needs from
 // what getSiteContent() returns, which is already shaped for this build's deploy context.
 const { profile, projects, sections } = await getSiteContent();
+const allGarageEntries = fullProfile.garage;
+// The garage's photos are dithered here, at build: nothing about them is worked out in the browser,
+// and only a card that is shown is dithered. Every photo in src/assets/garage/ is processed in every
+// build, shown or not: Astro publishes the original of an imported image that nothing processes,
+// and a card is left out of production while a part of its entry is a placeholder. So the call
+// always runs, with every entry of the profile (not only the shown ones) to tell a photo that is
+// waiting for the rest of its entry from one that nothing uses.
+const photos = await garagePhotos(
+  garageShown(profile.garage, sections) ? profile.garage : [],
+  allGarageEntries,
+);
 ---
 
 <Base title="Louis Lawson" sections={sections}>
@@ -28,6 +42,7 @@ const { profile, projects, sections } = await getSiteContent();
   <Garage
     garageIntro={profile.garageIntro}
     garage={profile.garage}
+    photos={photos}
     sections={sections}
   />
 </Base>
