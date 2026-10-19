@@ -36,17 +36,10 @@ export function projectPath(id: string): string {
 }
 
 /**
- * The project after this one in the home page's order, which wraps from the last to the first. A
- * project that stands alone has none to point to, and neither has one that is not in the list.
+ * The project after this one in a list that is in the home page's order, which wraps from the last
+ * to the first. A project that stands alone has none to point to, and neither has one that is not
+ * in the list.
  */
-export function nextProject<E extends Listed>(
-  projects: readonly E[],
-  id: string,
-): E | undefined {
-  return following(featuredFirst(projects), id);
-}
-
-/** The entry after this one in a list that is already in order, wrapping at the end. */
 function following<E extends Listed>(
   ordered: readonly E[],
   id: string,

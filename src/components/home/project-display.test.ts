@@ -5,7 +5,6 @@ import {
   countLabel,
   featuredFirst,
   metaParts,
-  nextProject,
   pageTitle,
   projectLayout,
   projectPages,
@@ -195,38 +194,42 @@ describe("projectPath", () => {
   });
 });
 
-describe("nextProject", () => {
+describe("the next project, as each page gets it", () => {
   const list = [
     entry("a", 1),
     entry("b", 2),
     entry("c", 3),
     entry("d", 4, true),
   ];
+  /** The file name of the project the page for `id` links on to. */
+  const nextOf = (projects: typeof list, id: string) =>
+    projectPages(projects).find((page) => page.params.slug === id)!.props.next
+      ?.id;
 
   it("is the next in the home page's order, which leads with the featured project", () => {
     // The home page's order is d, a, b, c.
-    expect(nextProject(list, "d")?.id).toBe("a");
-    expect(nextProject(list, "a")?.id).toBe("b");
-    expect(nextProject(list, "b")?.id).toBe("c");
+    expect(nextOf(list, "d")).toBe("a");
+    expect(nextOf(list, "a")).toBe("b");
+    expect(nextOf(list, "b")).toBe("c");
   });
 
   it("wraps from the last to the first", () => {
-    expect(nextProject(list, "c")?.id).toBe("d");
+    expect(nextOf(list, "c")).toBe("d");
   });
 
   it("wraps in `order` when no project is featured", () => {
     const plain = [entry("b", 2), entry("a", 1)];
-    expect(nextProject(plain, "b")?.id).toBe("a");
-    expect(nextProject(plain, "a")?.id).toBe("b");
+    expect(nextOf(plain, "b")).toBe("a");
+    expect(nextOf(plain, "a")).toBe("b");
+  });
+
+  it("does not depend on the order the projects arrive in", () => {
+    expect(nextOf([...list].reverse(), "d")).toBe("a");
+    expect(nextOf([...list].reverse(), "c")).toBe("d");
   });
 
   it("is nothing when the project is the only one, so it never links to itself", () => {
-    expect(nextProject([entry("a", 1)], "a")).toBeUndefined();
-  });
-
-  it("is nothing for a project that is not in the list", () => {
-    expect(nextProject(list, "z")).toBeUndefined();
-    expect(nextProject([], "a")).toBeUndefined();
+    expect(nextOf([entry("a", 1)] as typeof list, "a")).toBeUndefined();
   });
 });
 
