@@ -411,6 +411,31 @@ describe("<Garage>", () => {
       ).rejects.toThrow(/Tractors/);
     });
 
+    it("stops the build for a photo that is neither a prepared image nor a placeholder, rather than showing a blank card", async () => {
+      await expect(
+        render({
+          ...withPhoto,
+          garage: [{ ...tractor, photo: "/photos/tractor.jpg" }],
+          photos: [],
+        }),
+      ).rejects.toThrow(/Tractors/);
+    });
+
+    it("gives the swapped-in photo a background of its own, so a transparent photo does not show the dither through it", () => {
+      const rule = /\.gcard__photo :global\(img\)\s*\{[^}]*\}/.exec(
+        source("./Garage.astro"),
+      )?.[0];
+      expect(rule, "no rule for the photo's image").toBeDefined();
+      expect(rule).toMatch(/background:\s*var\(--panel\)/);
+    });
+
+    it("is not worked out by the page when the garage section is not shown", () => {
+      const page = source("../../pages/index.astro");
+      expect(page).toMatch(
+        /sections\.some\(\(\w+\) => \w+\.id === "garage"\)\s*\?\s*await garagePhotos\(/,
+      );
+    });
+
     it("is the same in preview and production when the photo is real", async () => {
       expect(await render({ ...withPhoto, context: "production" })).toBe(
         await render({ ...withPhoto, context: "preview" }),
@@ -519,6 +544,21 @@ describe("<Garage>", () => {
       expect(code).toMatch(/if \(step\.load\)[\s\S]*createElement\("img"\)/);
       expect(code).toMatch(/\.src\s*=\s*link\.href/);
       expect(code).toMatch(/\.alt\s*=\s*link\.getAttribute\("aria-label"\)/);
+    });
+
+    it("tells the rules about the keyboard, about a press elsewhere on the page, and what kind of click it is", () => {
+      const code = script();
+      expect(code).toContain('"keydown"');
+      expect(code).toContain('"outside"');
+      expect(code).toMatch(
+        /pointerType:\s*\(event as PointerEvent\)\.pointerType/,
+      );
+    });
+
+    it("takes the photo's image away if it fails to load, so no broken-image mark shows over the dither", () => {
+      expect(script()).toMatch(
+        /image\.addEventListener\("error",[\s\S]*?image[\s\S]*?\.remove\(\)/,
+      );
     });
 
     it("does no image processing in the browser", () => {

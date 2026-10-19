@@ -14,7 +14,10 @@ import Base from "../layouts/Base.astro";
 // what getSiteContent() returns, which is already shaped for this build's deploy context.
 const { profile, projects, sections } = await getSiteContent();
 // The garage's photos are dithered here, at build: nothing about them is worked out in the browser.
-const photos = await garagePhotos(profile.garage);
+// Nothing is made for a garage that is not shown.
+const photos = sections.some((section) => section.id === "garage")
+  ? await garagePhotos(profile.garage)
+  : [];
 ---
 
 <Base title="Louis Lawson" sections={sections}>

@@ -163,6 +163,57 @@ describe("a card's photo swap", () => {
     expect(last.showing).toBe(true);
   });
 
+  describe("review cases", () => {
+    it("lets the keyboard work after a touch that ended with neither a click nor a cancel, such as a long press", () => {
+      const { last } = play([
+        touch("pointerdown"),
+        { type: "keydown" },
+        { type: "focus" },
+      ]);
+      expect(last.showing).toBe(true);
+    });
+
+    it("lets the keyboard work after a mouse press that follows a touch", () => {
+      const { last } = play([
+        touch("pointerdown"),
+        mouse("pointerdown"),
+        { type: "focus" },
+      ]);
+      expect(last.showing).toBe(true);
+    });
+
+    it("lets go of a tapped photo when a press lands anywhere else, because a phone's browser may never blur a link", () => {
+      const { last } = play([
+        touch("pointerdown"),
+        { type: "click" },
+        { type: "outside" },
+      ]);
+      expect(last.showing).toBe(false);
+    });
+
+    it("keeps the photo of a link that still has keyboard focus when a press lands elsewhere and focus has not moved", () => {
+      const { last } = play([{ type: "focus" }, { type: "outside" }]);
+      expect(last.showing).toBe(true);
+    });
+
+    it("takes a click that says it is a touch as a tap even if no pointerdown was seen", () => {
+      const { prevents } = play([{ type: "click", pointerType: "touch" }]);
+      expect(prevents).toEqual([true]);
+    });
+
+    it("follows the link on a click that is not a touch and has no hover or focus, as a screen reader's activation is", () => {
+      const { prevents, last } = play([{ type: "click", pointerType: "" }]);
+      expect(prevents).toEqual([false]);
+      expect(last.showing).toBe(false);
+    });
+
+    it("does not take a pointer that does not say what it is as one that can hover", () => {
+      const { last } = play([{ type: "pointerenter", pointerType: "" }]);
+      expect(last.showing).toBe(false);
+      expect(last.load).toBe(false);
+    });
+  });
+
   it("never asks for the photo until something asks to see it", () => {
     const { loads } = play([
       touch("pointerenter"),

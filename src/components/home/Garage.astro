@@ -52,29 +52,31 @@ const firstFrame = shown ? frame(FIRST_TICK) : "";
 // holds its dither. A placeholder photo is, on a preview, a designed empty state: a stand-in dither
 // with the hatched placeholder over it, so it is easy to find. Production never reaches that (it
 // leaves out an entry whose photo is a placeholder), but if it did the frame is empty and hidden.
-// A real photo that has not been prepared is a mistake that stops the build: no card goes blank.
-const cards = shown
-  ? garage.map((entry, index) => {
+// Anything else, a photo that has not been prepared or a string that is not a placeholder, is a
+// mistake that stops the build: no card goes blank.
+type Entry = Profile["garage"][number];
+type Card =
+  | { kind: "photo"; entry: Entry; photo: GaragePhoto; alt: string }
+  | { kind: "empty"; entry: Entry; standIn: string }
+  | { kind: "bare"; entry: Entry };
+
+const cards: Card[] = shown
+  ? garage.map((entry, index): Card => {
       const photo = photos[index];
       if (photo !== undefined) {
         const alt = isPlaceholder(entry.alt)
           ? `Placeholder: ${placeholderHint(entry.alt)}`
           : entry.alt;
-        return { entry, kind: "photo" as const, photo, alt, standIn: "" };
+        return { kind: "photo", entry, photo, alt };
       }
-      if (typeof entry.photo !== "string") {
+      if (typeof entry.photo !== "string" || !isPlaceholder(entry.photo)) {
         throw new Error(
           `The photo for "${entry.name}" was not prepared: give <Garage> its dither and address`,
         );
       }
-      const hatched = renderDecision(entry.photo, context) === "hatch";
-      return {
-        entry,
-        kind: hatched ? ("empty" as const) : ("bare" as const),
-        photo: undefined,
-        alt: "",
-        standIn: hatched ? placeholderDither(index + 1) : "",
-      };
+      return renderDecision(entry.photo, context) === "hatch"
+        ? { kind: "empty", entry, standIn: placeholderDither(index + 1) }
+        : { kind: "bare", entry };
     })
   : [];
 ---
@@ -95,25 +97,31 @@ const cards = shown
     </figcaption>
   </figure>
   <div class="garage">
-    {cards.map(({ entry, kind, photo, alt, standIn }) => <figure class="gcard">
-      {kind === "photo" && photo ? (
-        <a class="gcard__photo" href={photo.href} aria-label={alt} data-photo
-          ><pre aria-hidden="true">{photo.dither}</pre></a
+    {cards.map((card) => <figure class="gcard">
+      {card.kind === "photo" ? (
+        <a
+          class="gcard__photo"
+          href={card.photo.href}
+          aria-label={card.alt}
+          data-photo
+          ><pre aria-hidden="true">{card.photo.dither}</pre></a
         >
-      ) : kind === "empty" ? (
+      ) : card.kind === "empty" ? (
         <div class="gcard__photo gcard__photo--empty">
-          <pre aria-hidden="true">{standIn}</pre>
+          <pre aria-hidden="true">{card.standIn}</pre>
           <span class="gcard__label"
-            ><Placeholder value={entry.photo as string} context={context}
+            ><Placeholder value={card.entry.photo as string} context={context}
           /></span>
         </div>
       ) : (
         <div class="gcard__photo" aria-hidden="true"></div>
       )}
       <figcaption>
-        <h3><Placeholder value={entry.name} context={context} /></h3>
-        <p><Placeholder value={entry.note} context={context} /></p>
-        <small><Placeholder value={entry.caption} context={context} /></small>
+        <h3><Placeholder value={card.entry.name} context={context} /></h3>
+        <p><Placeholder value={card.entry.note} context={context} /></p>
+        <small
+          ><Placeholder value={card.entry.caption} context={context}
+        /></small>
       </figcaption>
     </figure>)}
   </div>
@@ -210,6 +218,8 @@ const cards = shown
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* Solid, so a photo with transparent parts does not show the dither through it. */
+    background: var(--panel);
   }
 
   .gcard__photo :global(img[hidden]) {
@@ -298,6 +308,8 @@ const cards = shown
         image = document.createElement("img");
         image.src = link.href;
         image.alt = link.getAttribute("aria-label") ?? "";
+        // A photo that fails to load leaves the dither as it was, and the link still opens it.
+        image.addEventListener("error", () => image?.remove());
         link.append(image);
       }
       if (image) image.hidden = !step.showing;
@@ -312,9 +324,20 @@ const cards = shown
         feed({ type, pointerType: event.pointerType }),
       );
     }
-    for (const type of ["focus", "blur", "click"] as const) {
+    for (const type of ["focus", "blur"] as const) {
       link.addEventListener(type, (event) => feed({ type }, event));
     }
+    link.addEventListener("click", (event) =>
+      feed(
+        { type: "click", pointerType: (event as PointerEvent).pointerType },
+        event,
+      ),
+    );
+    // The keyboard being used, and a press anywhere but on this card, end what a touch left behind.
+    document.addEventListener("keydown", () => feed({ type: "keydown" }));
+    document.addEventListener("pointerdown", (event) => {
+      if (!link.contains(event.target as Node)) feed({ type: "outside" });
+    });
   }
 
   const pre = document.querySelector<HTMLElement>("[data-wheel]");

@@ -28,7 +28,15 @@ export type SwapEvent =
       type: "pointerenter" | "pointerleave" | "pointerdown" | "pointercancel";
       pointerType: string;
     }
-  | { type: "focus" | "blur" | "click" };
+  | {
+      type: "click";
+      /** What made the click, when the browser says: "touch" for a tap, "" for a keyboard or an assistive technology. */
+      pointerType?: string | undefined;
+    }
+  | {
+      /** `keydown` is any key on the page; `outside` is a press that landed outside this card. */
+      type: "focus" | "blur" | "keydown" | "outside";
+    };
 
 export interface SwapStep {
   state: SwapState;
@@ -44,13 +52,16 @@ export function isShowing(state: SwapState): boolean {
   return state.hovered || state.focused || state.pinned;
 }
 
-/** A mouse or a pen can hover. A finger cannot, and its tap is decided by the click. */
-const hovers = (pointerType: string) => pointerType !== "touch";
+/** Only a mouse or a pen can hover. A pointer that does not say what it is is not taken for one. */
+const hovers = (pointerType: string) =>
+  pointerType === "mouse" || pointerType === "pen";
+const isTouch = (pointerType: string | undefined) => pointerType === "touch";
 
 /**
  * What an event does to a card. Hover, keyboard focus and a first tap show the photo. A click that
- * finds the photo already showing follows the link, which opens it; a click that finds the dither
- * only swaps the photo in place, which is what a first tap on a phone is.
+ * finds the photo already showing follows the link, which opens it. A click that finds the dither
+ * and is a tap only swaps the photo in place, which is what a first tap on a phone is; any other
+ * click on the dither, such as a screen reader's or a keyboard's, follows the link.
  */
 export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
   let next = state;
@@ -63,11 +74,17 @@ export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
       if (hovers(event.pointerType)) next = { ...state, hovered: false };
       break;
     case "pointerdown":
-      if (!hovers(event.pointerType)) next = { ...state, touching: true };
+      // A press with a mouse or a pen ends whatever a touch left behind.
+      if (isTouch(event.pointerType)) next = { ...state, touching: true };
+      else if (hovers(event.pointerType)) next = { ...state, touching: false };
       break;
     case "pointercancel":
       // The touch became a scroll or a pinch: there will be no click.
-      if (!hovers(event.pointerType)) next = { ...state, touching: false };
+      if (isTouch(event.pointerType)) next = { ...state, touching: false };
+      break;
+    case "keydown":
+      // The keyboard is in use. A touch that ended with no click, such as a long press, is over.
+      next = { ...state, touching: false };
       break;
     case "focus":
       // A tap can bring focus before its click, which would make the first tap open the photo.
@@ -76,8 +93,12 @@ export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
     case "blur":
       next = { ...state, focused: false, pinned: false };
       break;
+    case "outside":
+      // A phone's browser may never blur a tapped link, so a press elsewhere lets the photo go.
+      next = { ...state, pinned: false };
+      break;
     case "click":
-      if (!isShowing(state)) {
+      if (!isShowing(state) && (state.touching || isTouch(event.pointerType))) {
         preventDefault = true;
         next = { ...state, pinned: true, touching: false };
       } else {
