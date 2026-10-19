@@ -584,17 +584,23 @@ describe("<Garage>", () => {
       expect(code).not.toMatch(/document\.addEventListener\("pointerdown"/);
     });
 
-    it("keeps the dither showing until the photo has loaded, so the card is never blank", () => {
+    // What the image's load and failure mean (visible only once loaded; tried again only when
+    // wanted afresh) is the rules' and is tested in photo-swap.test.ts; this holds the script to
+    // reporting them and doing what the rules say.
+    it("tells the rules when the photo's image loads or fails, and shows it only when they say it is visible", () => {
       const code = script();
       expect(code).toMatch(/created\.addEventListener\("load"/);
-      expect(code).toMatch(/image\.hidden\s*=\s*!\(showing && ready\)/);
+      expect(code).toContain('feed({ type: "photoload" })');
+      expect(code).toMatch(/created\.addEventListener\("error"/);
+      expect(code).toContain('feed({ type: "photoerror" })');
+      expect(code).toMatch(/image\.hidden\s*=\s*!step\.visible/);
     });
 
-    it("takes the photo's image away if it fails to load, and lets the next showing try again", () => {
+    it("takes the photo's image away if it fails to load, and keeps no copy of the rules' state", () => {
       const code = script();
-      expect(code).toMatch(/created\.addEventListener\("error"/);
       expect(code).toMatch(/created\.remove\(\)/);
-      expect(code).toMatch(/loaded:\s*false/);
+      expect(code).not.toMatch(/loaded:\s*(?:true|false)/);
+      expect(code).not.toMatch(/\blet (?:showing|ready)\b/);
     });
 
     it("does no image processing in the browser", () => {

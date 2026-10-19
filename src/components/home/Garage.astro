@@ -310,43 +310,31 @@ const cards: Card[] = shown
   )) {
     let state: SwapState = INITIAL_SWAP;
     let image: HTMLImageElement | undefined;
-    let showing = false;
-    let ready = false;
-    // The dither stays on show until the photo has loaded, so the card is never blank.
-    const apply = () => {
-      if (image) image.hidden = !(showing && ready);
-    };
+    // What to do is decided by the rules in photo-swap.ts: when the image is made, when it covers
+    // the dither (only once it has loaded, so the card is never blank), and when a failed one is
+    // tried again. This does it.
     const feed = (event: SwapEvent, original?: Event) => {
       const step = swapStep(state, event);
       state = step.state;
-      showing = step.showing;
       if (step.preventDefault) original?.preventDefault();
       if (step.load) {
         const created = document.createElement("img");
         image = created;
-        ready = false;
         created.hidden = true;
         created.src = link.href;
         created.alt = link.getAttribute("aria-label") ?? "";
+        // An image that has been replaced says nothing more. A photo that fails to load leaves the
+        // dither as it was, and the link still opens it.
         created.addEventListener("load", () => {
-          if (image === created) {
-            ready = true;
-            apply();
-          }
+          if (image === created) feed({ type: "photoload" });
         });
-        // A photo that fails to load leaves the dither as it was, the link still opens it, and the
-        // next time the photo is wanted it is tried again.
         created.addEventListener("error", () => {
           created.remove();
-          if (image === created) {
-            image = undefined;
-            ready = false;
-            state = { ...state, loaded: false };
-          }
+          if (image === created) feed({ type: "photoerror" });
         });
         link.append(created);
       }
-      apply();
+      if (image) image.hidden = !step.visible;
     };
     photoCards.push({ link, feed });
     for (const type of [

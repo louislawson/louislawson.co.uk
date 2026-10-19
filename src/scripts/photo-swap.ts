@@ -5,6 +5,10 @@
 export interface SwapState {
   /** The photo has been asked for: it is downloaded once, the first time it is wanted. */
   loaded: boolean;
+  /** The photo has loaded and can paint, so it may cover the dither. */
+  ready: boolean;
+  /** The photo failed to load. It is tried again when it is next wanted afresh, not before. */
+  failed: boolean;
   /** A mouse or pen is over the card. */
   hovered: boolean;
   /** The card's link has keyboard focus. */
@@ -17,6 +21,8 @@ export interface SwapState {
 
 export const INITIAL_SWAP: SwapState = {
   loaded: false,
+  ready: false,
+  failed: false,
   hovered: false,
   focused: false,
   pinned: false,
@@ -34,15 +40,24 @@ export type SwapEvent =
       pointerType?: string | undefined;
     }
   | {
-      /** `keydown` is any key on the page; `outside` is a press that landed outside this card. */
-      type: "focus" | "blur" | "keydown" | "outside";
+      /**
+       * `keydown` is any key on the page; `outside` is a press that landed outside this card;
+       * `photoload` and `photoerror` are what the photo's image reports.
+       */
+      type:
+        "focus" | "blur" | "keydown" | "outside" | "photoload" | "photoerror";
     };
 
 export interface SwapStep {
   state: SwapState;
-  /** Whether the card shows the photo (true) or the dither (false) after this event. */
+  /** Whether the card wants the photo (true) or the dither (false) after this event. */
   showing: boolean;
-  /** Ask for the photo now: it is wanted and has not been asked for yet. */
+  /** Whether the photo covers the dither: it is wanted and has loaded. */
+  visible: boolean;
+  /**
+   * Make the photo's image now, and ask for it: it is wanted and has not been asked for yet, or it
+   * failed and is wanted afresh (after a time it was not wanted).
+   */
   load: boolean;
   /** Keep the link from opening the photo: this click only swaps it in place. */
   preventDefault: boolean;
@@ -98,6 +113,12 @@ export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
       // It also ends a touch whose end was lost, which would otherwise ignore the next focus.
       next = { ...state, pinned: false, touching: false };
       break;
+    case "photoload":
+      next = { ...state, ready: true, failed: false };
+      break;
+    case "photoerror":
+      next = { ...state, ready: false, failed: true };
+      break;
     case "click":
       if (!isShowing(state) && (state.touching || isTouch(event.pointerType))) {
         preventDefault = true;
@@ -109,10 +130,17 @@ export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
   }
   const showing = isShowing(next);
   const load = showing && !next.loaded;
+  // A failed photo is tried again only when it is wanted afresh, not by every key and press on the
+  // page while it is still wanted.
+  const retry = showing && !isShowing(state) && next.failed;
+  let settled = next;
+  if (load) settled = { ...settled, loaded: true };
+  if (retry) settled = { ...settled, failed: false, ready: false };
   return {
-    state: load ? { ...next, loaded: true } : next,
+    state: settled,
     showing,
-    load,
+    visible: showing && settled.ready,
+    load: load || retry,
     preventDefault,
   };
 }

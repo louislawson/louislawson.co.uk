@@ -223,6 +223,102 @@ describe("a card's photo swap", () => {
     });
   });
 
+  describe("the photo's loading", () => {
+    // The photo is made when it is first wanted and covers the dither only once it can paint, so
+    // the card is never blank. If it fails it is tried again the next time it is wanted afresh, and
+    // not by every key and press on the page while it is still wanted.
+    it("is wanted but not visible while it loads: the dither stays", () => {
+      const { last } = play([mouse("pointerenter")]);
+      expect(last.showing).toBe(true);
+      expect(last.visible).toBe(false);
+    });
+
+    it("is visible once it has loaded and is wanted", () => {
+      const { last } = play([mouse("pointerenter"), { type: "photoload" }]);
+      expect(last.visible).toBe(true);
+    });
+
+    it("is not visible when it loads after it stopped being wanted, and is when it is wanted again", () => {
+      const { last, loads } = play([
+        mouse("pointerenter"),
+        mouse("pointerleave"),
+        { type: "photoload" },
+      ]);
+      expect(last.visible).toBe(false);
+      const again = play([mouse("pointerenter")], last.state);
+      expect(again.last.visible).toBe(true);
+      expect(again.loads).toEqual([false]);
+      expect(loads.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("is never visible when it failed", () => {
+      const { last } = play([mouse("pointerenter"), { type: "photoerror" }]);
+      expect(last.showing).toBe(true);
+      expect(last.visible).toBe(false);
+    });
+
+    it("is not tried again by a key, a press elsewhere or a click while it is still wanted", () => {
+      const { loads } = play([
+        mouse("pointerenter"),
+        { type: "photoerror" },
+        { type: "keydown" },
+        { type: "outside" },
+        { type: "click", pointerType: "" },
+        { type: "keydown" },
+      ]);
+      expect(loads).toEqual([true, false, false, false, false, false]);
+    });
+
+    it("is tried again when it is next wanted afresh", () => {
+      const { loads, last } = play([
+        mouse("pointerenter"),
+        { type: "photoerror" },
+        mouse("pointerleave"),
+        mouse("pointerenter"),
+      ]);
+      expect(loads).toEqual([true, false, false, true]);
+      expect(last.visible).toBe(false);
+      const loaded = play([{ type: "photoload" }], last.state);
+      expect(loaded.last.visible).toBe(true);
+    });
+
+    it("is tried again for keyboard focus after it failed for a hover", () => {
+      const { loads } = play([
+        mouse("pointerenter"),
+        { type: "photoerror" },
+        mouse("pointerleave"),
+        { type: "focus" },
+      ]);
+      expect(loads).toEqual([true, false, false, true]);
+    });
+
+    it("is tried only once for each time it is wanted afresh, however often it then fails", () => {
+      const { loads } = play([
+        mouse("pointerenter"),
+        { type: "photoerror" },
+        mouse("pointerleave"),
+        mouse("pointerenter"),
+        { type: "photoerror" },
+        { type: "keydown" },
+        { type: "keydown" },
+      ]);
+      expect(loads).toEqual([true, false, false, true, false, false, false]);
+    });
+
+    it("is tried again for a tap after it failed, and the tap swaps in place", () => {
+      const { loads, prevents } = play([
+        touch("pointerdown"),
+        { type: "click" },
+        { type: "photoerror" },
+        { type: "blur" },
+        touch("pointerdown"),
+        { type: "click" },
+      ]);
+      expect(loads).toEqual([false, true, false, false, false, true]);
+      expect(prevents[5]).toBe(true);
+    });
+  });
+
   it("never asks for the photo until something asks to see it", () => {
     const { loads } = play([
       touch("pointerenter"),
