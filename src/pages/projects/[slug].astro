@@ -1,0 +1,29 @@
+---
+import type { InferGetStaticPropsType } from "astro";
+import Measured from "../../components/project/Measured.astro";
+import NextProject from "../../components/project/NextProject.astro";
+import ProjectHead from "../../components/project/ProjectHead.astro";
+import { pageTitle, projectPages } from "../../components/home/project-display";
+import { getSiteContent } from "../../content/site-content";
+import Base from "../../layouts/Base.astro";
+
+// One page per project this build shows, from the same list as the home page: production builds the
+// real projects, a preview builds every one, and a project that is left out has no page, so its
+// address gets the 404 page.
+export async function getStaticPaths() {
+  const { projects, sections } = await getSiteContent();
+  return projectPages(projects).map((page) => ({
+    ...page,
+    props: { ...page.props, sections },
+  }));
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+const { project, next, sections } = Astro.props;
+---
+
+<Base title={pageTitle(project.data)} sections={sections}>
+  <ProjectHead project={project} />
+  <Measured project={project} />
+  <NextProject next={next} />
+</Base>

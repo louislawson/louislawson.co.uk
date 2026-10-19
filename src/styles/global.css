@@ -213,6 +213,50 @@ select {
   background: color-mix(in srgb, var(--hivis) 80%, white);
 }
 
+/* The featured project's tag, on the home page's list and in a project page's meta row. */
+.tag {
+  padding: 0 7px;
+  color: var(--hivis);
+  font-size: 0.82rem;
+  border: 1px solid var(--hivis);
+}
+
+/* A project page's sections below the head: a heading in the left three columns and the content in
+   the right nine. They share these because each is its own component. */
+.p-section {
+  padding-top: var(--section);
+}
+
+.p-cols {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.5rem var(--col-gap);
+}
+
+.p-cols > :first-child {
+  grid-column: 1 / span 3;
+  color: var(--dim);
+}
+
+.p-cols > :last-child {
+  grid-column: 4 / span 9;
+}
+
+/* The # is decoration: the second line gives it an empty alt text, so a screen reader reads the
+   heading as "measured", and a browser without that form keeps the first. */
+.p-cols > h2::before {
+  content: "# ";
+  content: "# " / "";
+  color: var(--hivis);
+}
+
+@media (max-width: 860px) {
+  .p-cols > :first-child,
+  .p-cols > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Inspect mode. The script puts "inspecting" on <body>; nothing here applies without it, so a
    visitor who has not asked for it never sees a label. Each labelled part carries its text in a
    data-inspect attribute, which a pseudo-element writes: no inline style, no data: URL. */

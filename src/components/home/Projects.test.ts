@@ -348,6 +348,22 @@ describe("<Projects>", () => {
         'class="tag"',
       );
     });
+
+    it("is styled once, in the global styles, where the project page's meta row shares it", () => {
+      const css = readFileSync(
+        new URL("../../styles/global.css", import.meta.url),
+        "utf-8",
+      );
+      const source = readFileSync(
+        new URL("./Projects.astro", import.meta.url),
+        "utf-8",
+      );
+      const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+      expect(css).toMatch(
+        /\n\.tag\s*\{[^}]*border:\s*1px solid var\(--hivis\)/,
+      );
+      expect(style).not.toMatch(/\.tag\b/);
+    });
   });
 
   describe("the meta line", () => {

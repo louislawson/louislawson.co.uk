@@ -71,6 +71,13 @@ describe("<Icon>", () => {
     );
   });
 
+  it("has a back icon, which points left where the arrow points right", async () => {
+    const paths = (html: string) => [...html.matchAll(/ d="([^"]+)"/g)];
+    const back = await render({ name: "back" });
+    expect(paths(back).length).toBeGreaterThan(0);
+    expect(paths(back)).not.toEqual(paths(await render({ name: "arrow" })));
+  });
+
   it("fails loudly for an icon that does not exist", async () => {
     await expect(render({ name: "no-such-icon" })).rejects.toThrow(
       /no-such-icon/,

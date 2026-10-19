@@ -1,4 +1,5 @@
 import type { Project } from "../../content/schema";
+import { isPlaceholder } from "../../content/todo";
 
 /** Up to this many projects are shown in full, as strips; more are compact rows. */
 export const STRIP_LIMIT = 3;
@@ -24,6 +25,45 @@ export function featuredFirst<
       Number(b.data.featured) - Number(a.data.featured) ||
       a.data.order - b.data.order,
   );
+}
+
+/** A project's page: its file name (the collection's id) under /projects/. */
+export function projectPath(id: string): string {
+  return `/projects/${id}/`;
+}
+
+/**
+ * The project after this one in the home page's order, which wraps from the last to the first. A
+ * project that stands alone has none to point to, and neither has one that is not in the list.
+ */
+export function nextProject<
+  E extends { id: string; data: { featured: boolean; order: number } },
+>(projects: readonly E[], id: string): E | undefined {
+  const ordered = featuredFirst(projects);
+  const index = ordered.findIndex((project) => project.id === id);
+  if (index === -1 || ordered.length < 2) return undefined;
+  return ordered[(index + 1) % ordered.length];
+}
+
+/**
+ * The browser tab's title. A placeholder title is shown hatched on the page, which a tab cannot
+ * do, so the tab names the project by its code instead.
+ */
+export function pageTitle(data: { title: string; code: string }): string {
+  return `${isPlaceholder(data.title) ? data.code : data.title} · Louis Lawson`;
+}
+
+/**
+ * What getStaticPaths() returns: a page for each project it is given, at its file name, with the
+ * project to link on to. The pages built in a deploy context are the projects that context shows.
+ */
+export function projectPages<
+  E extends { id: string; data: { featured: boolean; order: number } },
+>(projects: readonly E[]) {
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project, next: nextProject(projects, project.id) },
+  }));
 }
 
 /**

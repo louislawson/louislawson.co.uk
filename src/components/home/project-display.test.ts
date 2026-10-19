@@ -5,7 +5,11 @@ import {
   countLabel,
   featuredFirst,
   metaParts,
+  nextProject,
+  pageTitle,
   projectLayout,
+  projectPages,
+  projectPath,
   statusLabel,
 } from "./project-display";
 
@@ -176,5 +180,81 @@ describe("countLabel", () => {
     expect(countLabel(2)).toBe("(02)");
     expect(countLabel(9)).toBe("(09)");
     expect(countLabel(12)).toBe("(12)");
+  });
+});
+
+/** An entry as the collection holds it: an id (the file name) and the data these functions read. */
+const entry = (id: string, order: number, featured = false) => ({
+  id,
+  data: { ...work("A descriptor"), code: `R0${order}`, order, featured },
+});
+
+describe("projectPath", () => {
+  it("is the page's address: the file name under /projects/, with the trailing slash", () => {
+    expect(projectPath("this-website")).toBe("/projects/this-website/");
+  });
+});
+
+describe("nextProject", () => {
+  const list = [
+    entry("a", 1),
+    entry("b", 2),
+    entry("c", 3),
+    entry("d", 4, true),
+  ];
+
+  it("is the next in the home page's order, which leads with the featured project", () => {
+    // The home page's order is d, a, b, c.
+    expect(nextProject(list, "d")?.id).toBe("a");
+    expect(nextProject(list, "a")?.id).toBe("b");
+    expect(nextProject(list, "b")?.id).toBe("c");
+  });
+
+  it("wraps from the last to the first", () => {
+    expect(nextProject(list, "c")?.id).toBe("d");
+  });
+
+  it("wraps in `order` when no project is featured", () => {
+    const plain = [entry("b", 2), entry("a", 1)];
+    expect(nextProject(plain, "b")?.id).toBe("a");
+    expect(nextProject(plain, "a")?.id).toBe("b");
+  });
+
+  it("is nothing when the project is the only one, so it never links to itself", () => {
+    expect(nextProject([entry("a", 1)], "a")).toBeUndefined();
+  });
+
+  it("is nothing for a project that is not in the list", () => {
+    expect(nextProject(list, "z")).toBeUndefined();
+    expect(nextProject([], "a")).toBeUndefined();
+  });
+});
+
+describe("pageTitle", () => {
+  it("is the project's title and the site's name", () => {
+    expect(pageTitle({ title: "This website", code: "R04" })).toBe(
+      "This website · Louis Lawson",
+    );
+  });
+
+  it("names the code when the title is still a placeholder, which a tab cannot hatch", () => {
+    expect(pageTitle({ title: "TODO: project title", code: "R01" })).toBe(
+      "R01 · Louis Lawson",
+    );
+  });
+});
+
+describe("projectPages", () => {
+  it("is one page per project, at its file name, with the project that follows it", () => {
+    const pages = projectPages([entry("a", 1), entry("b", 2)]);
+    expect(pages.map((page) => page.params.slug)).toEqual(["a", "b"]);
+    expect(pages[0]!.props.project.id).toBe("a");
+    expect(pages[0]!.props.next?.id).toBe("b");
+    expect(pages[1]!.props.next?.id).toBe("a");
+  });
+
+  it("has no next link for a single project, and no page for none", () => {
+    expect(projectPages([entry("a", 1)])[0]!.props.next).toBeUndefined();
+    expect(projectPages([])).toEqual([]);
   });
 });

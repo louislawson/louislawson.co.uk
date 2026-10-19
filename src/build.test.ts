@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
-import { INSPECT_LABELS } from "./components/inspect-labels";
+import { INSPECT_LABELS, projectPageLabel } from "./components/inspect-labels";
 import { parseDeployContext } from "./config/site";
 import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
@@ -46,10 +46,19 @@ function listing(dir: string, folder: string): string[] {
   return readdirSync(join(dir, folder));
 }
 
+/** The project pages of a build, as the files they are: `projects/<file name>/index.html`. */
+function projectPages(dir: string): string[] {
+  return listing(dir, "projects")
+    .sort()
+    .map((slug) => `projects/${slug}/index.html`);
+}
+
 /** Every page and stylesheet of a build: what the content security policy applies to. */
 function pagesAndStyles(dir: string): Record<string, string> {
   const files: Record<string, string> = {};
-  for (const page of ["index.html", "404.html"]) files[page] = read(dir, page);
+  for (const page of ["index.html", "404.html", ...projectPages(dir)]) {
+    files[page] = read(dir, page);
+  }
   for (const name of listing(dir, "_astro")) {
     if (name.endsWith(".css"))
       files[`_astro/${name}`] = read(dir, `_astro/${name}`);
@@ -922,7 +931,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         ),
       ),
     );
-    for (const page of ["index.html", "404.html"]) {
+    for (const page of ["index.html", "404.html", ...projectPages(dir)]) {
       const html = read(dir, page);
       const labels = [...html.matchAll(/\sdata-inspect="([^"]*)"/g)].map(
         (m) => m[1],
@@ -981,6 +990,144 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       // Production shows only what is real, so which sections it links to follows the content.
       expect(links).toContain("/#projects");
       expect(links).toContain("/#contact");
+    }
+  });
+
+  describe("the project pages", () => {
+    const slugs = () => listing(dir, "projects").sort();
+    const page = (slug: string) => read(dir, `projects/${slug}/index.html`);
+
+    it("are built for the projects this build shows: every one in a preview, the real ones on production", () => {
+      if (deployContext === "preview") {
+        const files = readdirSync(
+          join(process.cwd(), "src", "content", "projects"),
+        )
+          .filter((name) => name.endsWith(".md"))
+          .map((name) => name.replace(/\.md$/, ""))
+          .sort();
+        expect(slugs()).toEqual(files);
+      } else {
+        // R04 alone is real, so it is the only page, and a project that is left out has none:
+        // its address gets the 404 page.
+        expect(slugs()).toEqual(["this-website"]);
+        expect(
+          readdirSync(dir, { recursive: true, encoding: "utf-8" }).some(
+            (path) => path.includes("r01-placeholder"),
+          ),
+        ).toBe(false);
+      }
+    });
+
+    it("give each page its own address as the canonical URL, ending in the file name and a slash", () => {
+      for (const slug of slugs()) {
+        expect(page(slug), slug).toContain(
+          `<link rel="canonical" href="https://louislawson.co.uk/projects/${slug}/">`,
+        );
+      }
+      expect(page("this-website")).toContain(
+        '<link rel="canonical" href="https://louislawson.co.uk/projects/this-website/">',
+      );
+    });
+
+    it("title the tab with the project and the site, and keep the page out of search while the site is", () => {
+      expect(page("this-website")).toContain(
+        "<title>This website · Louis Lawson</title>",
+      );
+      for (const slug of slugs()) {
+        expect(page(slug), slug).toContain(
+          '<meta name="robots" content="noindex">',
+        );
+      }
+      if (deployContext === "preview") {
+        // A placeholder title cannot be hatched in a tab, so the tab names the code.
+        expect(page("r01-placeholder")).toContain(
+          "<title>R01 · Louis Lawson</title>",
+        );
+      }
+    });
+
+    it("label the heading with the page's own file, and only the bar, the footer and the heading", () => {
+      for (const slug of slugs()) {
+        const labels = [
+          ...page(slug).matchAll(/\sdata-inspect="([^"]*)"/g),
+        ].map((m) => m[1]);
+        expect(labels, slug).toHaveLength(3);
+        expect(labels, slug).toContain(INSPECT_LABELS.nav);
+        expect(labels, slug).toContain(INSPECT_LABELS.footer);
+        expect(labels, slug).toContain(projectPageLabel({ id: slug }));
+        // The heading is the one that carries it.
+        expect(page(slug), slug).toMatch(
+          new RegExp(
+            `<h1[^>]*\\sdata-inspect="generated at build from src/content/projects/${slug}\\.md"`,
+          ),
+        );
+      }
+    });
+
+    it("have the shared layout: the navigation, one h1, the way back and the footer", () => {
+      for (const slug of slugs()) {
+        const html = page(slug);
+        expect(html, slug).toMatch(/<html lang="en-GB"/);
+        expect(html, slug).toMatch(/<a class="nav__home" href="\/"/);
+        expect(html, slug).toContain('href="/#projects"');
+        expect(html.match(/<h1\b/g), slug).toHaveLength(1);
+        expect(html, slug).toMatch(/<a [^>]*class="back"[^>]*>/);
+        expect(html.indexOf("<main"), slug).toBeLessThan(
+          html.indexOf("<footer"),
+        );
+        // The way back says what it is, and is not the mock's fake command.
+        expect(html, slug).toContain("all projects");
+        expect(html, slug).not.toContain("cd ../projects");
+      }
+    });
+
+    it("show R04's page with its real values on production and in a preview alike", () => {
+      const html = page("this-website");
+      // The space the formatter puts inside a block's tags collapses, and is no gap in a word.
+      expect(html).toMatch(/<h1[^>]*>\s*This website\s*<\/h1>/);
+      expect(html).toContain("R04");
+      expect(html).toMatch(/status--commissioning[^>]*>\s*commissioning/);
+      expect(html).toContain("open-source project");
+      // The sheet's three columns.
+      for (const column of ["setup", "change", "result"]) {
+        expect(html).toMatch(new RegExp(`<h2[^>]*>${column}</h2>`));
+      }
+      // The tools and the link, which is the repository.
+      expect(html).toContain('aria-label="Tools used"');
+      expect(html).toContain("Terraform");
+      expect(html).toMatch(
+        /<a [^>]*class="btn"[^>]*href="https:\/\/github\.com\/louislawson\/louislawson\.co\.uk"|<a [^>]*href="https:\/\/github\.com\/louislawson\/louislawson\.co\.uk"[^>]*class="btn"/,
+      );
+      expect(html).not.toContain('class="tag"');
+    });
+
+    if (deployContext === "preview") {
+      it("hatch a placeholder project's values, and follow the home page's order from one page to the next, wrapping", () => {
+        const html = page("r01-placeholder");
+        expect(html).toContain('class="ph"');
+        expect(html).toContain("Placeholder: ");
+        expect(html).not.toContain("TODO:");
+        // R01 is the featured project, so it carries the tag and leads the order.
+        expect(html).toContain('class="tag"');
+        const next = (slug: string) =>
+          /<a [^>]*class="next"[^>]*href="([^"]+)"|<a [^>]*href="([^"]+)"[^>]*class="next"/
+            .exec(page(slug))
+            ?.slice(1)
+            .find(Boolean);
+        expect(next("r01-placeholder")).toBe("/projects/r02-placeholder/");
+        expect(next("r02-placeholder")).toBe("/projects/r03-placeholder/");
+        expect(next("r03-placeholder")).toBe("/projects/this-website/");
+        expect(next("this-website")).toBe("/projects/r01-placeholder/");
+      });
+    } else {
+      it("show no placeholder and no link to a next project, because the one page stands alone", () => {
+        const html = page("this-website");
+        expect(html).not.toContain('class="ph"');
+        expect(html).not.toContain("Placeholder:");
+        expect(html).not.toContain("TODO:");
+        expect(html).not.toContain('class="next"');
+        expect(html).not.toContain("next project");
+      });
     }
   });
 });

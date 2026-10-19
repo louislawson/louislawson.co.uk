@@ -1,0 +1,60 @@
+---
+// The link to the next project. The line and the title hug their tags: compressHTML keeps a line
+// break as a space, which would show inside the heading's words.
+import { site, type DeployContext } from "../../config/site";
+import type { Project } from "../../content/schema";
+import { projectPath } from "../home/project-display";
+import Icon from "../Icon.astro";
+import Placeholder from "../Placeholder.astro";
+
+interface Props {
+  /** The project after this one, or nothing when this one stands alone. */
+  next?: { id: string; data: Pick<Project, "code" | "title"> } | undefined;
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { next, context = site.deployContext } = Astro.props;
+---
+
+{next && <div class="wrap">
+  <a class="next" href={projectPath(next.id)}
+    ><span
+      ><small>next project · {next.data.code}</small
+      ><strong
+        ><Placeholder value={next.data.title} context={context}
+      /></strong></span
+    ><Icon name="arrow" size={32}
+  /></a>
+</div>}
+
+<style>
+  .next {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    margin-top: var(--section);
+    padding-block: 1.75rem;
+    text-decoration: none;
+    border-block: 1px solid var(--line-strong);
+  }
+
+  .next small {
+    display: block;
+    color: var(--dim);
+  }
+
+  .next strong {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: clamp(1.5rem, 1rem + 2vw, 3rem);
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  .next:hover strong,
+  .next:focus-visible strong {
+    color: var(--hivis);
+  }
+</style>
