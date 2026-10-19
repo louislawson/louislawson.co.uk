@@ -12,12 +12,15 @@ import Base from "../../layouts/Base.astro";
 // address gets the 404 page.
 export async function getStaticPaths() {
   const { projects, sections } = await getSiteContent();
+  // getStaticPaths runs apart from the page, so what the page needs besides its own project, the
+  // sections the navigation lists, travels in the props of every page.
   return projectPages(projects).map((page) => ({
     ...page,
     props: { ...page.props, sections },
   }));
 }
 
+// Astro types Astro.props from the name `Props`.
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 const { project, next, sections } = Astro.props;
 ---

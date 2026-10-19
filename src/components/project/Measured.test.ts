@@ -130,6 +130,31 @@ describe("<Measured>", () => {
     });
   });
 
+  it("is nothing when there is nothing to show in it: no tools and no links", async () => {
+    // Production leaves out a placeholder tool, so a build can reach a project with none left.
+    const html = await render({
+      project: project({ stack: ["TODO: tools used"] }),
+      context: "production",
+    });
+    expect(html.trim()).toBe("");
+  });
+
+  it("shows the label and hatches the address of a link that has only the address missing, and the label alone when it is the label that is missing", async () => {
+    const preview = await render({
+      project: project({
+        links: [
+          { label: "Source", url: "TODO: link address" },
+          { label: "TODO: link label", url: "https://example.com/post" },
+        ],
+      }),
+      context: "preview",
+    });
+    expect(preview.match(/<span [^>]*class="btn"/g)).toHaveLength(2);
+    expect(preview.match(/class="ph"/g)).toHaveLength(2);
+    expect(preview).toContain("Source");
+    expect(preview).not.toContain("<a ");
+  });
+
   it("shows a real project the same in both contexts", async () => {
     const real = project({
       links: [{ label: "Source", url: "https://example.com/repo" }],

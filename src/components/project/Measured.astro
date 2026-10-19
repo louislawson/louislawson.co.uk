@@ -24,39 +24,48 @@ const shownLinks = links.flatMap((link) => {
   const label = renderDecision(link.label, context);
   const url = renderDecision(link.url, context);
   if (label === "omit" || url === "omit") return [];
-  return [{ ...link, real: label === "show" && url === "show" }];
+  // A link is a link only when both halves are real. Otherwise it is a button that is not one, and
+  // it shows the label, then the address hatched beside it when only the address is missing.
+  return [
+    {
+      ...link,
+      real: label === "show" && url === "show",
+      labelShown: label === "show",
+    },
+  ];
 });
+// Nothing to put in the block, nothing rendered: no heading over an empty list.
+const shown = tools.length > 0 || shownLinks.length > 0;
 ---
 
-<section class="wrap p-section" aria-labelledby="measured">
+{shown && <section class="wrap p-section" aria-labelledby="measured">
   <div class="p-cols">
     <h2 id="measured">measured</h2>
     <div>
-      <ul class="stack" aria-label="Tools used">
+      {tools.length > 0 && <ul class="stack" aria-label="Tools used">
         {tools.map((tool) => <li>
           <Placeholder value={tool} context={context} />
         </li>)}
-      </ul>
+      </ul>}
       {shownLinks.length > 0 && <div class="links">
-        {shownLinks.map(({ label, url, real }) =>
+        {shownLinks.map(({ label, url, real, labelShown }) =>
           real ? (
             <a class="btn" href={url}
               >{label}<Icon name="external" size={14}
             /></a>
           ) : (
             <span class="btn"
-              ><Placeholder value={label} context={context} />{renderDecision(
-                label,
-                context,
-              ) === "show" && " "}{renderDecision(label, context) ===
-                "show" && <Placeholder value={url} context={context} />}</span
+              ><Placeholder value={label} context={context} />{labelShown &&
+                " "}{labelShown && (
+                <Placeholder value={url} context={context} />
+              )}</span
             >
           ),
         )}
       </div>}
     </div>
   </div>
-</section>
+</section>}
 
 <style>
   .stack {
