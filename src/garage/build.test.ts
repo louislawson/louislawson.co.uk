@@ -92,7 +92,13 @@ async function makeOriginal(): Promise<Buffer> {
 }
 
 /** Puts photos in the copy's src/assets/garage/, and one entry that uses test-car.jpg. */
-function addPhotosAndEntry(dir: string, photos: Record<string, Buffer>) {
+function addPhotosAndEntry(
+  dir: string,
+  photos: Record<string, Buffer>,
+  // An entry whose photo is real and whose note, alt and caption are still placeholders is left
+  // out of production, with the section when it is the only one.
+  text: "finished" | "placeholders" = "finished",
+) {
   mkdirSync(join(dir, "src", "assets", "garage"), { recursive: true });
   for (const [name, bytes] of Object.entries(photos)) {
     writeFileSync(join(dir, "src", "assets", "garage", name), bytes);
@@ -100,13 +106,25 @@ function addPhotosAndEntry(dir: string, photos: Record<string, Buffer>) {
 
   const profile = join(dir, "src", "data", "profile.ts");
   const source = readFileSync(profile, "utf-8");
+  const words =
+    text === "finished"
+      ? {
+          note: "A note about the test cars.",
+          alt: "A red car with a dark window.",
+          caption: "A test event, a test car",
+        }
+      : {
+          note: "TODO: a line on the interest",
+          alt: "TODO: describe the photo",
+          caption: "TODO: event and vehicle",
+        };
   const entry = `  garage: [
     {
       name: "Test cars",
-      note: "A note about the test cars.",
+      note: "${words.note}",
       photo: testCar,
-      alt: "A red car with a dark window.",
-      caption: "A test event, a test car",
+      alt: "${words.alt}",
+      caption: "${words.caption}",
     },
   ],
 });`;
@@ -249,5 +267,56 @@ describe("a build with a photo in src/assets/garage/ that no entry uses", () => 
     expect(output).toMatch(/no entry in the garage uses/);
     expect(output).toMatch(/published/);
     expect(output).not.toContain("test-car.jpg:");
+  });
+});
+
+// Astro publishes the original of every imported image that nothing processes. A card is left out
+// of production while a part of its entry is a placeholder, and the section with it, so nothing
+// would process a photo that was added before the rest of its entry was written.
+describe("a production build with a real photo in an entry that still has placeholders", () => {
+  let hiddenDir: string;
+  let hiddenFiles: string[];
+  let hiddenHtml: string;
+
+  beforeAll(async () => {
+    hiddenDir = copyOfProject();
+    addPhotosAndEntry(
+      hiddenDir,
+      { "test-car.jpg": await makeOriginal() },
+      "placeholders",
+    );
+    build(hiddenDir);
+    hiddenFiles = filesUnder(join(hiddenDir, "dist"));
+    hiddenHtml = readFileSync(join(hiddenDir, "dist", "index.html"), "utf-8");
+  });
+
+  it("builds, and leaves the entry out with the garage section and its link", () => {
+    expect(hiddenHtml).not.toMatch(/<section[^>]*\sid="garage"/);
+    expect(hiddenHtml).not.toContain("Test cars");
+    expect(hiddenHtml).not.toContain("data-photo");
+    expect(hiddenHtml).not.toContain('href="/#garage"');
+  });
+
+  it("does not publish the original: no file named after it, and no jpeg anywhere in the build", () => {
+    expect(
+      hiddenFiles.filter(
+        (file) => /test-car/.test(file) && !file.endsWith(".webp"),
+      ),
+      hiddenFiles.join("\n"),
+    ).toEqual([]);
+    expect(hiddenFiles.filter((file) => /\.jpe?g$/i.test(file))).toEqual([]);
+  });
+
+  it("processes the photo all the same, so its optimised copy is the only one of it in the build", () => {
+    expect(
+      hiddenFiles.filter((file) =>
+        /^_astro\/test-car\.[^/]+\.webp$/.test(file),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("puts no photo in the page", () => {
+    expect(hiddenHtml).not.toContain("<img");
+    expect(hiddenHtml).not.toMatch(/test-car/);
   });
 });

@@ -429,10 +429,23 @@ describe("<Garage>", () => {
       expect(rule).toMatch(/background:\s*var\(--panel\)/);
     });
 
-    it("is not worked out by the page when the garage section is not shown", () => {
+    it("is dithered by the page only for cards that are shown, and processed for every photo in every build", () => {
       const page = source("../../pages/index.astro");
-      // The one rule the component renders by (visibility.ts), not a copy of it.
-      expect(page).toMatch(/garageShown\([^)]*\)\s*\?\s*await garagePhotos\(/);
+      // Always called, never behind the shown rule: Astro publishes the original of a photo that
+      // nothing processes, and a card is left out while its entry has a placeholder in it.
+      expect(page).toMatch(/await garagePhotos\(/);
+      expect(page).not.toMatch(
+        /garageShown\([^)]*\)\s*\?\s*await garagePhotos\(/,
+      );
+      // Given the shown entries (the one rule the component renders by, in visibility.ts, not a
+      // copy of it) and every entry of the whole profile.
+      expect(page).toMatch(
+        /garageShown\([^)]*\)\s*\?\s*profile\.garage\s*:\s*\[\]/,
+      );
+      expect(page).toMatch(
+        /import \{ profile as fullProfile \} from "\.\.\/data\/profile"/,
+      );
+      expect(page).toMatch(/fullProfile\.garage/);
       expect(source("./Garage.astro")).toMatch(/garageShown\(/);
     });
 

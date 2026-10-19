@@ -30,16 +30,27 @@ const read = (path: string) =>
 /** The widest the optimised photo is made: a card is at most about 560 pixels across. */
 export const PHOTO_MAX_WIDTH = 1600;
 
-/** Each entry's dither and optimised photo, in the order of `garage`. */
+/**
+ * Each shown entry's dither and optimised photo, in the order of `garage`. Every photo in the
+ * folder is processed in every build, whether or not its entry is shown, because Astro publishes
+ * the original of an imported image that nothing processes; `all` is every entry in the profile,
+ * shown or not, so a photo of an entry that is left out is not taken for one nothing uses.
+ */
 export function garagePhotos(
   garage: Profile["garage"],
+  all: Profile["garage"],
 ): Promise<(GaragePhoto | undefined)[]> {
-  return resolveGaragePhotos(garage, { images, read }, async (photo) => {
-    const optimised = await getImage({
-      src: photo,
-      width: Math.min(photo.width, PHOTO_MAX_WIDTH),
-      format: "webp",
-    });
-    return optimised.src;
-  });
+  return resolveGaragePhotos(
+    garage,
+    { images, read },
+    async (photo) => {
+      const optimised = await getImage({
+        src: photo,
+        width: Math.min(photo.width, PHOTO_MAX_WIDTH),
+        format: "webp",
+      });
+      return optimised.src;
+    },
+    all,
+  );
 }

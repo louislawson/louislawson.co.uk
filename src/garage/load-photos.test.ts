@@ -45,6 +45,13 @@ describe("load-photos.ts", () => {
     expect(code).not.toMatch(/fsPath/);
   });
 
+  it("takes the shown entries and every entry, and gives both to the resolver, so every photo is processed in every build", () => {
+    expect(code).toMatch(
+      /export function garagePhotos\(\s*garage: Profile\["garage"\],\s*all: Profile\["garage"\],?\s*\)/,
+    );
+    expect(code).toMatch(/\{ images, read \},[\s\S]*?\ball,?\s*\)/);
+  });
+
   it("makes the optimised copy with Astro's getImage, as webp, never wider than the photo", () => {
     expect(code).toMatch(/getImage\(/);
     expect(code).toContain('format: "webp"');

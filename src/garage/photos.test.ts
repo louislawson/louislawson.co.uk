@@ -209,6 +209,129 @@ describe("resolveGaragePhotos", () => {
     });
   });
 
+  describe("every photo in the folder is processed, whether or not its card is shown", () => {
+    // Astro publishes the original of an imported image unless something processes it. A card is
+    // left out of production while a part of its entry is a placeholder, and the whole section while
+    // none is shown, but the photo is imported all the same, so it is processed all the same.
+    it("processes the photo of an entry that is not shown, and neither dithers nor reads it", async () => {
+      const hidden = metadata("/_astro/hidden.111.png");
+      const optimise = vi.fn(async () => "/_astro/hidden.webp");
+      const read = vi.fn(serving({}));
+      const result = await resolveGaragePhotos(
+        [],
+        { images: { "/src/assets/garage/hidden.png": hidden }, read },
+        optimise,
+        [{ name: "Half finished", photo: hidden }],
+      );
+      expect(result).toEqual([]);
+      expect(optimise).toHaveBeenCalledTimes(1);
+      expect(optimise).toHaveBeenCalledWith(hidden);
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it("does not call a photo used by an entry that is not shown 'unused': the build goes on", async () => {
+      const hidden = metadata("/_astro/hidden.111.png");
+      await expect(
+        resolveGaragePhotos(
+          [],
+          {
+            images: { "/src/assets/garage/hidden.png": hidden },
+            read: serving({}),
+          },
+          async () => "/_astro/hidden.webp",
+          [{ name: "Half finished", photo: hidden }],
+        ),
+      ).resolves.toEqual([]);
+    });
+
+    it("processes every photo in the folder, once each, shown or not", async () => {
+      const bytes = await image(120);
+      const shown = metadata("/_astro/shown.111.png");
+      const hidden = metadata("/_astro/hidden.222.png");
+      const optimise = vi.fn(
+        async (photo: ImageMetadata) => `${photo.src}.webp`,
+      );
+      const result = await resolveGaragePhotos(
+        [{ name: "Shown", photo: shown }],
+        {
+          images: {
+            "/src/assets/garage/shown.png": shown,
+            "/src/assets/garage/hidden.png": hidden,
+          },
+          read: serving({ "/src/assets/garage/shown.png": bytes }),
+        },
+        optimise,
+        [
+          { name: "Shown", photo: shown },
+          { name: "Half finished", photo: hidden },
+        ],
+      );
+      expect(optimise).toHaveBeenCalledTimes(2);
+      expect(optimise.mock.calls.map(([photo]) => photo)).toEqual(
+        expect.arrayContaining([shown, hidden]),
+      );
+      // A shown entry links the copy that was made, not a second one.
+      expect(result[0]?.href).toBe("/_astro/shown.111.png.webp");
+    });
+
+    it("still stops the build for a photo that no entry, shown or not, uses", async () => {
+      const hidden = metadata("/_astro/hidden.111.png");
+      const stray = metadata("/_astro/stray.222.png");
+      await expect(
+        resolveGaragePhotos(
+          [],
+          {
+            images: {
+              "/src/assets/garage/hidden.png": hidden,
+              "/src/assets/garage/stray.png": stray,
+            },
+            read: serving({}),
+          },
+          async () => "",
+          [{ name: "Half finished", photo: hidden }],
+        ),
+      ).rejects.toThrow(/stray\.png[\s\S]*published/);
+    });
+
+    it("stops the build for a photo of an entry that is not shown and is not in the folder", async () => {
+      await expect(
+        resolveGaragePhotos(
+          [],
+          { images: {}, read: serving({}) },
+          async () => "",
+          [{ name: "Elsewhere", photo: metadata("/_astro/elsewhere.png") }],
+        ),
+      ).rejects.toThrow(/Elsewhere.*src\/assets\/garage/s);
+    });
+
+    it("does nothing for a placeholder photo, shown or not, and an empty folder", async () => {
+      const optimise = vi.fn();
+      await expect(
+        resolveGaragePhotos([], { images: {}, read: serving({}) }, optimise, [
+          { name: "Tractors", photo: "TODO: photo" },
+        ]),
+      ).resolves.toEqual([]);
+      expect(optimise).not.toHaveBeenCalled();
+    });
+
+    it("stops the build, naming the file, if a photo cannot be processed", async () => {
+      const hidden = metadata("/_astro/hidden.111.png");
+      await expect(
+        resolveGaragePhotos(
+          [],
+          {
+            images: { "/src/assets/garage/hidden.png": hidden },
+            read: serving({}),
+          },
+          async () => {
+            throw new Error("Sharp cannot decode this image");
+          },
+          [{ name: "Half finished", photo: hidden }],
+        ),
+      ).rejects.toThrow(/hidden\.png[\s\S]*Sharp cannot decode/);
+    });
+  });
+
   it("stops the build, naming the entry and the folder, when a photo is not in src/assets/garage", async () => {
     await expect(
       resolveGaragePhotos(
