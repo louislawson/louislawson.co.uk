@@ -4,6 +4,7 @@
 import { site, type DeployContext } from "../../config/site";
 import type { Profile } from "../../content/schema";
 import {
+  garageShown,
   renderDecision,
   type Section as SectionInfo,
 } from "../../content/visibility";
@@ -41,8 +42,7 @@ const {
 } = Astro.props;
 
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
-const shown =
-  garage.length > 0 && sections.some((section) => section.id === "garage");
+const shown = garageShown(garage, sections);
 
 // The first frame is drawn here, at build, so a page with no script or with reduced motion has a
 // still wheel. The script carries on from the tick after it. A section that is not shown draws none.
@@ -57,7 +57,7 @@ const firstFrame = shown ? frame(FIRST_TICK) : "";
 type Entry = Profile["garage"][number];
 type Card =
   | { kind: "photo"; entry: Entry; photo: GaragePhoto; alt: string }
-  | { kind: "empty"; entry: Entry; standIn: string }
+  | { kind: "empty"; entry: Entry; photo: string; standIn: string }
   | { kind: "bare"; entry: Entry };
 
 const cards: Card[] = shown
@@ -75,7 +75,12 @@ const cards: Card[] = shown
         );
       }
       return renderDecision(entry.photo, context) === "hatch"
-        ? { kind: "empty", entry, standIn: placeholderDither(index + 1) }
+        ? {
+            kind: "empty",
+            entry,
+            photo: entry.photo,
+            standIn: placeholderDither(index + 1),
+          }
         : { kind: "bare", entry };
     })
   : [];
@@ -110,7 +115,7 @@ const cards: Card[] = shown
         <div class="gcard__photo gcard__photo--empty">
           <pre aria-hidden="true">{card.standIn}</pre>
           <span class="gcard__label"
-            ><Placeholder value={card.entry.photo as string} context={context}
+            ><Placeholder value={card.photo} context={context}
           /></span>
         </div>
       ) : (
@@ -295,25 +300,55 @@ const cards: Card[] = shown
   // Each card's photo is a link that holds the dither. The rules in photo-swap.ts decide when the
   // full-colour photo is wanted; this makes its image then, and only then, so the page loads no
   // photo until one is asked for. The image is the link's own address, with the link's name as alt.
+  const photoCards: {
+    link: HTMLAnchorElement;
+    feed: (event: SwapEvent, original?: Event) => void;
+  }[] = [];
+
   for (const link of document.querySelectorAll<HTMLAnchorElement>(
     "[data-photo]",
   )) {
     let state: SwapState = INITIAL_SWAP;
     let image: HTMLImageElement | undefined;
+    let showing = false;
+    let ready = false;
+    // The dither stays on show until the photo has loaded, so the card is never blank.
+    const apply = () => {
+      if (image) image.hidden = !(showing && ready);
+    };
     const feed = (event: SwapEvent, original?: Event) => {
       const step = swapStep(state, event);
       state = step.state;
+      showing = step.showing;
       if (step.preventDefault) original?.preventDefault();
       if (step.load) {
-        image = document.createElement("img");
-        image.src = link.href;
-        image.alt = link.getAttribute("aria-label") ?? "";
-        // A photo that fails to load leaves the dither as it was, and the link still opens it.
-        image.addEventListener("error", () => image?.remove());
-        link.append(image);
+        const created = document.createElement("img");
+        image = created;
+        ready = false;
+        created.hidden = true;
+        created.src = link.href;
+        created.alt = link.getAttribute("aria-label") ?? "";
+        created.addEventListener("load", () => {
+          if (image === created) {
+            ready = true;
+            apply();
+          }
+        });
+        // A photo that fails to load leaves the dither as it was, the link still opens it, and the
+        // next time the photo is wanted it is tried again.
+        created.addEventListener("error", () => {
+          created.remove();
+          if (image === created) {
+            image = undefined;
+            ready = false;
+            state = { ...state, loaded: false };
+          }
+        });
+        link.append(created);
       }
-      if (image) image.hidden = !step.showing;
+      apply();
     };
+    photoCards.push({ link, feed });
     for (const type of [
       "pointerenter",
       "pointerleave",
@@ -333,12 +368,21 @@ const cards: Card[] = shown
         event,
       ),
     );
-    // The keyboard being used, and a press anywhere but on this card, end what a touch left behind.
-    document.addEventListener("keydown", () => feed({ type: "keydown" }));
-    document.addEventListener("pointerdown", (event) => {
-      if (!link.contains(event.target as Node)) feed({ type: "outside" });
-    });
   }
+
+  // One listener each for all the cards. The keyboard being used, and a press that ends anywhere
+  // but on a card, end what a touch left behind: a pinned photo is let go, and a tap that is really
+  // a scroll (which ends as a cancel, not a release) does not release it.
+  document.addEventListener("keydown", () => {
+    for (const card of photoCards) card.feed({ type: "keydown" });
+  });
+  document.addEventListener("pointerup", (event) => {
+    for (const card of photoCards) {
+      if (!card.link.contains(event.target as Node)) {
+        card.feed({ type: "outside" });
+      }
+    }
+  });
 
   const pre = document.querySelector<HTMLElement>("[data-wheel]");
 

@@ -95,7 +95,8 @@ export function swapStep(state: SwapState, event: SwapEvent): SwapStep {
       break;
     case "outside":
       // A phone's browser may never blur a tapped link, so a press elsewhere lets the photo go.
-      next = { ...state, pinned: false };
+      // It also ends a touch whose end was lost, which would otherwise ignore the next focus.
+      next = { ...state, pinned: false, touching: false };
       break;
     case "click":
       if (!isShowing(state) && (state.touching || isTouch(event.pointerType))) {

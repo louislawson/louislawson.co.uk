@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { placeholder, profileData, projectEntry } from "./__fixtures__/content";
 import {
+  garageShown,
   isRealProject,
   presentSiteContent,
   renderDecision,
@@ -214,6 +215,26 @@ describe("visibleProfile", () => {
         profile,
       );
     }
+  });
+
+  describe("garageShown", () => {
+    const sections = (...ids: string[]) =>
+      ids.map((id, index) => ({ id, number: index + 1 })) as Parameters<
+        typeof garageShown
+      >[1];
+    const entries = profileData().garage;
+
+    it("is true when there are entries and the garage is one of the sections", () => {
+      expect(garageShown(entries, sections("projects", "garage"))).toBe(true);
+    });
+
+    it("is false without entries, because the section is not rendered", () => {
+      expect(garageShown([], sections("projects", "garage"))).toBe(false);
+    });
+
+    it("is false when the garage is not one of the sections", () => {
+      expect(garageShown(entries, sections("projects", "contact"))).toBe(false);
+    });
   });
 
   describe("a garage entry's imported photo", () => {

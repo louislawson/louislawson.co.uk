@@ -431,9 +431,9 @@ describe("<Garage>", () => {
 
     it("is not worked out by the page when the garage section is not shown", () => {
       const page = source("../../pages/index.astro");
-      expect(page).toMatch(
-        /sections\.some\(\(\w+\) => \w+\.id === "garage"\)\s*\?\s*await garagePhotos\(/,
-      );
+      // The one rule the component renders by (visibility.ts), not a copy of it.
+      expect(page).toMatch(/garageShown\([^)]*\)\s*\?\s*await garagePhotos\(/);
+      expect(source("./Garage.astro")).toMatch(/garageShown\(/);
     });
 
     it("is the same in preview and production when the photo is real", async () => {
@@ -555,10 +555,33 @@ describe("<Garage>", () => {
       );
     });
 
-    it("takes the photo's image away if it fails to load, so no broken-image mark shows over the dither", () => {
-      expect(script()).toMatch(
-        /image\.addEventListener\("error",[\s\S]*?image[\s\S]*?\.remove\(\)/,
+    it("listens on the page once for all the cards, not once for each", () => {
+      const code = script();
+      expect(code.match(/document\.addEventListener\("keydown"/g)).toHaveLength(
+        1,
       );
+      expect(
+        code.match(/document\.addEventListener\("pointerup"/g),
+      ).toHaveLength(1);
+    });
+
+    it("lets a pinned photo go when a press ends elsewhere, and not when one begins, so a scroll does not release it", () => {
+      const code = script();
+      expect(code).toContain('"pointerup"');
+      expect(code).not.toMatch(/document\.addEventListener\("pointerdown"/);
+    });
+
+    it("keeps the dither showing until the photo has loaded, so the card is never blank", () => {
+      const code = script();
+      expect(code).toMatch(/created\.addEventListener\("load"/);
+      expect(code).toMatch(/image\.hidden\s*=\s*!\(showing && ready\)/);
+    });
+
+    it("takes the photo's image away if it fails to load, and lets the next showing try again", () => {
+      const code = script();
+      expect(code).toMatch(/created\.addEventListener\("error"/);
+      expect(code).toMatch(/created\.remove\(\)/);
+      expect(code).toMatch(/loaded:\s*false/);
     });
 
     it("does no image processing in the browser", () => {

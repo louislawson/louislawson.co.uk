@@ -196,6 +196,15 @@ describe("a card's photo swap", () => {
       expect(last.showing).toBe(true);
     });
 
+    it("ends a touch left half-finished when a press lands elsewhere, so the keyboard still works on this card", () => {
+      const { last } = play([
+        touch("pointerdown"),
+        { type: "outside" },
+        { type: "focus" },
+      ]);
+      expect(last.showing).toBe(true);
+    });
+
     it("takes a click that says it is a touch as a tap even if no pointerdown was seen", () => {
       const { prevents } = play([{ type: "click", pointerType: "touch" }]);
       expect(prevents).toEqual([true]);

@@ -198,6 +198,19 @@ export function visibleSections(
     .map((id, index) => ({ id, number: index + 1 }));
 }
 
+/**
+ * Whether the garage is on the page: it has entries and is one of the sections shown. The page
+ * prepares the photos only then, and the component renders only then, by this one rule.
+ */
+export function garageShown(
+  garage: readonly unknown[],
+  sections: readonly Section[],
+): boolean {
+  return (
+    garage.length > 0 && sections.some((section) => section.id === "garage")
+  );
+}
+
 /** What the pages render: the content for one deploy context, and the sections it fills. */
 export function presentSiteContent<E extends ProjectLike>(
   content: { projects: E[]; profile: Profile },

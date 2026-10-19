@@ -7,6 +7,7 @@ import Skills from "../components/home/Skills.astro";
 import Trace from "../components/home/Trace.astro";
 import { buildInfo } from "../config/build-info";
 import { getSiteContent } from "../content/site-content";
+import { garageShown } from "../content/visibility";
 import { garagePhotos } from "../garage/load-photos";
 import Base from "../layouts/Base.astro";
 
@@ -15,7 +16,7 @@ import Base from "../layouts/Base.astro";
 const { profile, projects, sections } = await getSiteContent();
 // The garage's photos are dithered here, at build: nothing about them is worked out in the browser.
 // Nothing is made for a garage that is not shown.
-const photos = sections.some((section) => section.id === "garage")
+const photos = garageShown(profile.garage, sections)
   ? await garagePhotos(profile.garage)
   : [];
 ---
