@@ -188,6 +188,14 @@ select {
   border-color: var(--bone);
 }
 
+/* An action that is not there yet: dashed in hi-vis, dim, and not a link. */
+.btn[aria-disabled="true"] {
+  color: var(--dim);
+  cursor: not-allowed;
+  border-color: var(--hivis);
+  border-style: dashed;
+}
+
 .btn--hv {
   color: var(--bg);
   font-weight: 700;

@@ -7,15 +7,17 @@ export const profile = parseProfile({
   roleLine: "TODO: role line, for example the job title and focus",
   intro: "TODO: a short introduction in the first person",
   careerLine: "TODO: career in years and sectors, naming no employer",
-  region: "TODO: region only, never a town or address",
+  // A region only, never a town or an address.
+  region: "TODO: region",
+  // `until` is the last day the statement is true, as YYYY-MM-DD (UK time): it is hidden after that.
   availability: {
-    text: "TODO: what you are available for",
-    until: "TODO: the last day this is true, as YYYY-MM-DD",
+    text: "TODO: status",
+    until: "TODO: date",
   },
   email: "hello@louislawson.co.uk",
   links: {
-    github: "TODO: GitHub profile URL",
-    linkedin: "TODO: LinkedIn profile URL",
+    github: "TODO: GitHub URL",
+    linkedin: "TODO: LinkedIn URL",
   },
   cv: "TODO: set to /cv.pdf once public/cv.pdf exists",
   skills: [

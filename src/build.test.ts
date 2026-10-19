@@ -481,11 +481,21 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     new Set(),
     parseDeployContext(deployContext),
   ).garage;
+  const shownProfile = visibleProfile(
+    profile,
+    new Set(),
+    parseDeployContext(deployContext),
+  );
+  // The contact section is there while something in it is real (the email is), in either context.
+  const contactShown = visibleSections([{}], shownProfile).some(
+    (section) => section.id === "contact",
+  );
   const homeLabels =
     5 +
     (skillsShown ? 1 : 0) +
     (shownCerts.length > 0 ? 1 : 0) +
-    (shownGarage.length > 0 ? 1 : 0);
+    (shownGarage.length > 0 ? 1 : 0) +
+    (contactShown ? 1 : 0);
 
   it.each([
     ["index.html", homeLabels],
@@ -764,6 +774,90 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
     }
   });
+
+  it("shows the contact section, last before the footer, with the email production has", () => {
+    const html = read(dir, "index.html");
+    const section = /<section[^>]*\sid="contact"[\s\S]*?<\/section>/.exec(
+      html,
+    )?.[0];
+    expect(contactShown).toBe(true);
+    expect(section, "no contact section").toBeDefined();
+    expect(html).toContain('href="/#contact"');
+    // After everything else on the page, and before the footer.
+    for (const id of ["projects", "skills", "certifications", "garage"]) {
+      if (html.includes(`id="${id}"`)) {
+        expect(html.indexOf(`id="${id}"`), id).toBeLessThan(
+          html.indexOf('id="contact"'),
+        );
+      }
+    }
+    expect(html.indexOf('id="contact"')).toBeLessThan(html.indexOf("<footer"));
+    // The email is real, so it is a mailto link in a preview and in production alike, broken
+    // after the @ with no space put there.
+    expect(section).toContain('href="mailto:hello@louislawson.co.uk"');
+    expect(section).toMatch(/>hello@<wbr[^>]*>louislawson\.co\.uk<\/a>/);
+    expect(section).toContain(
+      "About a role, a project, or just a conversation.",
+    );
+  });
+
+  if (deployContext === "preview") {
+    it("hatches the contact details that are placeholders in a preview, and says the CV is not added yet", () => {
+      const section = /<section[^>]*\sid="contact"[\s\S]*?<\/section>/.exec(
+        read(dir, "index.html"),
+      )![0];
+      const hatched = [
+        profile.links.github,
+        profile.links.linkedin,
+        profile.availability?.text ?? "",
+        profile.region,
+      ].filter((value) => isPlaceholder(value));
+      expect(section.match(/class="ph"/g) ?? []).toHaveLength(hatched.length);
+      expect(section).not.toContain("TODO:");
+      expect(section).toContain("availability");
+      expect(section).toContain("based in");
+      // public/cv.pdf does not exist yet, and profile.cv says so.
+      expect(isPlaceholder(profile.cv)).toBe(true);
+      expect(section).toMatch(
+        /<span [^>]*aria-disabled="true"[^>]*>cv not added yet/,
+      );
+      expect(section).not.toContain("download");
+      expect(section).not.toContain("/cv.pdf");
+      // Only the email is a link.
+      expect(section.match(/<a /g)).toHaveLength(1);
+    });
+  } else {
+    it("leaves out of production every contact detail that is a placeholder, and keeps the email", () => {
+      const section = /<section[^>]*\sid="contact"[\s\S]*?<\/section>/.exec(
+        read(dir, "index.html"),
+      )![0];
+      expect(section).not.toContain('class="ph"');
+      expect(section).not.toContain("Placeholder:");
+      expect(section).not.toContain("TODO:");
+      expect(section).not.toContain("aria-disabled");
+      expect(section.includes("linkedin")).toBe(
+        !isPlaceholder(profile.links.linkedin),
+      );
+      expect(section.includes("github")).toBe(
+        !isPlaceholder(profile.links.github),
+      );
+      expect(section.includes("download cv")).toBe(!isPlaceholder(profile.cv));
+      expect(section).not.toContain("cv not added yet");
+      if (isPlaceholder(profile.availability?.text)) {
+        expect(section).not.toContain("availability");
+      }
+      expect(section.includes("based in")).toBe(!isPlaceholder(profile.region));
+    });
+  }
+
+  it.each(["index.html", "404.html"])(
+    "has no form and nothing to type into in %s, which the contact label says",
+    (page) => {
+      // A button is not a form: the menu, the shortcut switch, the inspect toggle and the trace's
+      // replay are buttons that act on the page, and send nothing.
+      expect(read(dir, page)).not.toMatch(/<(form|input|textarea|select)\b/);
+    },
+  );
 
   it("loads no photo with the home page and carries none as data: no image tag, and no data URL in any script", () => {
     // The dither is text made at build and the full-colour photo is asked for by the script only

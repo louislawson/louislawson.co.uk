@@ -23,6 +23,23 @@ describe("the placeholder garage intro in profile.ts", () => {
   });
 });
 
+describe("the placeholders of the contact section in profile.ts", () => {
+  it("are short, so a hatched one fits its button or its row instead of filling the section", () => {
+    const { availability, links, region } = profile;
+    expect(isPlaceholder(availability?.text)).toBe(true);
+    expect(isPlaceholder(availability?.until)).toBe(true);
+    expect(isPlaceholder(region)).toBe(true);
+    expect(isPlaceholder(links.github)).toBe(true);
+    expect(isPlaceholder(links.linkedin)).toBe(true);
+    // A row of facts has half the page's width, and a button as many characters as its label.
+    expect(placeholderHint(availability!.text).length).toBeLessThanOrEqual(12);
+    expect(placeholderHint(availability!.until).length).toBeLessThanOrEqual(12);
+    expect(placeholderHint(region).length).toBeLessThanOrEqual(12);
+    expect(placeholderHint(links.github).length).toBeLessThanOrEqual(16);
+    expect(placeholderHint(links.linkedin).length).toBeLessThanOrEqual(16);
+  });
+});
+
 describe("the placeholder garage entry in profile.ts", () => {
   it("is short in every part, so a hatched one fits its card instead of filling it", () => {
     const entry = profile.garage[0]!;

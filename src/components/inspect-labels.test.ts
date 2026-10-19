@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { assembleSiteContent } from "../content/assemble";
@@ -10,12 +10,24 @@ import { jpeg } from "../metadata/__fixtures__/jpeg";
 import { checkImage } from "../metadata/image";
 import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
+import Contact from "./home/Contact.astro";
 import Hero from "./home/Hero.astro";
 import { INSPECT_LABELS } from "./inspect-labels";
 import Nav from "./Nav.astro";
 
 const root = new URL("../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf-8");
+
+/** Every file of the site's own code with one of these endings, minus tests and fixtures. */
+const sourceFiles = (endings: string[]) =>
+  readdirSync(new URL("src/", root), { recursive: true, encoding: "utf-8" })
+    .map((path) => path.replaceAll("\\", "/"))
+    .filter(
+      (path) =>
+        endings.some((ending) => path.endsWith(ending)) &&
+        !/\.test\.|__fixtures__/.test(path),
+    )
+    .map((path) => [`src/${path}`, read(`src/${path}`)] as const);
 
 const swa = JSON.parse(read("public/staticwebapp.config.json")) as {
   routes: { route: string; headers: Record<string, string> }[];
@@ -284,6 +296,79 @@ const facts: {
       "the metadata check reports a JPEG with a GPS tag, passes a clean one, and checks src/assets/garage",
   },
   {
+    label: "contact",
+    phrase: "mailto only",
+    holds: async () => {
+      // The one way the section offers to write is the email, and it is a mailto: link.
+      const container = await AstroContainer.create();
+      const html = await container.renderToString(Contact, {
+        props: {
+          profile: { email: "hello@louislawson.co.uk", links: {} },
+          sections: [{ id: "contact", number: 1 }],
+        },
+      });
+      const hrefs = [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map(
+        (m) => m[1],
+      );
+      return (
+        hrefs.join() === "mailto:hello@louislawson.co.uk" &&
+        !/<(form|input|textarea|select|button)\b/.test(html)
+      );
+    },
+    because:
+      "the contact section, given an email, renders it as a mailto: link and nothing to type into",
+  },
+  {
+    label: "contact",
+    phrase: "no forms",
+    holds: () => {
+      // No page, layout or component of the site has a form or a field to type into.
+      const files = sourceFiles([".astro"]);
+      return (
+        files.length > 10 &&
+        files.every(
+          ([, text]) => !/<(form|input|textarea|select)\b/i.test(text),
+        )
+      );
+    },
+    because:
+      "no .astro file under src/ has a <form>, <input>, <textarea> or <select>",
+  },
+  {
+    label: "contact",
+    phrase: "no backend",
+    holds: () => {
+      // The site is static files: no functions folder for Static Web Apps to find, no server
+      // output from Astro, and the upload step skips the API build and names no API folder.
+      const upload = read(".github/actions/swa-client/action.yml");
+      return (
+        !existsSync(new URL("api", root)) &&
+        !/output:\s*["'](server|hybrid)["']/.test(read("astro.config.mjs")) &&
+        /INPUT_SKIP_API_BUILD=true/.test(upload) &&
+        !/INPUT_API_LOCATION/.test(upload)
+      );
+    },
+    because:
+      "there is no api/ folder, astro.config.mjs sets no server output, and the SWA upload skips the API build with no API location",
+  },
+  {
+    label: "contact",
+    phrase: "no cookies",
+    holds: () => {
+      // Nothing in the site's code reads or writes a cookie, and the served configuration sets none.
+      const code = sourceFiles([".ts", ".js", ".astro"]);
+      return (
+        code.length > 20 &&
+        code.every(
+          ([, text]) => !/document\.cookie|cookieStore|set-cookie/i.test(text),
+        ) &&
+        !/set-cookie/i.test(read("public/staticwebapp.config.json"))
+      );
+    },
+    because:
+      "no .ts, .js or .astro file under src/ touches document.cookie or cookieStore, and staticwebapp.config.json sets no cookie",
+  },
+  {
     label: "projects",
     phrase: "generated at build",
     holds: () => {
@@ -336,6 +421,7 @@ describe("the inspect labels", () => {
   it("are the shell's (the bar, the footer, the 404 page's content) and the home page sections built so far", () => {
     expect(Object.keys(INSPECT_LABELS).sort()).toEqual([
       "certifications",
+      "contact",
       "footer",
       "garage",
       "hero",

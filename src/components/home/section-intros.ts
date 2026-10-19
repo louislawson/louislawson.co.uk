@@ -8,4 +8,5 @@ export const SECTION_INTROS = {
   skills: "Where I've used each one, and the projects that show it.",
   certifications: "Certifications and achievements.",
   garage: "Cars, trucks and tractors: photos from shows and meets.",
+  contact: "About a role, a project, or just a conversation.",
 } as const;
