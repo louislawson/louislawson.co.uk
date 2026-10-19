@@ -765,6 +765,19 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     }
   });
 
+  it("loads no photo with the home page and carries none as data: no image tag, and no data URL in any script", () => {
+    // The dither is text made at build and the full-colour photo is asked for by the script only
+    // when someone hovers, focuses or taps, so neither the page nor a script holds a photo.
+    expect(read(dir, "index.html")).not.toContain("<img");
+    const scripts = readdirSync(join(dir, "_astro"))
+      .filter((file) => file.endsWith(".js"))
+      .map((file) => read(dir, `_astro/${file}`));
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const code of scripts) {
+      expect(code).not.toMatch(/data:image|;base64,/);
+    }
+  });
+
   it("puts no text from the direction contract or the build plan in the page, labels included", () => {
     // The page speaks for itself. A run of eight words that is in either document is a sentence
     // copied from it, not something the page says. The one exception is a label the plan itself

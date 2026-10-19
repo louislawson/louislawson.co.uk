@@ -7,6 +7,9 @@ import {
   renderDecision,
   type Section as SectionInfo,
 } from "../../content/visibility";
+import { placeholderDither } from "../../garage/dither";
+import type { GaragePhoto } from "../../garage/photos";
+import { isPlaceholder, placeholderHint } from "../../content/todo";
 import { FIRST_TICK, frame } from "../../scripts/wheel";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
@@ -18,6 +21,11 @@ interface Props {
   garageIntro?: string | undefined;
   /** The entries this build shows, from getSiteContent(). */
   garage: Profile["garage"];
+  /**
+   * What the page makes of each entry's photo, in the order of `garage`: its dither and the address
+   * of its optimised copy, or nothing for a placeholder photo (see src/garage/photos.ts).
+   */
+  photos?: readonly (GaragePhoto | undefined)[];
   /** The sections this build shows, from visibleSections(). */
   sections: SectionInfo[];
   /** Defaults to the deploy context of this build. */
@@ -27,6 +35,7 @@ interface Props {
 const {
   garageIntro,
   garage,
+  photos = [],
   sections,
   context = site.deployContext,
 } = Astro.props;
@@ -39,15 +48,35 @@ const shown =
 // still wheel. The script carries on from the tick after it. A section that is not shown draws none.
 const firstFrame = shown ? frame(FIRST_TICK) : "";
 
-// Until the photos arrive (the next change) a card's photo is an empty frame: hatched on a preview
-// where the photo is a placeholder, so it is easy to find, and hidden from assistive technology
-// where there is nothing to say about it.
-const cards = garage.map((entry) => ({
-  entry,
-  hatched:
-    typeof entry.photo === "string" &&
-    renderDecision(entry.photo, context) === "hatch",
-}));
+// Each card's photo is one of three things. A real photo is a link to the optimised photo that
+// holds its dither. A placeholder photo is, on a preview, a designed empty state: a stand-in dither
+// with the hatched placeholder over it, so it is easy to find. Production never reaches that (it
+// leaves out an entry whose photo is a placeholder), but if it did the frame is empty and hidden.
+// A real photo that has not been prepared is a mistake that stops the build: no card goes blank.
+const cards = shown
+  ? garage.map((entry, index) => {
+      const photo = photos[index];
+      if (photo !== undefined) {
+        const alt = isPlaceholder(entry.alt)
+          ? `Placeholder: ${placeholderHint(entry.alt)}`
+          : entry.alt;
+        return { entry, kind: "photo" as const, photo, alt, standIn: "" };
+      }
+      if (typeof entry.photo !== "string") {
+        throw new Error(
+          `The photo for "${entry.name}" was not prepared: give <Garage> its dither and address`,
+        );
+      }
+      const hatched = renderDecision(entry.photo, context) === "hatch";
+      return {
+        entry,
+        kind: hatched ? ("empty" as const) : ("bare" as const),
+        photo: undefined,
+        alt: "",
+        standIn: hatched ? placeholderDither(index + 1) : "",
+      };
+    })
+  : [];
 ---
 
 {shown && <Section
@@ -66,10 +95,17 @@ const cards = garage.map((entry) => ({
     </figcaption>
   </figure>
   <div class="garage">
-    {cards.map(({ entry, hatched }) => <figure class="gcard">
-      {hatched ? (
-        <div class="gcard__photo">
-          <Placeholder value={entry.photo as string} context={context} />
+    {cards.map(({ entry, kind, photo, alt, standIn }) => <figure class="gcard">
+      {kind === "photo" && photo ? (
+        <a class="gcard__photo" href={photo.href} aria-label={alt} data-photo
+          ><pre aria-hidden="true">{photo.dither}</pre></a
+        >
+      ) : kind === "empty" ? (
+        <div class="gcard__photo gcard__photo--empty">
+          <pre aria-hidden="true">{standIn}</pre>
+          <span class="gcard__label"
+            ><Placeholder value={entry.photo as string} context={context}
+          /></span>
         </div>
       ) : (
         <div class="gcard__photo" aria-hidden="true"></div>
@@ -130,14 +166,54 @@ const cards = garage.map((entry) => ({
   }
 
   .gcard__photo {
-    display: grid;
-    place-items: center;
+    position: relative;
+    display: block;
+    container-type: inline-size;
     aspect-ratio: 4 / 3;
-    padding: 14px;
     overflow: hidden;
     color: var(--dim);
     text-align: center;
     border-bottom: 1px solid var(--line);
+  }
+
+  /* The dither is 72 columns by 26 rows. A glyph of this face at width 75 is 0.6em wide, so a font
+     size of the card's width over 72 x 0.6 makes the columns fill it, and a line height of 1.25 makes
+     the rows fill the 4 : 3 box (a row is then 2.08 times as tall as a column is wide, the 2 : 1 the
+     grid's shape assumes). */
+  .gcard__photo pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 75;
+    font-size: calc(100cqw / 43.2);
+    line-height: 1.25;
+    color: var(--dim);
+  }
+
+  .gcard__photo--empty pre {
+    opacity: 0.55;
+  }
+
+  .gcard__label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+  }
+
+  /* The full-colour photo the script puts over the dither, once it is asked for. It is made in the
+     browser, so the component's scoped styles do not reach it. */
+  .gcard__photo :global(img) {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .gcard__photo :global(img[hidden]) {
+    display: none;
   }
 
   .gcard figcaption {
@@ -169,6 +245,18 @@ const cards = garage.map((entry) => ({
     }
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .gcard__photo :global(img) {
+      animation: gcard-photo-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes gcard-photo-in {
+      from {
+        opacity: 0;
+      }
+    }
+  }
+
   @media (max-width: 860px) {
     .garage-wheel pre,
     .garage-wheel figcaption {
@@ -186,7 +274,48 @@ const cards = garage.map((entry) => ({
 </style>
 
 <script>
+  import {
+    INITIAL_SWAP,
+    swapStep,
+    type SwapEvent,
+    type SwapState,
+  } from "../../scripts/photo-swap";
   import { initWheel } from "../../scripts/wheel";
+
+  // Each card's photo is a link that holds the dither. The rules in photo-swap.ts decide when the
+  // full-colour photo is wanted; this makes its image then, and only then, so the page loads no
+  // photo until one is asked for. The image is the link's own address, with the link's name as alt.
+  for (const link of document.querySelectorAll<HTMLAnchorElement>(
+    "[data-photo]",
+  )) {
+    let state: SwapState = INITIAL_SWAP;
+    let image: HTMLImageElement | undefined;
+    const feed = (event: SwapEvent, original?: Event) => {
+      const step = swapStep(state, event);
+      state = step.state;
+      if (step.preventDefault) original?.preventDefault();
+      if (step.load) {
+        image = document.createElement("img");
+        image.src = link.href;
+        image.alt = link.getAttribute("aria-label") ?? "";
+        link.append(image);
+      }
+      if (image) image.hidden = !step.showing;
+    };
+    for (const type of [
+      "pointerenter",
+      "pointerleave",
+      "pointerdown",
+      "pointercancel",
+    ] as const) {
+      link.addEventListener(type, (event) =>
+        feed({ type, pointerType: event.pointerType }),
+      );
+    }
+    for (const type of ["focus", "blur", "click"] as const) {
+      link.addEventListener(type, (event) => feed({ type }, event));
+    }
+  }
 
   const pre = document.querySelector<HTMLElement>("[data-wheel]");
 
