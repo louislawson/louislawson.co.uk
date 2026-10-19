@@ -120,6 +120,8 @@ const isPositiveInt = (value: unknown) =>
 /**
  * An imported image (Astro's ImageMetadata). It is checked but never rebuilt: a parsed copy would
  * lose the properties Astro hides on the object it tracks, and the image pipeline needs that one.
+ * Its `src` is checked for being there and never read: Astro publishes the original of an image
+ * whose `src` is read, and only the optimised copy may be published.
  */
 const photo = orTodo(
   z.custom<ImageMetadata>(
@@ -127,8 +129,6 @@ const photo = orTodo(
       typeof value === "object" &&
       value !== null &&
       "src" in value &&
-      typeof value.src === "string" &&
-      value.src !== "" &&
       "width" in value &&
       isPositiveInt(value.width) &&
       "height" in value &&

@@ -258,6 +258,36 @@ describe("the profile", () => {
     });
   });
 
+  describe("garage photo use", () => {
+    // Astro publishes the original of an image it sees used, and reading an imported image's `src`
+    // is how it sees that. Checking that a photo is an image import must not read it.
+    it("is checked without reading the photo's src", () => {
+      let reads = 0;
+      const imported = { width: 800, height: 600, format: "jpg" };
+      Object.defineProperty(imported, "src", {
+        enumerable: true,
+        get() {
+          reads++;
+          return "/_astro/car.abc123.jpg";
+        },
+      });
+      expect(problems(withValue("garage.0.photo", imported))).toEqual([]);
+      expect(reads).toBe(0);
+    });
+
+    it("still rejects an object with no src at all", () => {
+      expect(
+        problems(
+          withValue("garage.0.photo", {
+            width: 800,
+            height: 600,
+            format: "jpg",
+          }),
+        ).join(" "),
+      ).toContain("garage.0.photo");
+    });
+  });
+
   describe("garage photo identity", () => {
     it("keeps the imported image object itself, with properties Astro hides on it", () => {
       const imported = { ...photo };
