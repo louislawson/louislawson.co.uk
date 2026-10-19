@@ -135,6 +135,12 @@ describe("<Contact>", () => {
       expect(tagsWith(html, "mail")[0]).not.toContain("target=");
     });
 
+    it("stops the build for a value that is not an address, instead of printing it twice", async () => {
+      await expect(
+        render({ profile: { ...real, email: "hello.example" } }),
+      ).rejects.toThrow(/hello\.example/);
+    });
+
     it("is left out when there is none, as on production while it is a placeholder", async () => {
       const html = await render({
         profile: { ...production, email: undefined },
@@ -297,6 +303,30 @@ describe("<Contact>", () => {
           profile: shownOn("2026-10-19", undefined),
         });
         expect(questions(html)).not.toContain("availability");
+      });
+
+      // The statement is text with an end date. Production drops the whole of it while the date is
+      // a placeholder, so a preview has to flag the date too, or it shows a row production will not.
+      const undated = {
+        ...real,
+        availability: { text: "Open to contract work", until: "TODO: date" },
+      };
+
+      it.each(["preview", "local"])(
+        "is shown with its placeholder date hatched beside it on a %s build, so the missing date is found",
+        async (context) => {
+          const html = await render({ profile: undated, context });
+          expect(answers(html)[0]).toBe(
+            "Open to contract work Placeholder: date",
+          );
+          expect(html.match(/class="ph"/g)).toHaveLength(1);
+        },
+      );
+
+      it("is left out of production while its date is a placeholder, as production leaves it out", async () => {
+        const html = await render({ profile: undated, context: "production" });
+        expect(questions(html)).toEqual(["based in"]);
+        expect(html).not.toContain("Open to contract work");
       });
     });
   });

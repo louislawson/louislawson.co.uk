@@ -39,29 +39,67 @@ const shown = sections.some((section) => section.id === "contact");
 const decide = (value: string | undefined) =>
   value === undefined ? "omit" : renderDecision(value, context);
 
-// The line may break after the @, so a long address wraps at a sensible place on a phone.
-const at = email === undefined ? -1 : email.lastIndexOf("@");
-const local = email?.slice(0, at);
-const domain = email?.slice(at + 1);
+const emailDecision = decide(email);
 
+// The line may break after the @, so a long address wraps at a sensible place on a phone. A value
+// that is no address stops the build: the schema has already checked a real one.
+let local = "";
+let domain = "";
+if (email !== undefined && emailDecision === "show") {
+  const at = email.lastIndexOf("@");
+  if (at < 1) {
+    throw new Error(`The email "${email}" is not an address: it has no @`);
+  }
+  local = email.slice(0, at);
+  domain = email.slice(at + 1);
+}
+
+// Each value is decided once, and what is left out is gone before the template.
 const external = [
   { name: "linkedin", value: links.linkedin },
   { name: "github", value: links.github },
-].flatMap(({ name, value }) =>
-  value === undefined || decide(value) === "omit"
+].flatMap(({ name, value }) => {
+  const decision = decide(value);
+  return value === undefined || decision === "omit"
     ? []
-    : [{ name, value, decision: decide(value) }],
-);
+    : [{ name, value, decision }];
+});
 
 const cvDecision = decide(cv);
 const hasButtons = external.length > 0 || cvDecision !== "omit";
 
-const facts = [
-  { label: "availability", value: availability?.text },
-  { label: "based in", value: region },
-].flatMap(({ label, value }) =>
-  value === undefined || decide(value) === "omit" ? [] : [{ label, value }],
-);
+// An availability statement is true until its end date. While that date is a placeholder
+// production leaves the statement out, as visibleProfile() does, and a preview shows the date
+// hatched beside a real text so the missing date is found. A placeholder text stands for both.
+const availabilityText = availability?.text;
+const availabilityUntil = availability?.until;
+const untilDecision = decide(availabilityUntil);
+const textDecision = decide(availabilityText);
+
+interface Fact {
+  label: string;
+  value: string;
+  /** The end date to hatch beside a real value, when it is a placeholder. */
+  until?: string;
+}
+const facts: Fact[] = [
+  availabilityText !== undefined &&
+  untilDecision !== "omit" &&
+  textDecision !== "omit"
+    ? {
+        label: "availability",
+        value: availabilityText,
+        ...(textDecision === "show" &&
+        untilDecision === "hatch" &&
+        availabilityUntil !== undefined
+          ? { until: availabilityUntil }
+          : {}),
+      }
+    : undefined,
+  region !== undefined && decide(region) !== "omit"
+    ? { label: "based in", value: region }
+    : undefined,
+].filter((fact): fact is Fact => fact !== undefined);
 ---
 
 {shown && <Section
@@ -70,12 +108,10 @@ const facts = [
   intro={SECTION_INTROS.contact}
   inspect={INSPECT_LABELS.contact}
 >
-  {email !== undefined && decide(email) === "show" && <a
-    class="mail"
-    href={`mailto:${email}`}
+  {emailDecision === "show" && <a class="mail" href={`mailto:${email}`}
     >{local}@<wbr />{domain}</a
   >}
-  {email !== undefined && decide(email) === "hatch" && <span class="mail"
+  {email !== undefined && emailDecision === "hatch" && <span class="mail"
     ><Placeholder value={email} context={context}
   /></span>}
   {hasButtons && <div class="contact__btns">
@@ -94,9 +130,14 @@ const facts = [
     >}
   </div>}
   {facts.length > 0 && <dl class="facts">
-    {facts.map(({ label, value }) => <div>
+    {facts.map(({ label, value, until }) => <div>
       <dt>{label}</dt>
-      <dd><Placeholder value={value} context={context} /></dd>
+      <dd>
+        <Placeholder value={value} context={context} />{until !== undefined &&
+          " "}{until !== undefined && (
+          <Placeholder value={until} context={context} />
+        )}
+      </dd>
     </div>)}
   </dl>}
 </Section>}

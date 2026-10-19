@@ -18,6 +18,21 @@ import Nav from "./Nav.astro";
 const root = new URL("../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf-8");
 
+/**
+ * The text with its comments taken out, so a comment that talks about a cookie or a form is not
+ * mistaken for one. The `//` of an address ("https://…") starts no comment.
+ */
+const withoutComments = (text: string) =>
+  text.replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->|(^|[^:])\/\/.*$/gm, "$1");
+
+/** Whether the code reads or writes a cookie. */
+const touchesCookies = (code: string) =>
+  /document\.cookie|cookieStore|set-cookie/i.test(withoutComments(code));
+
+/** Whether the markup has a form or a field to type into. */
+const hasFormField = (markup: string) =>
+  /<(form|input|textarea|select)\b/i.test(withoutComments(markup));
+
 /** Every file of the site's own code with one of these endings, minus tests and fixtures. */
 const sourceFiles = (endings: string[]) =>
   readdirSync(new URL("src/", root), { recursive: true, encoding: "utf-8" })
@@ -325,10 +340,7 @@ const facts: {
       // No page, layout or component of the site has a form or a field to type into.
       const files = sourceFiles([".astro"]);
       return (
-        files.length > 10 &&
-        files.every(
-          ([, text]) => !/<(form|input|textarea|select)\b/i.test(text),
-        )
+        files.length > 10 && files.every(([, text]) => !hasFormField(text))
       );
     },
     because:
@@ -359,9 +371,7 @@ const facts: {
       const code = sourceFiles([".ts", ".js", ".astro"]);
       return (
         code.length > 20 &&
-        code.every(
-          ([, text]) => !/document\.cookie|cookieStore|set-cookie/i.test(text),
-        ) &&
+        code.every(([, text]) => !touchesCookies(text)) &&
         !/set-cookie/i.test(read("public/staticwebapp.config.json"))
       );
     },
@@ -416,6 +426,34 @@ const facts: {
       "Trace.astro's script and trace.ts use no fetch, XMLHttpRequest, sendBeacon, WebSocket, EventSource or Image",
   },
 ];
+
+describe("the scans of the source that the contact label rests on", () => {
+  it("find a cookie being read or written, and a form or a field", () => {
+    expect(touchesCookies('document.cookie = "a=1"')).toBe(true);
+    expect(touchesCookies("await cookieStore.set('a', '1')")).toBe(true);
+    expect(touchesCookies('headers: { "Set-Cookie": "a=1" }')).toBe(true);
+    expect(hasFormField('<form action="/send">')).toBe(true);
+    expect(hasFormField("<input type=text>")).toBe(true);
+    expect(hasFormField("<textarea></textarea>")).toBe(true);
+  });
+
+  it("leave a comment that mentions them alone, and a button, which is no field", () => {
+    expect(touchesCookies("// sets no cookie: no document.cookie here")).toBe(
+      false,
+    );
+    expect(touchesCookies("/* never a Set-Cookie header */ run()")).toBe(false);
+    expect(hasFormField("<!-- there is no <form> here --><p>text</p>")).toBe(
+      false,
+    );
+    expect(hasFormField("<button type=button>menu</button>")).toBe(false);
+  });
+
+  it("are not hidden by an address on the same line: its // is no comment", () => {
+    expect(
+      touchesCookies('open("https://example.com"); document.cookie = "a=1"'),
+    ).toBe(true);
+  });
+});
 
 describe("the inspect labels", () => {
   it("are the shell's (the bar, the footer, the 404 page's content) and the home page sections built so far", () => {

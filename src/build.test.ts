@@ -802,29 +802,56 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   });
 
   if (deployContext === "preview") {
-    it("hatches the contact details that are placeholders in a preview, and says the CV is not added yet", () => {
+    it("hatches the contact details that are placeholders in a preview, and a CV that is not there says so", () => {
       const section = /<section[^>]*\sid="contact"[\s\S]*?<\/section>/.exec(
         read(dir, "index.html"),
       )![0];
+      const { links, availability, region, cv } = profile;
+      // What a preview hatches follows the profile: each placeholder once, and the statement's end
+      // date only when its text is real (a placeholder text stands for both).
       const hatched = [
-        profile.links.github,
-        profile.links.linkedin,
-        profile.availability?.text ?? "",
-        profile.region,
+        links.github,
+        links.linkedin,
+        region,
+        availability?.text,
+        availability !== undefined && !isPlaceholder(availability.text)
+          ? availability.until
+          : undefined,
       ].filter((value) => isPlaceholder(value));
       expect(section.match(/class="ph"/g) ?? []).toHaveLength(hatched.length);
       expect(section).not.toContain("TODO:");
-      expect(section).toContain("availability");
       expect(section).toContain("based in");
-      // public/cv.pdf does not exist yet, and profile.cv says so.
-      expect(isPlaceholder(profile.cv)).toBe(true);
-      expect(section).toMatch(
-        /<span [^>]*aria-disabled="true"[^>]*>cv not added yet/,
+      if (availability !== undefined && isPlaceholder(availability.until)) {
+        expect(section).toContain("availability");
+      }
+      // The email, and a link for each address that is real: a placeholder is not a link.
+      expect(section.match(/<a /g)).toHaveLength(
+        1 +
+          [links.github, links.linkedin, cv].filter(
+            (value) => !isPlaceholder(value),
+          ).length,
       );
-      expect(section).not.toContain("download");
-      expect(section).not.toContain("/cv.pdf");
-      // Only the email is a link.
-      expect(section.match(/<a /g)).toHaveLength(1);
+      if (isPlaceholder(cv)) {
+        expect(section).toMatch(
+          /<span [^>]*aria-disabled="true"[^>]*>cv not added yet/,
+        );
+        expect(section).not.toContain("download");
+        expect(section).not.toContain("/cv.pdf");
+      } else {
+        expect(section).toMatch(/<a [^>]*href="\/cv\.pdf"[^>]*\sdownload/);
+        expect(section).not.toContain("cv not added yet");
+      }
+    });
+
+    it("keeps a disabled button looking disabled under the pointer", () => {
+      // The rule for any button's hover is more specific than the disabled look, so the disabled
+      // button needs its own hover rule that keeps the hi-vis dashed border.
+      const css = stylesheetText(dir);
+      const hover =
+        /\.btn\[aria-disabled=["']?true["']?\]:hover\{([^}]*)\}/.exec(
+          css,
+        )?.[1] ?? "";
+      expect(hover).toContain("border-color:var(--hivis)");
     });
   } else {
     it("leaves out of production every contact detail that is a placeholder, and keeps the email", () => {

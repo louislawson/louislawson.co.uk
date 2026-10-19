@@ -196,6 +196,11 @@ select {
   border-style: dashed;
 }
 
+/* As specific as the hover above and after it, so a disabled button keeps its look under the pointer. */
+.btn[aria-disabled="true"]:hover {
+  border-color: var(--hivis);
+}
+
 .btn--hv {
   color: var(--bg);
   font-weight: 700;
