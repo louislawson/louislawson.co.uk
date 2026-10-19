@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-18): **Phases 0 to 3 are built.** Phase 4 has been reviewed with Louis and is **approved for build**. Phases 5–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-19): **Phases 0 to 4 are built.** Phase 5 has been reviewed with Louis but is **not yet approved for build**. Phases 6–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -340,7 +340,7 @@ Reviewed with Louis on 2026-10-18, against the reference mock. Each PR is delibe
   - Each section's intro line is fixed UI copy that makes no claims. The approved lines are listed per PR.
   - Anything personal is a profile field, and starts as a `TODO:`.
 - **Inspect label:** each section's label is the approved one below, pinned by a test where it states a setting.
-- **No links to project pages yet.** They arrive with the pages in PR 5.1. Until then, project codes are plain text.
+- **No links to project pages yet.** They arrive after the pages, in PR 5.4. Until then, project codes are plain text.
 
 ### PR 4.1 · `feat(home): hero`
 
@@ -401,7 +401,7 @@ Reviewed with Louis on 2026-10-18, against the reference mock. Each PR is delibe
     - work: `descriptor · period`
     - personal and open-source: `org · period` when `org` is set, otherwise "personal project · period" or "open-source project · period"
   - **Status:** a square marker and the word: "in service", "commissioning", "complete", "archived". Only "in service" uses `ok` green.
-  - **No links yet:** neither the entry nor a "read the run sheet" line links anywhere. PR 5.1 adds both.
+  - **No links yet:** neither the entry nor a "read the run sheet" line links anywhere. PR 5.4 adds both.
 - **Nav:** the current-section highlight changes from `aria-current="true"` to `aria-current="location"`, with the CSS selector and the tests to match.
 - **Inspect:** "generated at build from src/content/projects/\*.md", pinned to the loader pattern.
 - **Acceptance:**
@@ -497,13 +497,114 @@ Reviewed with Louis on 2026-10-18, against the reference mock. Each PR is delibe
 
 ## Phase 5 · Project pages and sharing
 
+Reviewed with Louis on 2026-10-19, against the reference mock (`docs/design/mock/project.html` and `styles.css:189–229`). Each PR is narrow, as in Phase 4, and follows the same per-PR rules:
+
+- the mock lines it rebuilds, and where it must differ from them
+- the data it reads
+- its preview, production and empty states
+- tests in both the preview and production contexts
+- screenshots in both contexts, pushed to `pr-assets/phase-5` after the metadata check
+- an inspect label pinned to its source
+
+Where the mock and the contract differ, the contract wins.
+
+**What a project page reuses from Phase 4:**
+
+- the layout: `Base.astro` with its nav, footer, inspect mode and shortcuts
+- the content functions: `getSiteContent()`, the project schema, `renderDecision`
+- the components and helpers: `<Status>`, `<Placeholder>` and `<Icon>`, the `.btn` styles, and `metaParts`, `statusLabel` and `featuredFirst` in `project-display.ts`
+
 ### PR 5.1 · `feat(projects): run-sheet pages`
 
-`/projects/[slug]`: setup/change/result panel, measurements as a before/after diff (hidden when empty), tools, write-up prose styles, next project. R04 "This website" written for real (Terraform, OIDC, GitHub Actions, Static Web Apps), status `commissioning` until launch. It also adds the links Phase 4 left out (they arrive with the pages): each project entry links to its run sheet, the strips gain "read the run sheet", and the skills' "seen in" codes become links to the run sheets.
+- **Mock source:** `project.html:29–38` (head and sheet), `50` (tools), `76` (next project); `styles.css:189–204`, `214–215`, `226–229`.
+- **Route:** `src/pages/projects/[slug].astro`, one page per visible project from `getStaticPaths()`, at `/projects/‹file name›/`. Production builds only real projects (today, only R04). Previews build every project, hatched. A hidden project has no page in that build, so its address gives the 404 page.
+- **Head:**
+  - A back link, "all projects", with a left-arrow icon, to `/#projects`. The mock's `cd ../projects` is a fake command, which the contract rules out.
+  - The `h1` title.
+  - A meta row: code, `featured` tag, status, period, and the organisation line from `metaParts`.
+  - The browser tab title is "‹title› · Louis Lawson".
+  - The `featured` tag's style moves from `Projects.astro` to `global.css`, so both pages share it.
+- **Run sheet:** setup, change and result as three columns, with the mock's `$` and `>` prompts as structure.
+- **Tools and links:**
+  - **Tools:** the `stack` as the mock's tool list.
+  - **Links:** the project's `links` follow it as "‹label› ↗" buttons with the external icon. A placeholder link is hatched in preview and omitted in production.
+- **Next project:** a link to the next visible project in the home page's order (featured first, then `order`). The last one wraps to the first. With only one visible project there is no next link.
+- **Inspect:** the `h1` label is "generated at build from src/content/projects/‹file›.md", with the page's real file name, pinned to the loader's pattern.
+- **Acceptance:**
+  - tests cover which pages are built in each context
+  - tests cover the next-project wrap and the single-project case
+  - tests cover the meta row for each `kind`
+  - production builds `/projects/this-website/` alone
 
-### PR 5.2 · `feat(seo): social preview images, sitemap and robots`
+### PR 5.2 · `feat(projects): measurements`
 
-Per-page Open Graph images generated at build (`satori` + `@resvg/resvg-js`); meta tags; `@astrojs/sitemap` and a permissive `robots.txt` only when `launch: true`, otherwise disallow all.
+- **Mock source:** `project.html:40–49`; `styles.css:206–213`.
+- **Markup:** a real `<table>` (the mock uses ARIA roles on `div`s), with a visually hidden caption "Before and after measurements" and columns for measure, before and after. The `unit` is added to each value.
+- **Values:**
+  - **Single figure:** a measurement with no `after` is a single figure, like "70% of incidents caught before users". It shows once, across both value columns.
+  - **Markers:** keep the mock's `-` and `+`.
+  - **Colours:** before is dim, after is bone. The mock's red is not a token, and its green is reserved by the contract for live state.
+- **Empty:** a project with no measurements has no table. Its `# measured` block holds only the tools, which is R04 today.
+- **Acceptance:** tests cover a before-and-after row, a single figure, units and no measurements.
+
+### PR 5.3 · `feat(projects): write-up`
+
+- **Mock source:** `project.html:55–73`; `styles.css:216–225`.
+- **Rendering:** the project's Markdown body is rendered with `render(entry)` under the `# write-up` heading, with the mock's prose styles.
+- **Headings:** a write-up's headings are `###`, under the page's `h1` and the `h2` "# write-up". A test fails the build on a `#` or `##` heading in a project body. R04's `##` headings become `###`.
+- **Code blocks:** no syntax highlighting (`markdown.syntaxHighlight: false`). Shiki writes inline `style` attributes, which the content security policy blocks. Code blocks are plain monospace on the panel colour, styled from the tokens.
+- **Diagrams:**
+  - **Format:** a plain Markdown image, `![alt](./diagrams/‹name›.svg)`, with the file in `src/content/projects/diagrams/`.
+  - **File types:** SVG preferred, on a dark ground in the tokens' colours. PNG at 2× is accepted.
+  - **Alt text:** a test fails the build on a write-up image with empty alt text.
+  - **Caption:** the paragraph after the image is its caption, by convention, with no plugin.
+  - **Metadata:** the Metadata check already covers both file types.
+- **R04:** R04's write-up is the one write-up an agent may author. It is brought up to date with what the repo now shows: the placeholder gate, the metadata checks, the daily rebuild and inspect mode. Every claim must be checkable in the repo, and there are still no measurements.
+- **Acceptance:**
+  - Tests cover the heading rule, the alt-text rule and a code block with no `style=`.
+  - R04's page renders the refreshed write-up.
+
+### PR 5.4 · `feat(home): links to the run sheets`
+
+- **Mock source:** `mock.js:105–132` (`renderRuns`: `.hit` and `.run__more`) and `134–141` (`renderSkills`: "seen in" links); `styles.css:122–124`, `140`.
+- **Project entries:**
+  - Each entry on the home page gets the mock's stretched link, one per entry, with the accessible name "Read the run sheet: ‹title›".
+  - Strips gain the visible "read the run sheet →" line.
+  - Rows gain the arrow.
+- **Skills:** each "seen in" code becomes a link to its run sheet, named "R04, This website" for screen readers.
+- **Previews:** placeholder projects link too, because their pages exist in preview builds. The section intros, "written up as setup, change and result" and "the projects that show it", are now backed by real pages.
+- **Acceptance:**
+  - tests cover one link per entry with its name
+  - the "seen in" links and their names
+  - every link resolves to a page that exists in that build
+
+### PR 5.5 · `feat(seo): social preview images and meta tags`
+
+- **Cards:**
+  - **Size:** a 1200 × 630 PNG for the home page and for each project page, made at build by a prerendered endpoint with `satori` and `@resvg/resvg-js`. The cards are plain files on the same origin.
+  - **Font:** `satori` cannot read WOFF2, so the cards use `@fontsource/martian-mono`, the non-variable package with WOFF files, at weights 400 and 800. It is a devDependency, never sent to visitors, and gets a Snyk package health check like `satori` and `@resvg/resvg-js`.
+- **Design:**
+  - **Every card:** the ground colour, Martian Mono, `louis.lawson` at the top left, and `louislawson.co.uk/…` in dim at the foot.
+  - **Home:** "Louis Lawson" large, and the role line when it is real.
+  - **Project:** the code in hi-vis, the title, the headline, and the status with its square marker.
+  - **Placeholders:** a placeholder value is left off a card in every build, never hatched.
+- **Meta tags:** the home page and each project page get these. The 404 page gets none.
+  - `<meta name="description">`
+  - `og:title`, `og:description`, `og:image`, `og:url`, `og:type` and `og:locale` (`en_GB`)
+  - `twitter:card` (`summary_large_image`)
+- **Descriptions:** the home page uses the intro and a project page its summary. Either is left out while it is a placeholder.
+- **Absolute URLs:** `og:image` and `og:url` come from the site URL, as the canonical does.
+- **No JSON-LD:** it would need an inline `<script>` block.
+- **Acceptance:**
+  - Tests cover the meta tags on each page type and their absence on the 404.
+  - Tests cover a card's text for real and placeholder values.
+  - The PR shows the generated cards.
+
+### PR 5.6 · `feat(seo): sitemap and robots`
+
+- **The rule:** crawling follows the `noindex` rule. `robots.txt` allows crawling, and `@astrojs/sitemap` builds a sitemap, only when the page would be indexable: `launch` is true and the build is production, as `shouldNoindex` decides.
+- **Every other build:** a disallow-all `robots.txt` and no sitemap, so previews stay out of search after launch.
+- **Acceptance:** a test for each combination of `launch` and deploy context.
 
 ## Phase 6 · Hardening
 
