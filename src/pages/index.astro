@@ -1,5 +1,6 @@
 ---
 import Certifications from "../components/home/Certifications.astro";
+import Contact from "../components/home/Contact.astro";
 import Garage from "../components/home/Garage.astro";
 import Hero from "../components/home/Hero.astro";
 import Projects from "../components/home/Projects.astro";
@@ -45,4 +46,5 @@ const photos = await garagePhotos(
     photos={photos}
     sections={sections}
   />
+  <Contact profile={profile} sections={sections} />
 </Base>

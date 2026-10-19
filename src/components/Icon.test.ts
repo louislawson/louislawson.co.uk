@@ -61,6 +61,16 @@ describe("<Icon>", () => {
     expect(paths(arrow)).not.toEqual(paths(external));
   });
 
+  it("has a download icon, a different shape from the arrow and the external mark", async () => {
+    const download = await render({ name: "download" });
+    const paths = (html: string) => [...html.matchAll(/ d="([^"]+)"/g)];
+    expect(paths(download).length).toBeGreaterThan(0);
+    expect(paths(download)).not.toEqual(paths(await render({ name: "arrow" })));
+    expect(paths(download)).not.toEqual(
+      paths(await render({ name: "external" })),
+    );
+  });
+
   it("fails loudly for an icon that does not exist", async () => {
     await expect(render({ name: "no-such-icon" })).rejects.toThrow(
       /no-such-icon/,
