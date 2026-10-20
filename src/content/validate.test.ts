@@ -107,6 +107,53 @@ describe("validateContent", () => {
     });
   });
 
+  describe("write-ups", () => {
+    const withBody = (id: string, body: string) => ({
+      ...project(id, "R01", 1, true),
+      body,
+    });
+
+    it("accepts a body of ### headings and images with alt text, and an entry with no body at all", () => {
+      const ok = withBody("one", "### Context\n\n![A diagram](./a.svg)\n");
+      expect(validateContent([ok], profile([[]]))).toEqual([]);
+      expect(validateContent(good, profile())).toEqual([]);
+    });
+
+    it("reports a # or ## heading, naming the file and the line", () => {
+      const found = validateContent(
+        [withBody("one", "Words.\n\n## Context\n")],
+        profile([[]]),
+      );
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain("src/content/projects/one.md");
+      expect(found[0]).toContain("line 3");
+      expect(found[0]).toContain("## Context");
+    });
+
+    it("reports an image with empty alt text, naming the file", () => {
+      const found = validateContent(
+        [withBody("one", "![](./diagrams/a.svg)\n")],
+        profile([[]]),
+      );
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain("src/content/projects/one.md");
+      expect(found[0]).toContain("alt text");
+    });
+
+    it("reports the problems of every entry, not only the first", () => {
+      const found = validateContent(
+        [
+          withBody("one", "# One\n"),
+          { ...project("two", "R02", 2), body: "## Two\n" },
+        ],
+        profile([[]]),
+      );
+      expect(found).toHaveLength(2);
+      expect(found[0]).toContain("one.md");
+      expect(found[1]).toContain("two.md");
+    });
+  });
+
   it("reports every problem at once, not just the first", () => {
     const projects = [project("one", "R01", 1), project("two", "R01", 1)];
     const found = validateContent(projects, profile([["R09"]]));

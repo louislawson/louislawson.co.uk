@@ -1,4 +1,5 @@
 import type { Profile, Project } from "./schema";
+import { writeUpProblems } from "./write-up";
 
 /** The design shows 2 to 12 projects; the launch gate (PR 2.2) decides the minimum. */
 const MAX_PROJECTS = 12;
@@ -7,6 +8,8 @@ export interface ProjectEntry {
   /** The file name without its extension, which is also the page's URL. */
   id: string;
   data: Pick<Project, "code" | "order" | "featured">;
+  /** The Markdown body, the write-up, which no schema covers. */
+  body?: string | undefined;
 }
 
 export interface ProfileLike {
@@ -59,6 +62,14 @@ export function validateContent(
   }
   for (const [order, ids] of shared(projects, (p) => p.data.order)) {
     problems.push(`Projects ${ids.join(", ")} share order ${order}`);
+  }
+
+  // A body is checked whether or not the build shows the project, so a rule broken in a project
+  // that production leaves out is found too.
+  for (const project of projects) {
+    for (const problem of writeUpProblems(project.body ?? "")) {
+      problems.push(`src/content/projects/${project.id}.md, ${problem}`);
+    }
   }
 
   const codes = new Set(projects.map((p) => p.data.code));
