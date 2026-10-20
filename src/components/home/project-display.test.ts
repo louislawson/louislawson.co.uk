@@ -282,8 +282,12 @@ describe("writeUpKind", () => {
   it("is prose for anything else, a half-finished body included, which the preview shows as written", () => {
     expect(writeUpKind("### Context\n\nWords.\n")).toEqual({ kind: "prose" });
     expect(writeUpKind("Words.\n\nTODO: more\n")).toEqual({ kind: "prose" });
-    // A placeholder that goes on into more paragraphs is more than a placeholder.
+    // A placeholder that goes on, into another paragraph or straight into a heading or a list, is
+    // more than a placeholder, and is shown as the Markdown it is.
     expect(writeUpKind("TODO: start\n\nMore words.\n")).toEqual({
+      kind: "prose",
+    });
+    expect(writeUpKind("TODO: outline\n### Context\n- point\n")).toEqual({
       kind: "prose",
     });
   });

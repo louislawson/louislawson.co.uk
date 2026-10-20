@@ -79,6 +79,10 @@ describe("<WriteUp>", () => {
     expect(rule(".prose > :global(* + *)")).toMatch(/margin-top:\s*1\.1em/);
   });
 
+  it("lets a long unbroken word, such as an address, break instead of widening the page", () => {
+    expect(rule(".prose")).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
   it("starts the first block flush with the heading beside it, not 2.2em down", () => {
     expect(rule(".prose > :global(:first-child)")).toMatch(/margin-top:\s*0/);
   });
@@ -118,12 +122,16 @@ describe("<WriteUp>", () => {
     expect(rule(".prose :global(strong)")).toMatch(/font-weight:\s*700/);
   });
 
-  it("draws a code block as plain monospace on the panel colour, from the tokens, and lets a long line scroll", () => {
+  it("draws a code block as plain monospace on the panel colour, from the tokens, and wraps a long line rather than scrolling", () => {
     const block = rule(".prose :global(pre)");
     expect(block).toMatch(/background:\s*var\(--panel\)/);
     expect(block).toMatch(/border:\s*1px solid var\(--line\)/);
     expect(block).toMatch(/font-family:\s*var\(--mono\)/);
-    expect(block).toMatch(/overflow-x:\s*auto/);
+    // A scrolling block can't be reached by keyboard, since Markdown gives its pre no tabindex, so
+    // a long line wraps instead and the block never scrolls.
+    expect(block).toMatch(/white-space:\s*pre-wrap/);
+    expect(block).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(block).not.toMatch(/overflow-x/);
     // The code inside is the block's own colour, not a second box.
     expect(rule(".prose :global(pre code)")).toMatch(/background:\s*none/);
   });

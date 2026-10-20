@@ -41,6 +41,8 @@ const shown =
   .prose {
     max-width: 68ch;
     line-height: 1.75;
+    /* A long address in the text breaks at the column's edge instead of widening the page. */
+    overflow-wrap: anywhere;
   }
 
   .prose > :global(* + *) {
@@ -99,10 +101,12 @@ const shown =
   }
 
   /* Code is plain monospace on the panel colour. The browser's own monospace and its smaller size
-     would otherwise replace the site's face. */
+     would otherwise replace the site's face. A long line wraps: a block that scrolled could not be
+     reached by keyboard, since Markdown gives its pre no tabindex. */
   .prose :global(pre) {
     padding: 14px 16px;
-    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     font-family: var(--mono);
     font-size: 0.88em;
     line-height: 1.6;

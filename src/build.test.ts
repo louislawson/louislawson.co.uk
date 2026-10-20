@@ -1127,10 +1127,13 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         join(process.cwd(), "src", "content", "projects", "this-website.md"),
         "utf-8",
       );
-      // The headings the file writes, as the page shows them: smartypants makes ' a curly quote.
-      const written = [...source.matchAll(/^### (.+)$/gm)].map((m) =>
-        m[1]!.replace(/'/g, "’"),
-      );
+      // The headings the file writes outside code blocks, as the page shows them: smartypants makes
+      // ' a curly quote, and the page's text has no tags.
+      const written = [
+        ...source
+          .replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1[ \t]*$/gm, "")
+          .matchAll(/^### (.+)$/gm),
+      ].map((m) => m[1]!.replace(/'/g, "’"));
       expect(written.length).toBeGreaterThanOrEqual(5);
       // The rule forbids # and ##, so none is left in the file for the build to have rendered.
       expect(source).not.toMatch(/^#{1,2} /m);
@@ -1143,7 +1146,9 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         )?.[1] ?? "";
       const headings = [...prose.matchAll(/<h([1-6])\b[^>]*>(.*?)<\/h\1>/gs)];
       expect(headings.map((m) => m[1])).toEqual(written.map(() => "3"));
-      expect(headings.map((m) => m[2])).toEqual(written);
+      expect(headings.map((m) => m[2]!.replace(/<[^>]+>/g, ""))).toEqual(
+        written,
+      );
       // The prose sits between the measured block and the end of the page's content.
       expect(html.indexOf('id="project-details"')).toBeLessThan(
         html.indexOf('id="writeup"'),
