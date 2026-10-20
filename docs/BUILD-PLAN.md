@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-19): **Phases 0 to 4 are built.** Phase 5 is **approved for build**. Phases 6–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-20): **Phases 0 to 5 are built.** Phase 6 has been reviewed with Louis but is **not yet approved for build**. Phases 7–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -270,7 +270,7 @@ Reviewed with Louis on 2026-10-17, against the Astro 7 source and the reference 
 - **Footer:**
   - **Updated date:** the last commit's date from `git log -1 --format=%cs` at build, shown as written (`2026-10-17`). If git isn't available, leave it out.
   - **Built with:** the stack, plus a link to the repository.
-  - **Privacy line:** "no cookies, no tracking". PR 6.2 changes it when analytics arrives.
+  - **Privacy line:** "no cookies, no tracking". PR 6.5 changes it when analytics arrives.
   - **Keyboard-shortcut switch:**
     - A button that reads "keyboard shortcuts: on", with `aria-pressed`. Turning it off disables `1`–`5` and `i` together and hides the number hints in the nav.
     - The choice is remembered in `localStorage`, with every read and write in a try/catch; if storage is blocked, it falls back to on.
@@ -608,21 +608,178 @@ Where the mock and the contract differ, the contract wins.
 
 ## Phase 6 · Hardening
 
-### PR 6.1 · `test(e2e): Playwright, axe, HTML validation and link checks`
+Reviewed with Louis on 2026-10-20. Phase 6 is eight narrow PRs, each with a fixed list of what it checks. The per-PR rules from Phase 5 still apply:
 
-Playwright against the built site: pages render, number keys, inspect mode, reduced motion, 404; axe on home and a project page; `html-validate`; `lychee` link check. All in CI.
+- tests in both the `preview` and `production` contexts
+- screenshots for any visual change, pushed to `pr-assets/phase-6` after the metadata check
 
-### PR 6.2 · `feat(security): final CSP and analytics`
+Anything a PR finds outside its list is reported to Louis, not fixed in that PR.
 
-Cloudflare Web Analytics snippet (token is public config); CSP updated to allow only its beacon; headers asserted by a test. The footer's "no cookies, no tracking" line (PR 3.2) changes to the cookieless analytics note.
+**The e2e harness (PRs 6.1–6.4):**
 
-### PR 6.3 · `fix(ui): responsive and accessibility pass`
+- **Reference:** Starlight's docs site (`withastro/starlight`, `docs/playwright.config.ts` and `docs/__a11y__/`), the Astro team's own Playwright and axe setup, and [Playwright's accessibility testing guide](https://playwright.dev/docs/accessibility-testing).
+- **Why a custom server:** `astro preview` does not send the headers Azure Static Web Apps adds (the CSP, HSTS, `X-Robots-Tag`), so a blocked script or style would pass unnoticed. The tests run against a small server that applies the build's own `staticwebapp.config.json`.
+- **No screenshot comparisons** (`toHaveScreenshot`): fonts render differently on Windows and on Linux CI. Phase 7's finish review covers how the site looks.
 
-Run Impeccable `adapt` and `audit`; fix what they find at phone, tablet and desktop widths.
+### PR 6.1 · `test(e2e): Playwright harness and smoke tests`
 
-### PR 6.4 · `ci(security): OpenSSF Scorecard`
+- **Builds:**
+  - `npm run build:e2e` builds both deploy contexts into `dist-e2e/preview/` and `dist-e2e/production/` with `--outDir` (inside the project).
+  - `LAUNCH` stays as committed.
+  - `dist-e2e/`, `test-results/` and `playwright-report/` are ignored by git, Prettier and ESLint.
+- **Server:**
+  - `e2e/serve.ts` uses `node:http` only, with no new dependency. It serves one built folder on one port.
+  - It applies that folder's generated `staticwebapp.config.json`: `globalHeaders`, the `routes` headers, and the `404` rewrite (status 404 with `404.html`).
+  - The header and 404 rules are a pure function, and its Vitest tests live outside `e2e/`.
+- **Config:**
+  - `playwright.config.ts` at the root, tests in `e2e/*.spec.ts`. Vitest excludes `e2e/`.
+  - Two `webServer` entries (preview on port 4400, production on 4401) serve the builds and never build.
+  - **Projects:** `desktop-chromium` runs every spec. `mobile-webkit` (iPhone emulation) runs only the smoke spec. Both run against each context.
+  - On CI: `retries: 2` and `forbidOnly`.
+- **Pages:** the list of pages comes from the build output (every `index.html`, plus `404.html`), never a hand-kept list or the sitemap.
+- **Smoke checks**, on every page in both contexts:
+  - status 200
+  - no console errors and no failed requests
+  - no `securitypolicyviolation` event
+  - no horizontal scroll at 320 px
+  - a made-up path returns status 404 with the 404 page
+- **Scripts:** `test:e2e` runs `build:e2e`, then `playwright test`.
+- **CI:**
+  - A new job, "E2E", installs Chromium and WebKit with `npx playwright install --with-deps chromium webkit`, at the lockfile's Playwright version.
+  - The HTML report is uploaded only on failure, kept 7 days.
+  - `e2e/` and `playwright.config.ts` stay out of `deploy.yml`'s allow-list, because they don't change the site.
+- **Dependencies:** `@playwright/test` is a devDependency, with a Snyk package health check.
+- **Acceptance:**
+  - the server's rules are unit-tested
+  - the smoke checks pass in both contexts
+  - one deliberately broken page (an inline `style=`, never committed) fails the CSP check, shown in the PR
 
-Its own workflow (`ossf/scorecard-action` v2, SHA-pinned) on push to `main` and a weekly schedule, `publish_results: true`, results uploaded to code scanning, badge in the README. Expected low scores on Code-Review and Branch-Protection for a solo repo are noted in the PR rather than gamed.
+### PR 6.2 · `test(e2e): browser behaviour`
+
+Only what needs a real browser. The markup is already covered by the Container API tests.
+
+- **Number keys:**
+  - each key jumps to its section
+  - keys are ignored when shortcuts are off, while typing in a field, with Control, Alt or Meta held, and on key repeat
+- **Shortcuts switch:**
+  - `ariaSnapshot` shows `button "keyboard shortcuts:" [pressed]`, carried from PR 3.2
+  - the state survives a reload, and the number hints show or hide to match it
+- **Inspect mode:**
+  - `i` turns it on and off, and the labels appear
+  - the status region announces the change
+  - at phone width the nav's label does not cover the first content
+- **Reduced motion** (`emulateMedia({ reducedMotion: "reduce" })`): the trace's replay button is hidden and the wheel does not animate, in the preview build.
+- **Trace:** it shows real numbers on the local server.
+- **Project pages:**
+  - the back link goes to `/#projects`
+  - the next-project link wraps from the last project to the first in the preview build
+- **Acceptance:** each item above is a test in `desktop-chromium`, in the contexts where it appears.
+
+### PR 6.3 · `test(a11y): axe on every page`
+
+- **Package:** `@axe-core/playwright`, Deque's official package, which is free and MPL-2.0. It is set up through one shared fixture (`makeAxeBuilder`), with a Snyk package health check. Snyk's licence policy may flag MPL-2.0; that is a warning only, for a devDependency that is never shipped.
+- **Tags:** `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` and `best-practice`.
+- **Pages:** every page in both contexts, plus the home page with inspect mode on.
+- **Gate:** zero violations. A disabled rule or an `exclude()` needs a code comment and a reason in the PR. The full results are attached to a failing test with `testInfo.attach()`.
+- **Acceptance:** the scan passes on every page, and the PR lists anything it had to fix.
+
+### PR 6.4 · `test(html): HTML validation and link checks`
+
+- **HTML validation:**
+  - `html-validate` (MIT, offline) with the `html-validate:recommended` preset, over every HTML file in both builds.
+  - Each rule turned off is commented in `.htmlvalidate.json`.
+  - Script: `validate:html`.
+- **Links on PRs:**
+  - lychee through `lycheeverse/lychee-action`, SHA-pinned.
+  - It runs `--offline` with `--include-fragments` and `--root-dir` over both builds, covering internal links, `#fragment` anchors and assets.
+  - Config is in `lychee.toml`. This is a gate.
+- **External links:**
+  - A separate workflow, `links.yml`, runs weekly on a schedule with `permissions: contents: read`.
+  - It checks the production build's external links and reports in the job summary. It is not a gate: LinkedIn answers bots with status 999, and GitHub rate-limits.
+- **CI:** a new job, "Static checks", runs `build:e2e`, then `html-validate` and lychee.
+- **Acceptance:**
+  - both checks pass on both builds
+  - a deliberately broken anchor fails lychee, shown in the PR and never committed
+- **Handback:** Louis adds "E2E" and "Static checks" to the "Protect main" required checks.
+
+### PR 6.5 · `feat(security): final CSP and analytics`
+
+- **Cookie proof first:**
+  - Before any code, load the real Cloudflare beacon in a browser, from a local production build with the network allowed.
+  - Record every cookie for every domain (`context.cookies()`), plus local and session storage. The result goes in the PR.
+  - If anything is set, **stop and ask**. `PRODUCT.md` promises no cookies. The fallbacks are GoatCounter or no analytics.
+- **Token:**
+  - `ANALYTICS_TOKEN` in `src/config/site.ts`, public config that ships in the page anyway.
+  - It starts as a `TODO:` placeholder, and the beacon is left out while it is one. It is not in the launch gate's required set.
+  - Louis creates the Cloudflare Web Analytics site for `louislawson.co.uk` and supplies the token. Counting starts only once the domain is connected in Phase 8, because hostnames are matched by suffix.
+- **Beacon:**
+  - Production builds only, as `<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"…"}'>`.
+  - No `integrity` attribute: Cloudflare updates the beacon without versioning it.
+- **CSP:**
+  - When the beacon is in, `buildStaticWebAppConfig` adds `script-src 'self' https://static.cloudflareinsights.com` and `connect-src 'self' https://cloudflareinsights.com`. Previews and local builds keep `default-src 'self'` alone.
+  - Every build adds `require-trusted-types-for 'script'; trusted-types 'none'`. If the beacon trips it in the cookie proof, drop it and say so in the PR.
+  - Not added: `upgrade-insecure-requests`, since nothing loads over HTTP.
+  - HSTS `includeSubDomains` and `preload` wait for Phase 8.
+- **E2E:**
+  - The tests answer requests to `cloudflareinsights.com` with an empty 204 response, so no test reaches the network and the smoke test's "no failed requests" holds.
+  - They assert that only the production build makes those requests.
+- **Live check:**
+  - A post-deploy step in `deploy.yml` runs `scripts/check-live.ts`, which is unit-tested, against the URL the deploy step reports, for both previews and production.
+  - It asserts that the CSP is exactly what the build generated, HSTS is present, `X-Robots-Tag` matches the context, and a made-up path returns 404.
+- **Footer:**
+  - "no cookies, no tracking" becomes "no cookies · anonymous visit counts", the same in every build.
+  - The contact label's "no cookies" stays.
+- **Acceptance:**
+  - tests cover the beacon and CSP for each context, with a real and a placeholder token
+  - `check-live.ts` passes on the PR's own preview
+  - the cookie proof is in the PR
+
+### PR 6.6 · `fix(ui): reflow and touch`
+
+- **Checklist.** Each item is a Playwright test on every page in both contexts. Anything failing is fixed in this PR.
+  - **Widths:** at 320, 375, 768, 1024 and 1440 px, the page has no horizontal scroll, and no text element with hidden overflow is wider than its box. This covers WCAG 1.4.10 at 320 px.
+  - **Text spacing (1.4.12):** the WCAG values are applied (line height 1.5, paragraph spacing 2em, letter spacing 0.12em, word spacing 0.16em) through a `bypassCSP` context, with the same width checks.
+  - **Target size (2.5.8):** every link and button is at least 24 × 24 px, except inline links in a sentence, which the criterion exempts.
+- **Impeccable:**
+  - Run `adapt` and `audit`.
+  - The full output goes to a local, untracked file, `%TEMP%\impeccable-audit-6.6.md`. Nothing from it is committed or pasted into the PR.
+  - At handback, give Louis a short "found, not fixed" summary in chat. Louis decides what, if anything, becomes an issue or a later PR.
+- **PR body:** names only the checklist items, with desktop and mobile screenshots of anything fixed.
+
+### PR 6.7 · `fix(a11y): keyboard and semantics`
+
+- **Checklist.** Each item is a test, and anything failing is fixed in this PR.
+  - **Focus ring:** tabbing through every page, each control shows a visible focus indicator (the computed outline or box shadow is not none).
+  - **Focus not obscured (2.4.11):** a focused element is never under the sticky nav. The fix is `scroll-padding-top: var(--nav-height)`.
+  - **Forced colours** (`emulateMedia({ forcedColors: "active" })`): placeholder hatching, the status squares and the focus rings stay visible. The PR shows screenshots, and a test checks that the focus outline is not none.
+  - **Lists:** the project entries (both layouts, carried from PR 4.3), the skills rows and the certifications are `ul`/`li`. Container tests are updated, and accessible names are unchanged.
+- **Impeccable:** the same as 6.6, to `%TEMP%\impeccable-audit-6.7.md`.
+
+### PR 6.8 · `ci(security): OpenSSF Scorecard`
+
+- **Workflow:** `.github/workflows/scorecard.yml`.
+  - **Triggers:** a push to `main`, and weekly at `23 5 * * 1`.
+  - **Permissions:** `permissions: {}` at the top. The job gets `contents: read`, `actions: read`, `security-events: write` and `id-token: write`.
+  - **Publishing rules:** results are published, so there is no `env` or `defaults` at any level, no container, and an Ubuntu runner.
+  - **Steps:** only these actions, each SHA-pinned:
+    - `actions/checkout`, with `persist-credentials: false`
+    - `ossf/scorecard-action` v2, with `publish_results: true` and `results_format: sarif`
+    - `actions/upload-artifact`, kept 5 days
+    - `github/codeql-action/upload-sarif`
+  - **Tests:** `workflows.test.ts` pins these rules.
+  - **Previews:** it stays out of `deploy.yml`'s allow-list.
+- **Branch-Protection:** "Protect main" is a ruleset, which the default `GITHUB_TOKEN` can read. No personal access token.
+- **`SECURITY.md`:** points to GitHub's private vulnerability reporting. No email address.
+- **Fixed in the PR:** real Token-Permissions and Pinned-Dependencies findings.
+- **Noted, not gamed:** each with its first-run score and one line of explanation:
+  - Code-Review: the repo has one maintainer, who merges every PR.
+  - Maintained: the repo is under 90 days old.
+  - Contributors.
+  - CII-Best-Practices, Fuzzing, Signed-Releases and Packaging: not applicable.
+- **Badge:** in the README, `https://api.scorecard.dev/projects/github.com/louislawson/louislawson.co.uk/badge`. It reads "no data" until the first published run.
+- **Handback:** Louis turns on:
+  - private vulnerability reporting
+  - CodeQL default setup for JavaScript and TypeScript, adding its check to "Protect main" after the first run if wanted
 
 ## Phase 7 · Finish and document
 
