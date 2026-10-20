@@ -24,13 +24,19 @@ const copies: string[] = [];
  */
 export const BUILD_TIMEOUT_MS = 55_000;
 
-// The copy builds through this config, which is the copied one with a cache of its own. Wrapping it
-// finds nothing in its text, so a change to how astro.config.mjs is written cannot leave the cache
-// shared without a word.
+// The copy builds through this config, which is the copied one with caches of its own. Wrapping it
+// finds nothing in its text, so a change to how astro.config.mjs is written cannot leave a cache
+// shared without a word. Vite's own cache, its optimised dependencies, defaults to
+// node_modules/.vite, which the copies share through the junction: two builds at once renamed the
+// same folder under each other (EPERM and ENOENT), so it is moved into the copy as well.
 const COPY_CONFIG = "astro.copy.config.mjs";
 const COPY_CONFIG_SOURCE = `import config from "./astro.config.mjs";
 
-export default { ...config, cacheDir: "./.cache" };
+export default {
+  ...config,
+  cacheDir: "./.cache",
+  vite: { ...config.vite, cacheDir: "./.cache/vite" },
+};
 `;
 
 /** A copy of the project in a temporary folder, which `removeCopies` deletes. */
