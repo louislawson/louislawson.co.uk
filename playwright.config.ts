@@ -19,10 +19,12 @@ export default defineConfig({
     name: context.name,
     command: `node e2e/serve.ts ${folderOf(context).replaceAll("\\", "/")} ${context.port}`,
     url: `http://127.0.0.1:${context.port}/`,
-    reuseExistingServer: !process.env.CI,
+    // Never attach to a server already on the port: it may be a stale one, with an old config.
+    reuseExistingServer: false,
     stdout: "ignore",
     stderr: "pipe",
   })),
+  use: { trace: "on-first-retry" },
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
     {

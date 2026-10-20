@@ -111,6 +111,17 @@ describe("which headers an answer carries", () => {
     expect(headers["Content-Security-Policy"]).toBe("default-src 'self'");
   });
 
+  it.each(["/%5Fastro/site.abc123.css", "/_astro%2Fsite.abc123.css"])(
+    "matches a route on the decoded path that picks the file (%s)",
+    (path) => {
+      const answer = respond(config, path, exists);
+      expect(answer.file).toBe("_astro/site.abc123.css");
+      expect(answer.headers["Cache-Control"]).toBe(
+        "public, max-age=31536000, immutable",
+      );
+    },
+  );
+
   it("matches header names without regard to case when replacing", () => {
     const lower: StaticWebAppRules = {
       ...config,

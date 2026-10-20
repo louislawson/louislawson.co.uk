@@ -11,7 +11,8 @@ on:
   # fetches the deployment token and runs Microsoft's client. The code only the scripts and
   # tests use is src/metadata/ (the metadata check), src/content/list-placeholders.ts (the
   # placeholder listing) and src/e2e/ (the e2e server's rules); nothing the build reads imports
-  # any of them, which src/deploy-path-filters.test.ts checks. Negations need a positive pattern first, and a later pattern overrides an earlier one.
+  # any of them, which src/deploy-path-filters.test.ts checks. Negations need a positive pattern
+  # first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
     paths:
@@ -48,10 +49,10 @@ on:
   # a production deploy. They get a preview only for changes the build reads: the source
   # (Markdown under src/ is content; tests, specs and fixtures are not, and neither are
   # src/metadata/, src/content/list-placeholders.ts and src/e2e/, which only the scripts and
-  # tests use), static files, and the files the build or install reads. Tests, lint and format configs, docs,
-  # infrastructure and tooling folders are not on it, so they would only produce a preview
-  # identical to production and use up one of the Free plan's 3 slots. Such pull requests still
-  # build and test in CI.
+  # tests use), static files, and the files the build or install reads. Tests, lint and format
+  # configs, docs, infrastructure and tooling folders are not on it, so they would only produce a
+  # preview identical to production and use up one of the Free plan's 3 slots. Such pull requests
+  # still build and test in CI.
   # A draft pull request builds in CI but gets no preview until it is marked ready for review.
   # Removing a preview (on close, or when a pull request goes back to draft) is a separate
   # workflow, preview-cleanup.yml, because this paths filter is evaluated on the final diff and

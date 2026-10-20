@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
 import { CONTEXTS, folderOf, originOf, pagesOf } from "./contexts.ts";
 
 // The smoke checks: every page of both builds loads cleanly under the site's real headers, and a
@@ -51,10 +51,21 @@ function watch(page: Page) {
 for (const context of CONTEXTS) {
   const folder = folderOf(context);
   const origin = originOf(context);
+  const pages = pagesOf(context);
   const config = JSON.parse(
     readFileSync(join(folder, "staticwebapp.config.json"), "utf-8"),
   ) as { globalHeaders: Record<string, string> };
-  const pages = pagesOf(context);
+
+  /** Every header the build's config sets for all pages arrives, so a dropped one is noticed. */
+  const expectGlobalHeaders = (response: Response | null) => {
+    expect(Object.keys(config.globalHeaders)).toContain(
+      "Content-Security-Policy",
+    );
+    const received = response?.headers() ?? {};
+    for (const [name, value] of Object.entries(config.globalHeaders)) {
+      expect(received[name.toLowerCase()], name).toBe(value);
+    }
+  };
 
   test.describe(`${context.name} build`, () => {
     test("has the pages every build has", () => {
@@ -71,9 +82,7 @@ for (const context of CONTEXTS) {
 
           expect(response?.status()).toBe(200);
           // If the server stopped applying the config, nothing below would mean anything.
-          expect(response?.headers()["content-security-policy"]).toBe(
-            config.globalHeaders["Content-Security-Policy"],
-          );
+          expectGlobalHeaders(response);
           expect(await watching.violations()).toEqual([]);
           expect(watching.problems).toEqual([]);
         });
@@ -104,9 +113,7 @@ for (const context of CONTEXTS) {
       expect(await response?.text()).toBe(
         readFileSync(join(folder, "404.html"), "utf-8"),
       );
-      expect(response?.headers()["content-security-policy"]).toBe(
-        config.globalHeaders["Content-Security-Policy"],
-      );
+      expectGlobalHeaders(response);
     });
   });
 }

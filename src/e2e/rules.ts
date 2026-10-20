@@ -40,12 +40,15 @@ function requestedFile(urlPath: string): string | undefined {
 const join = (folder: string, name: string) =>
   folder === "" ? name : `${folder}/${name}`;
 
-/** The route headers that apply to a path: an exact route, or a prefix route ending in `*`. */
+/**
+ * The route headers that apply to a path: an exact route, or a prefix route ending in `*`. The
+ * path is the decoded one that picked the file, so an encoded URL gets the headers of the file it
+ * serves.
+ */
 function routeHeaders(
   routes: StaticWebAppRules["routes"],
-  urlPath: string,
+  path: string,
 ): Record<string, string> {
-  const path = urlPath.split(/[?#]/)[0] ?? "";
   const merged: Record<string, string> = {};
   for (const { route, headers } of routes ?? []) {
     const matches = route.endsWith("*")
@@ -90,7 +93,10 @@ export function respond(
       return {
         status: 200,
         file,
-        headers: mergeHeaders(global, routeHeaders(config.routes, urlPath)),
+        headers: mergeHeaders(
+          global,
+          routeHeaders(config.routes, `/${wanted}`),
+        ),
       };
     }
   }

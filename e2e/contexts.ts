@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pagePaths } from "../src/e2e/rules.ts";
 
@@ -19,6 +19,11 @@ export const originOf = (context: Context) =>
 
 /** Every page of a context's build, read from the built folder and not from a list kept by hand. */
 export function pagesOf(context: Context): string[] {
+  if (!existsSync(join(folderOf(context), "index.html"))) {
+    throw new Error(
+      `${folderOf(context)} holds no build. Run "npm run build:e2e" first, or "npm run test:e2e", which builds and then tests.`,
+    );
+  }
   const files = readdirSync(folderOf(context), {
     recursive: true,
     withFileTypes: true,
