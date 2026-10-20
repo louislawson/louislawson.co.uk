@@ -1,5 +1,9 @@
 import type { Project } from "../../content/schema";
-import { isPlaceholder } from "../../content/todo";
+import {
+  PLACEHOLDER_PREFIX,
+  isPlaceholder,
+  placeholderHint,
+} from "../../content/todo";
 
 /** Up to this many projects are shown in full, as strips; more are compact rows. */
 export const STRIP_LIMIT = 3;
@@ -33,6 +37,36 @@ export function featuredFirst<E extends Pick<Listed, "data">>(
 /** A project's page: its file name (the collection's id) under /projects/. */
 export function projectPath(id: string): string {
   return `/projects/${id}/`;
+}
+
+/**
+ * A project's title as a link's name says it. A placeholder title is hatched on the page, which a
+ * name cannot be, so the name carries what the placeholder says is missing, and never "TODO:". A
+ * title that is only the prefix says nothing, so the name leaves it out.
+ */
+function titleInName(data: { title: string }): string | undefined {
+  const title = placeholderHint(data.title);
+  return title === PLACEHOLDER_PREFIX ? undefined : title;
+}
+
+/**
+ * The name of the link that covers a project's entry on the home page. With nothing to say of the
+ * title it names the entry by its code.
+ */
+export function runSheetLinkName(data: {
+  title: string;
+  code: string;
+}): string {
+  return `Read the run sheet: ${titleInName(data) ?? data.code}`;
+}
+
+/**
+ * The name of a "seen in" link, which shows the code alone: "R04, This website". It starts with
+ * the words the link shows, so a voice control user who says them reaches it.
+ */
+export function seenInLinkName(data: { title: string; code: string }): string {
+  const title = titleInName(data);
+  return title === undefined ? data.code : `${data.code}, ${title}`;
 }
 
 /**

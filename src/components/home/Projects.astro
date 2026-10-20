@@ -1,9 +1,11 @@
 ---
 // Text and a component sit against each other on one line (`<Placeholder … /> · <Placeholder … />`):
 // compressHTML keeps a line break as a space, and the meta line is " · " between its halves only.
+// The link's name hugs its tags for the same reason: a space inside it would be part of the name.
 import { site, type DeployContext } from "../../config/site";
 import type { Project } from "../../content/schema";
 import type { Section as SectionInfo } from "../../content/visibility";
+import Icon from "../Icon.astro";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
 import {
@@ -11,14 +13,19 @@ import {
   featuredFirst,
   metaParts,
   projectLayout,
+  projectPath,
+  runSheetLinkName,
 } from "./project-display";
 import { SECTION_INTROS } from "./section-intros";
 import Section from "./Section.astro";
 import Status from "./Status.astro";
 
 interface Props {
-  /** The projects this build shows, from getSiteContent(). The section puts them in its own order. */
-  projects: { data: Project }[];
+  /**
+   * The projects this build shows, from getSiteContent(). The section puts them in its own order.
+   * Each `id` is the file name, which is also the address of the project's page.
+   */
+  projects: { id: string; data: Project }[];
   /** The sections this build shows, from visibleSections(). */
   sections: SectionInfo[];
   /** Defaults to the deploy context of this build. */
@@ -44,8 +51,10 @@ const layout = projectLayout(projects.length);
   count={countLabel(projects.length)}
 >
   <div class={`runs runs--${layout}`}>
-    {projects.map(({ data }) => {
+    {projects.map(({ id, data }) => {
       const { lead, period } = metaParts(data);
+      // One link to the project's page covers the whole entry, and is last in it.
+      const hit = { href: projectPath(id), name: runSheetLinkName(data) };
       return layout === "strip" ? (
         <article class="run run--strip">
           <div class="run__line">
@@ -77,6 +86,10 @@ const layout = projectLayout(projects.length);
               <p><Placeholder value={data.result} context={context} /></p>
             </div>
           </div>
+          <span class="run__more" aria-hidden="true"
+            >read the run sheet <Icon name="arrow" size={16}
+          /></span>
+          <a class="hit" href={hit.href}><span class="vh">{hit.name}</span></a>
         </article>
       ) : (
         <article class="run run--row">
@@ -91,6 +104,8 @@ const layout = projectLayout(projects.length);
             ><Placeholder value={data.headline} context={context}
           /></span>
           <Status status={data.status} context={context} />
+          <span class="arr"><Icon name="arrow" size={16} /></span>
+          <a class="hit" href={hit.href}><span class="vh">{hit.name}</span></a>
         </article>
       );
     })}
@@ -102,8 +117,17 @@ const layout = projectLayout(projects.length);
     color: var(--hivis);
   }
 
+  /* The link over the whole entry, so the entry is one target and the keyboard focus ring (the
+     global one on :focus-visible) goes round all of it. */
+  .hit {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
   /* Strips: the run sheet in full. */
   .run--strip {
+    position: relative;
     padding-block: 2rem 2.2rem;
     border-bottom: 1px solid var(--line);
   }
@@ -119,6 +143,12 @@ const layout = projectLayout(projects.length);
     font-size: clamp(1.25rem, 1rem + 1vw, 1.9rem);
     font-weight: 700;
     letter-spacing: -0.02em;
+    transition: color 140ms var(--ease);
+  }
+
+  .run--strip:hover .run__title,
+  .run--strip:focus-within .run__title {
+    color: var(--hivis);
   }
 
   /* The leader, the tag and the status are one piece, so when the line is too short for the title
@@ -174,6 +204,15 @@ const layout = projectLayout(projects.length);
     content: "> " / "";
   }
 
+  /* The line the link ends a strip with. It is for the eye: the link has its own name. */
+  .run__more {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 1.3rem;
+    color: var(--hivis);
+  }
+
   @media (max-width: 760px) {
     .run__sheet {
       grid-template-columns: 1fr;
@@ -189,12 +228,42 @@ const layout = projectLayout(projects.length);
 
   /* Rows: the compact list, from four projects. */
   .run--row {
+    position: relative;
     display: grid;
-    grid-template-columns: 3.6rem minmax(0, 1.5fr) minmax(0, 1fr) 9.5rem;
+    grid-template-columns: 3.6rem minmax(0, 1.5fr) minmax(0, 1fr) 9.5rem 1.5rem;
     gap: 14px;
     align-items: center;
     padding-block: 1rem;
     border-bottom: 1px solid var(--line);
+    transition: background-color 140ms var(--ease);
+  }
+
+  /* The marker that arrives in the gutter under the pointer or the focus. */
+  .run--row::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -14px;
+    width: 6px;
+    height: 6px;
+    background: var(--hivis);
+    transform: translateY(-50%) scale(0);
+    transition: transform 160ms var(--ease);
+  }
+
+  .run--row:hover,
+  .run--row:focus-within {
+    background: var(--panel);
+  }
+
+  .run--row:hover::before,
+  .run--row:focus-within::before {
+    transform: translateY(-50%) scale(1);
+  }
+
+  .arr {
+    display: inline-flex;
+    color: var(--hivis);
   }
 
   /* The title and the featured tag side by side, the tag outside the heading. */
@@ -217,8 +286,13 @@ const layout = projectLayout(projects.length);
 
   @media (max-width: 760px) {
     .run--row {
-      grid-template-columns: 3rem minmax(0, 1fr);
+      grid-template-columns: 3rem minmax(0, 1fr) 1.5rem;
       row-gap: 3px;
+    }
+
+    .arr {
+      grid-column: 3;
+      grid-row: 1;
     }
 
     /* The cell holds a status or a placeholder for one: both go under the title. */

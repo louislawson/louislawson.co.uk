@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -612,12 +618,61 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(html.indexOf('id="projects"')).toBeLessThan(html.indexOf("<footer"));
     // The nav's link goes to it.
     expect(html).toContain('href="/#projects"');
-    // No project has a page yet, so nothing in the section links anywhere.
+  });
+
+  it("links each project entry, and only the entries, to its run sheet, with a name that says so", () => {
     const section = /<section[^>]*\sid="projects"[\s\S]*?<\/section>/.exec(
-      html,
+      read(dir, "index.html"),
     )![0];
-    expect(section).not.toContain("<a ");
-    expect(section).not.toContain("href=");
+    const entries = section.split("<article").slice(1);
+    const links = [...section.matchAll(/<a\b([^>]*)>(.*?)<\/a>/g)];
+    // One link per entry, and nothing else in the section is a link.
+    expect(links).toHaveLength(entries.length);
+    entries.forEach((entry, index) => {
+      expect(entry.match(/<a\b/g), `entry ${index}`).toHaveLength(1);
+      expect(entry, `entry ${index}`).toMatch(
+        /<a\b[^>]*class="hit"[^>]*href="\/projects\/[a-z0-9-]+\/"/,
+      );
+    });
+    const names = links.map((m) =>
+      m[2]!
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+    for (const name of names) {
+      expect(name).toMatch(/^Read the run sheet: \S/);
+      // A hatched placeholder title is named by its hint, never by the prefix.
+      expect(name).not.toContain("TODO");
+    }
+    if (deployContext === "preview") {
+      expect(links.map((m) => /href="([^"]*)"/.exec(m[1]!)?.[1])).toEqual([
+        "/projects/r01-placeholder/",
+        "/projects/r02-placeholder/",
+        "/projects/r03-placeholder/",
+        "/projects/this-website/",
+      ]);
+      expect(names[0]).toBe("Read the run sheet: project title");
+      expect(names[3]).toBe("Read the run sheet: This website");
+    } else {
+      expect(names).toEqual(["Read the run sheet: This website"]);
+      expect(section).toContain("read the run sheet");
+    }
+  });
+
+  it("links to no project page that this build did not make", () => {
+    const html = read(dir, "index.html");
+    const hrefs = [...html.matchAll(/\shref="(\/projects\/[^"]*)"/g)].map(
+      (m) => m[1]!,
+    );
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const href of hrefs) {
+      expect(href, href).toMatch(/^\/projects\/[a-z0-9-]+\/$/);
+      expect(
+        existsSync(join(dir, href, "index.html")),
+        `${href} has no page in this build`,
+      ).toBe(true);
+    }
   });
 
   if (deployContext === "preview") {
@@ -687,7 +742,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       // escapes its apostrophe.
       expect(section).toContain("what I'm exploring next");
       expect(section).toContain("Where I&#39;ve used each one");
-      // Plain text throughout: nothing links to a project yet.
+      // The one row is a placeholder with no runs, so nothing in the section links anywhere.
       expect(section).not.toContain("<a ");
     });
   } else {
