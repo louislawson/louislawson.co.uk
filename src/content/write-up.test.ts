@@ -120,6 +120,37 @@ describe("writeUpProblems", () => {
         [],
       );
     });
+
+    it("leaves a thematic break after a list item or a quote alone, even when the item runs onto a second line", () => {
+      // The second line is a lazy continuation, which no underline turns into a heading.
+      expect(
+        writeUpProblems(lines("- item", "continued", "---", "", "More.")),
+      ).toEqual([]);
+      expect(
+        writeUpProblems(lines("> quote", "continued", "---", "", "More.")),
+      ).toEqual([]);
+      expect(writeUpProblems(lines("1. item", "continued", "==="))).toEqual([]);
+    });
+
+    it("finds a heading inside a quote or a list item", () => {
+      expect(writeUpProblems("> # Quoted")).toHaveLength(1);
+      expect(writeUpProblems("> > ## Deeper")).toHaveLength(1);
+      expect(writeUpProblems("- # Item")).toHaveLength(1);
+      expect(writeUpProblems("1. ## Step")).toHaveLength(1);
+      expect(writeUpProblems("- ### Fine")).toEqual([]);
+    });
+
+    it("finds a heading written as HTML, and leaves an h3 alone", () => {
+      expect(writeUpProblems("<h1>Title</h1>")).toHaveLength(1);
+      expect(writeUpProblems('Words <H2 id="x">Sub</H2>')).toHaveLength(1);
+      expect(writeUpProblems("<h3>Fine</h3>")).toEqual([]);
+      expect(writeUpProblems("<hr>")).toEqual([]);
+    });
+
+    it("says the line is the write-up's, counted from below the frontmatter", () => {
+      const [problem] = writeUpProblems("## Context");
+      expect(problem).toMatch(/^write-up line 1:/);
+    });
   });
 
   describe("images", () => {
@@ -190,6 +221,36 @@ describe("writeUpProblems", () => {
           ),
         ),
       ).toEqual([]);
+    });
+  });
+
+  describe("images that run over more than one line, or hold code", () => {
+    it("counts alt text that is only a code span as alt text", () => {
+      expect(writeUpProblems("![`terraform plan`](./a.svg)")).toEqual([]);
+    });
+
+    it("still leaves an image inside a code span alone", () => {
+      expect(writeUpProblems("Write `![](x.svg)` here.")).toEqual([]);
+      expect(writeUpProblems("Write ``![](x.svg)`` here.")).toEqual([]);
+    });
+
+    it("finds an <img> whose attributes are on several lines, and names the line it starts on", () => {
+      const [problem, ...rest] = writeUpProblems(
+        lines("Words.", "", "<img", '  src="./a.svg"', '  alt="">'),
+      );
+      expect(rest).toEqual([]);
+      expect(problem).toContain("line 3");
+      expect(
+        writeUpProblems(lines("<img", '  src="./a.svg"', '  alt="A diagram">')),
+      ).toEqual([]);
+    });
+
+    it("reads alt text that wraps onto a second line, and finds one that is only a line break", () => {
+      expect(
+        writeUpProblems(lines("![A long", "description](./a.svg)")),
+      ).toEqual([]);
+      const [problem] = writeUpProblems(lines("Words.", "![", "](./a.svg)"));
+      expect(problem).toContain("line 2");
     });
   });
 

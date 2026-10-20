@@ -31,13 +31,14 @@ type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 const { project, next, sections } = Astro.props;
 const writeUp = writeUpKind(project.body);
 // A body that is only a placeholder is hatched, not rendered, and no body has no write-up at all.
-const { Content } = await render(project);
+const Content =
+  writeUp.kind === "prose" ? (await render(project)).Content : undefined;
 ---
 
 <Base title={pageTitle(project.data)} sections={sections}>
   <ProjectHead project={project} />
   <Measured project={project} />
   {writeUp.kind === "placeholder" && <WriteUp placeholder={writeUp.text} />}
-  {writeUp.kind === "prose" && <WriteUp><Content /></WriteUp>}
+  {Content && <WriteUp><Content /></WriteUp>}
   <NextProject next={next} />
 </Base>

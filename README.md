@@ -43,7 +43,7 @@ Content is a Markdown file per project in [`src/content/projects`](src/content/p
 
 The body of a project's Markdown file is its write-up, rendered under the page's `# write-up` heading. The page already has the `h1` (the title) and that `h2`, so:
 
-- **Headings are `###`.** A `#` or `##` heading, or a line underlined with `===` or `---`, fails the build, with the file and the line. Fenced code is not checked, so a shell comment in a code block is fine.
+- **Headings are `###`.** A `#` or `##` heading, or a line underlined with `===` or `---`, fails the build, with the file and the line (counted from the first line below the frontmatter). Fenced code is not checked, so a shell comment in a code block is fine.
 - **Code blocks are plain.** Syntax highlighting is off (`markdown.syntaxHighlight` in `astro.config.mjs`), because it writes inline `style` attributes that the content security policy blocks.
 - **A diagram is a plain Markdown image**, `![what it shows](./diagrams/name.svg)`, with the file in `src/content/projects/diagrams/`. SVG is preferred, on a dark ground in the site's colours; a PNG at 2× is accepted. An image with empty alt text fails the build. The paragraph after an image is its caption.
 - **A write-up is Markdown, or one `TODO:` paragraph.** A preview hatches the paragraph under the heading; production leaves out the whole project, as it does for any `TODO` in a body.
