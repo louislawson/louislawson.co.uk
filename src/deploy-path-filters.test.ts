@@ -86,6 +86,15 @@ describe("a push to main", () => {
   it.each([
     "scripts/placeholders.ts",
     "scripts/check-metadata.ts",
+    "scripts/build-e2e.ts",
+    // The Playwright tests, server and config check the built site; they are not part of it.
+    "e2e/smoke.spec.ts",
+    "e2e/serve.ts",
+    "playwright.config.ts",
+    // The server's rules, which only the e2e server and its tests use.
+    "src/e2e/rules.ts",
+    "src/e2e/rules.test.ts",
+    "src/e2e/NOTES.md",
     "src/metadata/image.ts",
     "src/metadata/pdf.ts",
     "src/metadata/__fixtures__/pdf.ts",
@@ -133,6 +142,9 @@ describe("a pull request", () => {
     "src/__tests__/project-copy.ts",
     "src/content/list-placeholders.ts",
     "src/content/schema.test.ts",
+    "src/e2e/rules.ts",
+    "e2e/smoke.spec.ts",
+    "playwright.config.ts",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",
   ])("does not get a preview for a change to %s", (path) => {
@@ -221,6 +233,7 @@ describe("the README's Deploying table", () => {
     expect(push).toContain("`scripts/`");
     expect(push).toContain("`src/metadata/`");
     expect(push).toContain("`src/content/list-placeholders.ts`");
+    expect(push).toContain("`src/e2e/`");
   });
 
   it("says a pull request gets no preview for them either", () => {
@@ -228,5 +241,7 @@ describe("the README's Deploying table", () => {
     expect(pullRequest).toContain("`scripts/`");
     expect(pullRequest).toContain("`src/metadata/`");
     expect(pullRequest).toContain("`src/content/list-placeholders.ts`");
+    expect(pullRequest).toContain("`src/e2e/`");
+    expect(pullRequest).toContain("`e2e/`");
   });
 });

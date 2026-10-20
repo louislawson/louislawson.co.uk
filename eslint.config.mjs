@@ -7,6 +7,9 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores([
     "dist/",
+    "dist-e2e/",
+    "test-results/",
+    "playwright-report/",
     ".astro/",
     "node_modules/",
     ".impeccable/",

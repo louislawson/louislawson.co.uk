@@ -26,7 +26,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "placeholders": "node scripts/placeholders.ts",
-    "metadata:check": "node scripts/check-metadata.ts"
+    "metadata:check": "node scripts/check-metadata.ts",
+    "build:e2e": "node scripts/build-e2e.ts",
+    "test:e2e": "npm run build:e2e && playwright test"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
@@ -39,6 +41,7 @@
     "@cantoo/pdf-lib": "^2.11.1",
     "@eslint/js": "^10.0.1",
     "@fontsource/martian-mono": "^5.3.0",
+    "@playwright/test": "^1.64.0",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.19.2",
     "eslint": "^10.12.0",
