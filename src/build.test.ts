@@ -1092,6 +1092,10 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       for (const column of ["setup", "change", "result"]) {
         expect(html).toMatch(new RegExp(`<h2[^>]*>${column}</h2>`));
       }
+      // R04 has no measurements, so its block is headed for what it holds and has no table.
+      expect(html).toMatch(/<h2[^>]*\sid="tools"[^>]*>\s*tools\s*<\/h2>/);
+      expect(html).not.toContain('id="measured"');
+      expect(html).not.toContain("<table");
       // The tools and the link, which is the repository.
       expect(html).toContain('aria-label="Tools used"');
       expect(html).toContain("Terraform");

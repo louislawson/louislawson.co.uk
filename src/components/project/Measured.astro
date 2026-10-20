@@ -1,11 +1,13 @@
 ---
-// The tools, and the links that follow them. The links' labels and arrows hug their tags:
-// compressHTML keeps a line break as a space, which would show as a gap before an arrow.
+// The measurements as a before-and-after table, then the tools, and the links that follow them.
+// The links' labels and arrows hug their tags: compressHTML keeps a line break as a space, which
+// would show as a gap before an arrow.
 import { site, type DeployContext } from "../../config/site";
 import type { Project } from "../../content/schema";
 import { renderDecision } from "../../content/visibility";
 import Icon from "../Icon.astro";
 import Placeholder from "../Placeholder.astro";
+import { measurementRows } from "./measurement-rows";
 
 interface Props {
   /** The project this page is for, from getSiteContent(). */
@@ -34,14 +36,44 @@ const shownLinks = links.flatMap((link) => {
     },
   ];
 });
+// A measurement is real or absent, so these need no placeholder handling.
+const rows = measurementRows(project.data.measurements);
+// The heading says only what the block holds: "measured" promises figures, so a project without
+// any is headed "tools".
+const heading = rows.length > 0 ? "measured" : "tools";
 // Nothing to put in the block, nothing rendered: no heading over an empty list.
-const shown = tools.length > 0 || shownLinks.length > 0;
+const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
 ---
 
-{shown && <section class="wrap p-section" aria-labelledby="measured">
+{shown && <section class="wrap p-section" aria-labelledby={heading}>
   <div class="p-cols">
-    <h2 id="measured">measured</h2>
+    <h2 id={heading}>{heading}</h2>
     <div>
+      {rows.length > 0 && <table class="diff">
+        <caption class="vh">
+          Before and after measurements
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">measure</th>
+            <th scope="col">before</th>
+            <th scope="col">after</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => <tr>
+            <th scope="row">{row.label}</th>
+            {row.kind === "change" ? (
+              <>
+                <td class="before">{row.before}</td>
+                <td class="after">{row.after}</td>
+              </>
+            ) : (
+              <td colspan="2">{row.value}</td>
+            )}
+          </tr>)}
+        </tbody>
+      </table>}
       {tools.length > 0 && <ul class="stack" aria-label="Tools used">
         {tools.map((tool) => <li>
           <Placeholder value={tool} context={context} />
@@ -68,6 +100,62 @@ const shown = tools.length > 0 || shownLinks.length > 0;
 </section>}
 
 <style>
+  .diff {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diff th,
+  .diff td {
+    padding: 0.7rem 14px;
+    text-align: left;
+    font-weight: 400;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .diff tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  .diff thead th {
+    color: var(--dim);
+    background: var(--panel);
+  }
+
+  /* The measure takes the room the two values leave. On a phone the label wraps rather than the
+     values. */
+  .diff th:first-child {
+    width: 40%;
+  }
+
+  /* Before is dim and after is bone. The - and + are decoration: the second line gives each an
+     empty alt text, so a screen reader hears the column headings, not the signs. */
+  .before {
+    color: var(--dim);
+  }
+
+  .before::before {
+    content: "- ";
+    content: "- " / "";
+  }
+
+  .after {
+    color: var(--bone);
+    font-weight: 700;
+  }
+
+  .after::before {
+    content: "+ ";
+    content: "+ " / "";
+  }
+
+  .diff + .stack {
+    margin-top: 1rem;
+  }
+
   .stack {
     display: flex;
     flex-wrap: wrap;
