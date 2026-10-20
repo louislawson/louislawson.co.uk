@@ -39,6 +39,15 @@ Content is a Markdown file per project in [`src/content/projects`](src/content/p
 - **`npm run placeholders`** lists every placeholder as `file:line`. On pull requests, CI adds one warning with the count and the full list in the job summary.
 - **The launch gate.** While `LAUNCH` in [`src/config/site.ts`](src/config/site.ts) is `true`, any build fails until the intro, career line, role line, email, LinkedIn link and CV are real, `public/cv.pdf` exists, and there are at least two real projects with the featured one real.
 
+## Write-ups
+
+The body of a project's Markdown file is its write-up, rendered under the page's `# write-up` heading. The page already has the `h1` (the title) and that `h2`, so:
+
+- **Headings are `###`.** A `#` or `##` heading, or a line underlined with `===` or `---`, fails the build, with the file and the line (counted from the first line below the frontmatter). Fenced code is not checked, so a shell comment in a code block is fine.
+- **Code blocks are plain.** Syntax highlighting is off (`markdown.syntaxHighlight` in `astro.config.mjs`), because it writes inline `style` attributes that the content security policy blocks. A long line wraps.
+- **A diagram is a plain Markdown image**, `![what it shows](./diagrams/name.svg)`, with the file in `src/content/projects/diagrams/`. SVG is preferred, on a dark ground in the site's colours; a PNG at 2× is accepted. An image with empty alt text fails the build. The paragraph after an image is its caption.
+- **A write-up is Markdown, or one `TODO:` line.** A preview hatches the paragraph under the heading; production leaves out the whole project, as it does for any `TODO` in a body.
+
 ## Photos and PDFs
 
 The repository is public, so a photo or PDF must not carry the person behind it. `npm run metadata:check` fails on any image, PDF or SVG that `git ls-files` lists, anywhere in the repository, and CI runs it on every pull request and push as the **Metadata check** job. A phone photo's EXIF holds where and when it was taken and on what device; a CV exported from a word processor holds the author, the application and often the file path.

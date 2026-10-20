@@ -21,6 +21,12 @@ describe("astro.config.mjs", () => {
     expect(config.compressHTML).toBe(true);
   });
 
+  it("turns syntax highlighting off, because Shiki writes inline style attributes the content security policy blocks", () => {
+    // A highlighted code block in a write-up would ship style="color:#..." on every token. With it
+    // off, a code block is a plain <pre><code>, which the stylesheet colours from the tokens.
+    expect(config.markdown?.syntaxHighlight).toBe(false);
+  });
+
   it("tells Prettier the same whitespace rule, so formatting a page never changes what it renders", () => {
     // prettier-plugin-astro assumes Astro's default ("jsx") unless told otherwise, and would then
     // rejoin a line break that compressHTML: true shows as a space.
