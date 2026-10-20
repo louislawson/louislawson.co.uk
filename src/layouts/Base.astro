@@ -25,7 +25,7 @@ interface Props {
    * What a link to the page previews as: its description (left out while there is none) and its
    * card. The home and project pages pass it; the 404 page does not, and has no sharing tags.
    */
-  meta?: Pick<PageMeta, "description" | "image" | "type">;
+  meta?: Pick<PageMeta, "description" | "image" | "imageAlt" | "type">;
 }
 
 const { title, canonical = true, sections, meta } = Astro.props;

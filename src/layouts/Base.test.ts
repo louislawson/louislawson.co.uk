@@ -104,6 +104,7 @@ describe("the base layout", () => {
   it("has no meta tags for sharing unless the page gives its meta", async () => {
     const html = await render();
     expect(html).not.toMatch(/<meta[^>]*\b(?:property="og:|name="twitter:)/);
+    expect(html).not.toMatch(/<meta[^>]*image:/);
     expect(html).not.toMatch(/<meta[^>]*name="description"/);
   });
 
@@ -111,6 +112,7 @@ describe("the base layout", () => {
     const meta = {
       description: "About the page.",
       image: "/og/home.png",
+      imageAlt: "Louis Lawson",
       type: "website",
     };
 
@@ -129,6 +131,10 @@ describe("the base layout", () => {
       expect(content(head, "og:title")).toBe("A page · Louis Lawson");
       expect(content(head, "og:description")).toBe("About the page.");
       expect(content(head, "og:image")).toBe(`${site.url}/og/home.png`);
+      expect(content(head, "og:image:width")).toBe("1200");
+      expect(content(head, "og:image:height")).toBe("630");
+      expect(content(head, "og:image:alt")).toBe("Louis Lawson");
+      expect(content(head, "twitter:image:alt")).toBe("Louis Lawson");
       expect(content(head, "og:url")).toBe(`${site.url}/projects/example/`);
       expect(content(head, "og:type")).toBe("website");
       expect(content(head, "og:locale")).toBe("en_GB");

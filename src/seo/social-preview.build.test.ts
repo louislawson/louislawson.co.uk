@@ -59,10 +59,14 @@ const SHARING_TAGS = [
   "og:title",
   "og:description",
   "og:image",
+  "og:image:width",
+  "og:image:height",
+  "og:image:alt",
   "og:url",
   "og:type",
   "og:locale",
   "twitter:card",
+  "twitter:image:alt",
 ];
 
 /** A PNG's width and height, from its header. */
@@ -145,6 +149,22 @@ describe.each([
     expect(meta(home, "og:type")).toBe("website");
     expect(meta(home, "og:locale")).toBe("en_GB");
     expect(meta(home, "twitter:card")).toBe("summary_large_image");
+    // The card shows the name alone (the role line is a placeholder), and so does its alt text.
+    expect(meta(home, "og:image:alt")).toBe("Louis Lawson");
+    expect(meta(home, "twitter:image:alt")).toBe("Louis Lawson");
+  });
+
+  it("say the size the card is, as the PNG's own header does", () => {
+    const { dir, read, slugs } = built();
+    const pages = [
+      ["index.html", "og/home.png"],
+      ...slugs.map((s) => [`projects/${s}/index.html`, `og/projects/${s}.png`]),
+    ];
+    for (const [page, card] of pages) {
+      const size = pngSize(dir, card!);
+      expect(meta(read(page!), "og:image:width")).toBe(String(size.width));
+      expect(meta(read(page!), "og:image:height")).toBe(String(size.height));
+    }
   });
 
   it("are on each project page, with its own address and card", () => {
@@ -178,6 +198,20 @@ describe.each([
     expect(meta(page, "description")).toBe(summary);
     expect(meta(page, "og:description")).toBe(summary);
     expect(meta(page, "og:title")).toBe("This website · Louis Lawson");
+  });
+
+  it("name R04's card by what is on it, in one line", () => {
+    const page = built().read("projects/this-website/index.html");
+    const source = readFileSync(
+      join(process.cwd(), "src", "content", "projects", "this-website.md"),
+      "utf-8",
+    );
+    const field = (name: string) =>
+      new RegExp(`^${name}: (.+)$`, "m").exec(source)?.[1] ?? "";
+    const alt = `${field("code")} · ${field("title")} · ${field("headline")}`;
+    expect(alt).toBe("R04 · This website · Pipeline-built, pipeline-deployed");
+    expect(meta(page, "og:image:alt")).toBe(alt);
+    expect(meta(page, "twitter:image:alt")).toBe(alt);
   });
 
   it("are not on the 404 page", () => {
@@ -225,6 +259,9 @@ describe("a placeholder never reaches a tag", () => {
     expect(meta(page, "description")).toBeUndefined();
     expect(meta(page, "og:description")).toBeUndefined();
     expect(meta(page, "og:title")).toBe("R01 · Louis Lawson");
+    // Only the code is on the card, so only the code is in its alt text.
+    expect(meta(page, "og:image:alt")).toBe("R01");
+    expect(meta(page, "twitter:image:alt")).toBe("R01");
     expect(meta(page, "og:image")).toBe(
       `${SITE_URL}/og/projects/${placeholder}.png`,
     );
@@ -236,6 +273,12 @@ describe("a build whose intro and role line are real", () => {
     const home = demo.read("index.html");
     expect(meta(home, "description")).toBe(DEMO_INTRO);
     expect(meta(home, "og:description")).toBe(DEMO_INTRO);
+  });
+
+  it("names the home card by the name and the role line", () => {
+    const home = demo.read("index.html");
+    expect(meta(home, "og:image:alt")).toBe(`Louis Lawson · ${DEMO_ROLE}`);
+    expect(meta(home, "twitter:image:alt")).toBe(`Louis Lawson · ${DEMO_ROLE}`);
   });
 
   it("draws a different home card, with the role line on it", () => {

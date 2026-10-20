@@ -1,3 +1,5 @@
+import { CARD_HEIGHT, CARD_WIDTH } from "./card-content";
+
 export interface MetaTag {
   /** Open Graph tags are `property`; the description and the Twitter card are `name`. */
   attribute: "name" | "property";
@@ -12,6 +14,8 @@ export interface PageMeta {
   pathname: string;
   /** The card's path on this site, for example /og/home.png. */
   image: string;
+  /** What the card shows, in one line, for whoever cannot see it. */
+  imageAlt: string;
   type: "website" | "article";
   /** Left out while there is none to say: a placeholder never reaches a tag. */
   description?: string | undefined;
@@ -46,6 +50,22 @@ export function metaTags(meta: PageMeta, siteUrl: string): MetaTag[] {
       key: "og:image",
       content: absolute(meta.image),
     },
+    // The size, so a scraper lays the card out on its first fetch without measuring it.
+    {
+      attribute: "property",
+      key: "og:image:width",
+      content: String(CARD_WIDTH),
+    },
+    {
+      attribute: "property",
+      key: "og:image:height",
+      content: String(CARD_HEIGHT),
+    },
+    {
+      attribute: "property",
+      key: "og:image:alt",
+      content: meta.imageAlt,
+    },
     {
       attribute: "property",
       key: "og:url",
@@ -58,6 +78,7 @@ export function metaTags(meta: PageMeta, siteUrl: string): MetaTag[] {
       key: "twitter:card",
       content: "summary_large_image",
     },
+    { attribute: "name", key: "twitter:image:alt", content: meta.imageAlt },
   );
   return tags;
 }

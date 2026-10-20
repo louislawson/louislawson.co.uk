@@ -5,6 +5,7 @@ const base = {
   title: "This website · Louis Lawson",
   pathname: "/projects/this-website/",
   image: "/og/projects/this-website.png",
+  imageAlt: "R04 · This website · Pipeline-built, pipeline-deployed",
   type: "article" as const,
   description: "A static site.",
 };
@@ -21,11 +22,27 @@ describe("the meta tags of a page", () => {
       "property:og:title=This website · Louis Lawson",
       "property:og:description=A static site.",
       "property:og:image=https://louislawson.co.uk/og/projects/this-website.png",
+      "property:og:image:width=1200",
+      "property:og:image:height=630",
+      "property:og:image:alt=R04 · This website · Pipeline-built, pipeline-deployed",
       "property:og:url=https://louislawson.co.uk/projects/this-website/",
       "property:og:type=article",
       "property:og:locale=en_GB",
       "name:twitter:card=summary_large_image",
+      "name:twitter:image:alt=R04 · This website · Pipeline-built, pipeline-deployed",
     ]);
+  });
+
+  it("says the card's size and what it shows, even with no description", () => {
+    const tags = metaTags(
+      { ...base, description: undefined },
+      "https://louislawson.co.uk",
+    );
+    const content = (key: string) => tags.find((t) => t.key === key)?.content;
+    expect(content("og:image:width")).toBe("1200");
+    expect(content("og:image:height")).toBe("630");
+    expect(content("og:image:alt")).toBe(base.imageAlt);
+    expect(content("twitter:image:alt")).toBe(base.imageAlt);
   });
 
   it("makes the image and the address absolute from the site URL, as the canonical is", () => {

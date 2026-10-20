@@ -26,6 +26,8 @@ npm run dev
 
 `.npmrc` sets `min-release-age=7`, so installs only resolve package versions published more than a week ago.
 
+`package.json` overrides `fflate` to 0.7.5 for `satori` (which draws the social preview cards) because `satori` pins `fflate` 0.7.3, which has a high-severity denial-of-service finding. Remove the override once `satori` depends on a fixed `fflate`.
+
 ## Content and placeholders
 
 Content is a Markdown file per project in [`src/content/projects`](src/content/projects) plus [`src/data/profile.ts`](src/data/profile.ts). A value Louis has not supplied yet is a placeholder: a string that starts with `TODO:`. A `TODO` or `TODOs` inside otherwise real text fails the build, so a half-finished sentence cannot be published.

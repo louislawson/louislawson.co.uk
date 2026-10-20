@@ -2,10 +2,15 @@ import { Resvg } from "@resvg/resvg-js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import satori from "satori";
-import type { Card, HomeCard, ProjectCard } from "./card-content";
+import {
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  type Card,
+  type HomeCard,
+  type ProjectCard,
+} from "./card-content";
 
-export const CARD_WIDTH = 1200;
-export const CARD_HEIGHT = 630;
+export { CARD_HEIGHT, CARD_WIDTH };
 
 /** The site's colours (the tokens in src/styles/global.css, which a test pins these to). */
 export const CARD_COLOURS = {
@@ -108,6 +113,26 @@ function statusRow(status: NonNullable<ProjectCard["status"]>): Element {
   );
 }
 
+/**
+ * The brand at the top left, written as the nav's wordmark is: the dot in hi-vis. Each piece is
+ * its own box in a row, which in a monospace font sets them as one word.
+ */
+function brandRow(brand: string): Element {
+  const [first = "", ...rest] = brand.split(".");
+  return el(
+    "div",
+    {
+      ...row,
+      fontSize: 30,
+      paddingBottom: 24,
+      borderBottom: `2px solid ${CARD_COLOURS.line}`,
+    },
+    el("div", {}, first),
+    el("div", { color: CARD_COLOURS.hivis }, "."),
+    el("div", {}, rest.join(".")),
+  );
+}
+
 function homeBody(card: HomeCard): Element {
   const [first, last] = card.name;
   return el(
@@ -194,15 +219,7 @@ export function cardElement(card: Card): Element {
         justifyContent: "space-between",
         padding: `${PAD_Y}px ${PAD_X}px`,
       },
-      el(
-        "div",
-        {
-          fontSize: 30,
-          paddingBottom: 24,
-          borderBottom: `2px solid ${CARD_COLOURS.line}`,
-        },
-        card.brand,
-      ),
+      brandRow(card.brand),
       card.kind === "home" ? homeBody(card) : projectBody(card),
       el(
         "div",

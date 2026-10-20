@@ -27,11 +27,49 @@ const real = {
   status: "commissioning",
 };
 
+/** The brand as the card draws it: the nav's wordmark, with the dot in its own piece. */
+const BRAND = ["louis", ".", "lawson"];
+
+describe("a card's brand", () => {
+  /** The colour of the element that holds this text, wherever it is in the tree. */
+  function colourOf(tree: unknown, text: string): unknown {
+    const node = tree as {
+      props: {
+        style: Record<string, unknown>;
+        children?: unknown;
+      };
+    };
+    const children = [node.props.children].flat();
+    if (children.includes(text)) return node.props.style.color;
+    for (const child of children) {
+      if (typeof child === "object" && child !== null) {
+        const found = colourOf(child, text);
+        if (found !== undefined) return found;
+      }
+    }
+    return undefined;
+  }
+
+  it("has the dot in hi-vis, as the nav's wordmark does, and the rest in the card's own colour", () => {
+    for (const card of [homeCard({}), projectCard("x", real)]) {
+      const tree = cardElement(card);
+      expect(colourOf(tree, ".")).toBe(CARD_COLOURS.hivis);
+      expect(colourOf(tree, "louis")).toBeUndefined();
+      expect(colourOf(tree, "lawson")).toBeUndefined();
+    }
+  });
+
+  it("is still louis.lawson to read", () => {
+    expect(BRAND.join("")).toBe("louis.lawson");
+    expect(homeCard({}).brand).toBe("louis.lawson");
+  });
+});
+
 describe("a card's text", () => {
   it("home: the brand, the name, the role line and the address, in that order", () => {
     const card = homeCard({ roleLine: "Cloud and DevOps engineer" });
     expect(texts(cardElement(card) as Node)).toEqual([
-      "louis.lawson",
+      ...BRAND,
       "Louis",
       "Lawson",
       "Cloud and DevOps engineer",
@@ -42,7 +80,7 @@ describe("a card's text", () => {
   it("home: no role line while it is a placeholder", () => {
     const card = homeCard({ roleLine: "TODO: role line" });
     expect(texts(cardElement(card) as Node)).toEqual([
-      "louis.lawson",
+      ...BRAND,
       "Louis",
       "Lawson",
       "louislawson.co.uk/",
@@ -52,7 +90,7 @@ describe("a card's text", () => {
   it("project: the brand, the code, the title, the headline, the status and the address", () => {
     const card = projectCard("this-website", real);
     expect(texts(cardElement(card) as Node)).toEqual([
-      "louis.lawson",
+      ...BRAND,
       "R04",
       "This website",
       "Pipeline-built, pipeline-deployed",
@@ -69,7 +107,7 @@ describe("a card's text", () => {
       status: "TODO: status",
     });
     expect(texts(cardElement(card) as Node)).toEqual([
-      "louis.lawson",
+      ...BRAND,
       "R01",
       "louislawson.co.uk/projects/r01-placeholder/",
     ]);

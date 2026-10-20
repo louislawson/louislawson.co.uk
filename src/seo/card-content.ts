@@ -6,6 +6,10 @@ import { realText } from "../content/todo";
 const DOMAIN = "louislawson.co.uk";
 const BRAND = "louis.lawson";
 
+/** The size of every card, which the picture is drawn at and the tags say. */
+export const CARD_WIDTH = 1200;
+export const CARD_HEIGHT = 630;
+
 /** Where the cards are published. Each is a plain file on the site's own origin. */
 export const cardPath = {
   home: "/og/home.png",
@@ -68,4 +72,17 @@ export function projectCard(
       : { status: { key: status, label: statusLabel(status) } }),
     address: `${DOMAIN}${projectPath(id)}`,
   };
+}
+
+/**
+ * What a card shows, in one line, as the alt text of its image: the name and role line, or the
+ * code, title and headline. It says only what is on the card, so a placeholder is left out of it
+ * as it is left off the card. The status is a marker and a word beside it, not part of the line.
+ */
+export function cardAlt(card: Card): string {
+  const parts =
+    card.kind === "home"
+      ? [card.name.join(" "), card.role]
+      : [card.code, card.title, card.headline];
+  return parts.filter((part) => part !== undefined).join(" · ");
 }

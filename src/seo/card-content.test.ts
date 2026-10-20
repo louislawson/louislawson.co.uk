@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Project } from "../content/schema";
-import { cardPath, homeCard, projectCard } from "./card-content";
+import {
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  cardAlt,
+  cardPath,
+  homeCard,
+  projectCard,
+} from "./card-content";
 
 const real: Pick<Project, "code" | "title" | "headline" | "status"> = {
   code: "R04",
@@ -80,6 +87,57 @@ describe("a project card", () => {
       status: "TODO: s",
     });
     expect(JSON.stringify(card)).not.toMatch(/todo/i);
+  });
+});
+
+describe("a card's alt text", () => {
+  it("home: the name, and the role line when it is real", () => {
+    expect(cardAlt(homeCard({ roleLine: "Cloud and DevOps engineer" }))).toBe(
+      "Louis Lawson · Cloud and DevOps engineer",
+    );
+    expect(cardAlt(homeCard({ roleLine: "TODO: role line" }))).toBe(
+      "Louis Lawson",
+    );
+    expect(cardAlt(homeCard({}))).toBe("Louis Lawson");
+  });
+
+  it("project: the code, title and headline in one line", () => {
+    expect(cardAlt(projectCard("this-website", real))).toBe(
+      "R04 · This website · Pipeline-built, pipeline-deployed",
+    );
+  });
+
+  it("project: a placeholder is left out, down to the code alone", () => {
+    expect(
+      cardAlt(projectCard("x", { ...real, headline: "TODO: headline" })),
+    ).toBe("R04 · This website");
+    expect(
+      cardAlt(
+        projectCard("x", {
+          code: "R01",
+          title: "TODO: t",
+          headline: "TODO: h",
+          status: "TODO: s",
+        }),
+      ),
+    ).toBe("R01");
+  });
+
+  it("never says TODO", () => {
+    const card = projectCard("x", {
+      code: "R02",
+      title: "TODO: t",
+      headline: "TODO: h",
+      status: "TODO: s",
+    });
+    expect(cardAlt(card)).not.toMatch(/todo/i);
+  });
+});
+
+describe("a card's size", () => {
+  it("is 1200 × 630, the size the tags say", () => {
+    expect(CARD_WIDTH).toBe(1200);
+    expect(CARD_HEIGHT).toBe(630);
   });
 });
 
