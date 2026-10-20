@@ -6,6 +6,11 @@ export function isPlaceholder(value: unknown): boolean {
   return typeof value === "string" && value.startsWith(PLACEHOLDER_PREFIX);
 }
 
+/** A value that is there and real: undefined for a placeholder, and for a value that is not there. */
+export function realText(value: string | undefined): string | undefined {
+  return value === undefined || isPlaceholder(value) ? undefined : value;
+}
+
 /**
  * What a placeholder says is missing: the text after the prefix. A value with nothing after the
  * prefix keeps it, so the hatch still has something to show.
