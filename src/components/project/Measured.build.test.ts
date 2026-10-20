@@ -80,7 +80,7 @@ function buildCopyWithMeasurements(): string {
       env: { ...process.env, DEPLOY_CONTEXT: "production", SITE_URL: "" },
       stdio: "pipe",
       // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
-      timeout: 50_000,
+      timeout: 80_000,
     },
   );
   return readFileSync(

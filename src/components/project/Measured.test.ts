@@ -59,6 +59,19 @@ describe("<Measured>", () => {
     }
   });
 
+  it("is headed links when all it holds is links, so the heading still names only what is there", async () => {
+    const html = await render({
+      project: project({
+        stack: ["TODO: tools used"],
+        links: [{ label: "Source", url: "https://example.com/repo" }],
+      }),
+      context: "production",
+    });
+    expect(html).toMatch(/<section[^>]*aria-labelledby="links"/);
+    expect(html).toMatch(/<h2[^>]*\sid="links"[^>]*>\s*links\s*<\/h2>/);
+    expect(html).not.toContain("tools");
+  });
+
   describe("the measurements", () => {
     const body = (html: string) =>
       /<tbody\b[^>]*>(.*?)<\/tbody>/.exec(html)?.[1] ?? "";

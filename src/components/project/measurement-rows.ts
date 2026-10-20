@@ -9,7 +9,7 @@ export type MeasurementRow =
 
 /** A value with its unit after it. A percent sign sits against the figure; other units are words. */
 export function withUnit(value: string, unit?: string): string {
-  if (unit === undefined) return value;
+  if (unit === undefined || unit === "") return value;
   return unit.startsWith("%") ? `${value}${unit}` : `${value} ${unit}`;
 }
 

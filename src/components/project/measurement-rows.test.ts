@@ -14,6 +14,8 @@ describe("withUnit", () => {
   it("leaves a value as it is when there is no unit", () => {
     expect(withUnit("weekly")).toBe("weekly");
     expect(withUnit("rare, reviewed", undefined)).toBe("rare, reviewed");
+    // An empty unit is none, not a trailing space.
+    expect(withUnit("8", "")).toBe("8");
   });
 });
 

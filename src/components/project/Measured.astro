@@ -39,8 +39,9 @@ const shownLinks = links.flatMap((link) => {
 // A measurement is real or absent, so these need no placeholder handling.
 const rows = measurementRows(project.data.measurements);
 // The heading says only what the block holds: "measured" promises figures, so a project without
-// any is headed "tools".
-const heading = rows.length > 0 ? "measured" : "tools";
+// any is headed "tools", and one with neither is headed for the links it has left.
+const heading =
+  rows.length > 0 ? "measured" : tools.length > 0 ? "tools" : "links";
 // Nothing to put in the block, nothing rendered: no heading over an empty list.
 const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
 ---
