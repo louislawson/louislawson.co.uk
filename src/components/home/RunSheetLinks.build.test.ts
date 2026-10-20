@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -8,20 +14,17 @@ import {
 } from "../../__tests__/project-copy";
 
 // The profile's one skill row is a placeholder with no runs, so a "seen in" link is built here
-// from a copy of the project whose skill row is real and was seen in R01 (a placeholder project)
-// and R04 (real). The demo row exists only in the copy: nothing of it is ever committed.
+// from a copy of the project whose skill row is real and was seen in R01 and R04. R01 is made a
+// placeholder project in the copy, and R04 is real, so the copy has one of each whatever the
+// committed content is by then. The demo content exists only in the copy: nothing of it is ever
+// committed.
 afterAll(removeCopies);
 
-const SKILL_ROW = `  skills: [
-    {
-      group: "TODO: skill group",
-      context: "TODO: one anonymised line on where you have used it",
-      tools: ["TODO: tools"],
-      runs: [],
-    },
-  ],`;
+/** The skills block of the profile, whatever it holds. */
+const SKILLS_BLOCK = /\n {2}skills: \[[\s\S]*?\n {2}\],/;
 
-const DEMO_ROW = `  skills: [
+const DEMO_SKILLS = `
+  skills: [
     {
       group: "Demo platform skill",
       context: "A demo line for the link check.",
@@ -29,6 +32,29 @@ const DEMO_ROW = `  skills: [
       runs: ["R01", "R04"],
     },
   ],`;
+
+const DEMO_PLACEHOLDER_PROJECT = [
+  "---",
+  "code: R01",
+  'title: "TODO: project title"',
+  'summary: "TODO: one sentence on the result"',
+  'headline: "TODO: a headline of two to five words"',
+  'status: "TODO: status"',
+  'period: "TODO: period"',
+  "featured: false",
+  "order: 1",
+  "kind: work",
+  'descriptor: "TODO: anonymised descriptor"',
+  'setup: "TODO: where it started"',
+  'change: "TODO: what you changed"',
+  'result: "TODO: what is different now"',
+  "stack:",
+  '  - "TODO: tools used"',
+  "---",
+  "",
+  "TODO: write the run sheet for this project.",
+  "",
+].join("\n");
 
 interface Built {
   home: string;
@@ -39,20 +65,36 @@ interface Built {
 
 function buildWithDemoSkill(deployContext: string): Built {
   const dir = copyOfProject(`run-sheet-links-${deployContext}-`);
-  const file = join(dir, "src", "data", "profile.ts");
-  const source = readFileSync(file, "utf-8");
-  expect(source).toContain(SKILL_ROW);
-  writeFileSync(file, source.replace(SKILL_ROW, DEMO_ROW));
+  const profile = join(dir, "src", "data", "profile.ts");
+  const source = readFileSync(profile, "utf-8");
+  expect(source).toMatch(SKILLS_BLOCK);
+  writeFileSync(profile, source.replace(SKILLS_BLOCK, DEMO_SKILLS));
+  // Whichever file holds R01 now, the copy's R01 is the demo placeholder, under a name of its own.
+  const folder = join(dir, "src", "content", "projects");
+  // It keeps the flag of the file it replaces: exactly one project must be featured.
+  let featured = "false";
+  for (const name of readdirSync(folder)) {
+    const text = name.endsWith(".md")
+      ? readFileSync(join(folder, name), "utf-8")
+      : "";
+    if (/^code: R01$/m.test(text)) {
+      featured = /^featured: (true|false)$/m.exec(text)?.[1] ?? featured;
+      rmSync(join(folder, name));
+    }
+  }
+  writeFileSync(
+    join(folder, "r01-demo.md"),
+    DEMO_PLACEHOLDER_PROJECT.replace(
+      "featured: false",
+      `featured: ${featured}`,
+    ),
+  );
   const output = buildCopy(dir, { DEPLOY_CONTEXT: deployContext });
   if (output !== "") throw new Error(`the build failed:\n${output}`);
-  const projects = join(dir, "dist", "projects");
-  const pages = [
-    "r01-placeholder",
-    "r02-placeholder",
-    "r03-placeholder",
-    "this-website",
-  ]
-    .filter((slug) => existsSync(join(projects, slug, "index.html")))
+  const pages = readdirSync(join(dir, "dist", "projects"))
+    .filter((slug) =>
+      existsSync(join(dir, "dist", "projects", slug, "index.html")),
+    )
     .map((slug) => `/projects/${slug}/`);
   return {
     home: readFileSync(join(dir, "dist", "index.html"), "utf-8"),
@@ -88,10 +130,6 @@ describe.each(["preview", "production"])(
         expect(built.pages, `${href} has no page in this build`).toContain(
           href,
         );
-        expect(
-          existsSync(join(built.dir, "dist", href, "index.html")),
-          href,
-        ).toBe(true);
       }
     });
 
@@ -100,7 +138,7 @@ describe.each(["preview", "production"])(
         const seen = anchors(skillsSection(built.home));
         expect(seen).toEqual([
           {
-            href: "/projects/r01-placeholder/",
+            href: "/projects/r01-demo/",
             name: "R01, project title",
             text: "R01",
           },
@@ -122,7 +160,8 @@ describe.each(["preview", "production"])(
           },
         ]);
         expect(skillsSection(built.home)).not.toContain("R01");
-        expect(built.pages).toEqual(["/projects/this-website/"]);
+        expect(built.pages).toContain("/projects/this-website/");
+        expect(built.pages).not.toContain("/projects/r01-demo/");
       });
     }
 

@@ -743,13 +743,39 @@ describe("<Projects> links to the run sheets", () => {
       expect(style).not.toMatch(/:focus-visible[^{]*\{[^}]*outline/);
     });
 
-    it("lights an entry under the pointer or the focus, as the mock does", () => {
+    it("lights an entry under the pointer or the keyboard focus, as the mock does", () => {
       expect(style).toMatch(
-        /\.run--strip:hover \.run__title,\s*\.run--strip:focus-within \.run__title\s*\{[^}]*color:\s*var\(--hivis\)/,
+        /\.run--strip:has\(:focus-visible\) \.run__title\s*\{[^}]*color:\s*var\(--hivis\)/,
       );
       expect(style).toMatch(
-        /\.run--row:hover,\s*\.run--row:focus-within\s*\{[^}]*background:\s*var\(--panel\)/,
+        /\.run--row:has\(:focus-visible\)\s*\{[^}]*background:\s*var\(--panel\)/,
       );
+      expect(style).toMatch(
+        /\.run--row:has\(:focus-visible\)::before\s*\{[^}]*scale\(1\)/,
+      );
+    });
+
+    it("lights an entry under the pointer only where there is a pointer to hover with, so a tap leaves nothing lit", () => {
+      const hover = [
+        ...style.matchAll(
+          /@media \(hover: hover\)\s*\{((?:[^{}]*\{[^}]*\}\s*)+)\}/g,
+        ),
+      ]
+        .map((m) => m[1])
+        .join("\n");
+      expect(hover).toMatch(
+        /\.run--strip:hover \.run__title\s*\{[^}]*color:\s*var\(--hivis\)/,
+      );
+      expect(hover).toMatch(
+        /\.run--row:hover\s*\{[^}]*background:\s*var\(--panel\)/,
+      );
+      // Not outside the guard, and not on the pointer-free :focus-within, which a click also sets.
+      const unguarded = style.replace(
+        /@media \(hover: hover\)\s*\{(?:[^{}]*\{[^}]*\}\s*)+\}/g,
+        "",
+      );
+      expect(unguarded).not.toMatch(/:hover/);
+      expect(style).not.toContain(":focus-within");
     });
 
     it("has the arrow in a fifth column on a wide screen, and at the top right of the entry on a phone", () => {

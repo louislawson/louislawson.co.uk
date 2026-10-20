@@ -146,8 +146,15 @@ const layout = projectLayout(projects.length);
     transition: color 140ms var(--ease);
   }
 
-  .run--strip:hover .run__title,
-  .run--strip:focus-within .run__title {
+  /* Under the pointer, where there is one (a tap would leave a touch screen lit), or under the
+     keyboard focus (a click on the link would too, and it is leaving the page). */
+  @media (hover: hover) {
+    .run--strip:hover .run__title {
+      color: var(--hivis);
+    }
+  }
+
+  .run--strip:has(:focus-visible) .run__title {
     color: var(--hivis);
   }
 
@@ -251,13 +258,21 @@ const layout = projectLayout(projects.length);
     transition: transform 160ms var(--ease);
   }
 
-  .run--row:hover,
-  .run--row:focus-within {
+  @media (hover: hover) {
+    .run--row:hover {
+      background: var(--panel);
+    }
+
+    .run--row:hover::before {
+      transform: translateY(-50%) scale(1);
+    }
+  }
+
+  .run--row:has(:focus-visible) {
     background: var(--panel);
   }
 
-  .run--row:hover::before,
-  .run--row:focus-within::before {
+  .run--row:has(:focus-visible)::before {
     transform: translateY(-50%) scale(1);
   }
 

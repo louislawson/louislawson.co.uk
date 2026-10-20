@@ -42,6 +42,7 @@ const shownTools = (tools: string[]) =>
 
 // A code links to its project's page when this build has one. Production drops the codes of
 // projects it leaves out before they get here, so a link never goes to a page that is not built.
+// A code is one project's: the content validation fails the build when two share one.
 const byCode = new Map(projects.map((project) => [project.data.code, project]));
 
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
