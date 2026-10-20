@@ -1,4 +1,5 @@
 // @ts-check
+import sitemap from "@astrojs/sitemap";
 import { defineConfig } from "astro/config";
 import { site } from "./src/config/site.ts";
 import { staticWebAppConfig } from "./src/integrations/staticwebapp-config.ts";
@@ -18,5 +19,10 @@ export default defineConfig({
   // Shiki, the default highlighter, writes a style attribute on every token of a code block, which
   // the policy blocks. A write-up's code is plain monospace on the panel colour instead.
   markdown: { syntaxHighlight: false },
-  integrations: [staticWebAppConfig({ noindex: site.noindex })],
+  integrations: [
+    staticWebAppConfig({ noindex: site.noindex }),
+    // Only a build that may be indexed has a sitemap; robots.txt (src/pages/robots.txt.ts) follows
+    // the same rule. The integration leaves out the 404 page on its own.
+    ...(site.noindex ? [] : [sitemap()]),
+  ],
 });
