@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import config from "../astro.config.mjs";
+import { site } from "./config/site";
 
 describe("astro.config.mjs", () => {
   it("never inlines stylesheets, because the content security policy blocks inline styles", () => {
@@ -38,6 +39,14 @@ describe("astro.config.mjs", () => {
     const rule = (value: unknown) =>
       value === true ? "html" : value === false ? "none" : (value ?? "jsx");
     expect(rule(prettier.astroCompressHTML)).toBe(rule(config.compressHTML));
+  });
+
+  it("has the sitemap integration only when the build may be indexed, by the rule noindex uses", () => {
+    // crawling.build.test.ts builds each pairing of launch and deploy context; this pins the wiring.
+    const names = (config.integrations ?? []).map(
+      (integration) => (integration as { name: string }).name,
+    );
+    expect(names.includes("@astrojs/sitemap")).toBe(!site.noindex);
   });
 
   it("takes the site URL from the resolved site configuration", () => {
