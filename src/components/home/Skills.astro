@@ -1,7 +1,8 @@
 ---
 // The tools are one line: each is its own value (a placeholder is hatched on its own, beside real
 // ones), with " / " between them. compressHTML keeps a line break as a space, which a space on
-// each side of the slash makes no different.
+// each side of the slash makes no different. The same goes for the codes of "seen in", which are
+// links one space apart.
 import { site, type DeployContext } from "../../config/site";
 import type { Profile } from "../../content/schema";
 import {
@@ -10,12 +11,15 @@ import {
 } from "../../content/visibility";
 import { INSPECT_LABELS } from "../inspect-labels";
 import Placeholder from "../Placeholder.astro";
+import { projectPath, seenInLinkName } from "./project-display";
 import { SECTION_INTROS } from "./section-intros";
 import Section from "./Section.astro";
 
 interface Props {
   /** The skill rows this build shows, from getSiteContent(). */
   skills: Profile["skills"];
+  /** The projects this build shows, from getSiteContent(): the pages the codes can link to. */
+  projects: { id: string; data: { code: string; title: string } }[];
   /** What is being explored next, up to five items. */
   exploring: string[];
   /** The sections this build shows, from visibleSections(). */
@@ -26,6 +30,7 @@ interface Props {
 
 const {
   skills,
+  projects,
   exploring,
   sections,
   context = site.deployContext,
@@ -34,6 +39,11 @@ const {
 // The tools that are shown: a placeholder that production leaves out takes no " / " with it.
 const shownTools = (tools: string[]) =>
   tools.filter((tool) => renderDecision(tool, context) !== "omit");
+
+// A code links to its project's page when this build has one. Production drops the codes of
+// projects it leaves out before they get here, so a link never goes to a page that is not built.
+// A code is one project's: the content validation fails the build when two share one.
+const byCode = new Map(projects.map((project) => [project.data.code, project]));
 
 // A section that visibleSections() leaves out is not rendered, so the nav and the page agree.
 const shown =
@@ -56,7 +66,23 @@ const shown =
       /></Fragment>)}
     </p>
     {skill.runs.length > 0 && <p class="seen">
-      seen in <span class="codes">{skill.runs.join(" ")}</span>
+      seen in
+      <span class="codes"
+        >{skill.runs.map((code, index) => {
+          const project = byCode.get(code);
+          return <Fragment
+            >{index > 0 && " "}{project ? (
+              <a
+                href={projectPath(project.id)}
+                aria-label={seenInLinkName(project.data)}
+                >{code}</a
+              >
+            ) : (
+              code
+            )}</Fragment
+          >;
+        })}</span
+      >
     </p>}
   </div>)}
   {exploring.length > 0 && <div class="explore">
@@ -105,7 +131,8 @@ const shown =
     text-align: right;
   }
 
-  .skill .codes {
+  .skill .codes,
+  .skill .codes a {
     color: var(--hivis);
   }
 

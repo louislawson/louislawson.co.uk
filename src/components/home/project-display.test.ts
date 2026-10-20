@@ -9,6 +9,8 @@ import {
   projectLayout,
   projectPages,
   projectPath,
+  runSheetLinkName,
+  seenInLinkName,
   statusLabel,
   writeUpKind,
 } from "./project-display";
@@ -245,6 +247,44 @@ describe("pageTitle", () => {
     expect(pageTitle({ title: "TODO: project title", code: "R01" })).toBe(
       "R01 · Louis Lawson",
     );
+  });
+});
+
+describe("runSheetLinkName", () => {
+  it("is the action and the project's title, for the link that covers its entry", () => {
+    expect(runSheetLinkName({ title: "This website", code: "R04" })).toBe(
+      "Read the run sheet: This website",
+    );
+  });
+
+  it("names a placeholder title by its hint, so the name is never TODO:", () => {
+    expect(
+      runSheetLinkName({ title: "TODO: project title", code: "R01" }),
+    ).toBe("Read the run sheet: project title");
+  });
+
+  it("names a title that is only the prefix by its code, which still says which entry it is", () => {
+    expect(runSheetLinkName({ title: "TODO:", code: "R01" })).toBe(
+      "Read the run sheet: R01",
+    );
+  });
+});
+
+describe("seenInLinkName", () => {
+  it("is the code and the title, so it starts with the code that is shown", () => {
+    expect(seenInLinkName({ title: "This website", code: "R04" })).toBe(
+      "R04, This website",
+    );
+  });
+
+  it("names a placeholder title by its hint, so the name is never TODO:", () => {
+    expect(seenInLinkName({ title: "TODO: project title", code: "R01" })).toBe(
+      "R01, project title",
+    );
+  });
+
+  it("is the code alone when the title is only the prefix", () => {
+    expect(seenInLinkName({ title: "TODO:", code: "R01" })).toBe("R01");
   });
 });
 

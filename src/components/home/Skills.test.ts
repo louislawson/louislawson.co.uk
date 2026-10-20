@@ -32,9 +32,17 @@ const scripting: SkillRow = {
   runs: [],
 };
 
+/** The projects the rows point to: R01 and R04, whose file names are not their codes. */
+const linked = [
+  { id: "first-one", data: { code: "R01", title: "First one" } },
+  { id: "this-website", data: { code: "R04", title: "This website" } },
+];
+
 async function render(props: Record<string, unknown>): Promise<string> {
   const container = await AstroContainer.create();
-  const html = await container.renderToString(Skills, { props });
+  const html = await container.renderToString(Skills, {
+    props: { projects: linked, ...props },
+  });
   return html.replace(/\s+/g, " ");
 }
 
@@ -151,16 +159,107 @@ describe("<Skills>", () => {
       expect(text(html, "tools")).toEqual(["Azure"]);
     });
 
-    it("says where it was seen, as plain codes, when it has runs", async () => {
+    it("says where it was seen, as the codes, when it has runs", async () => {
       const html = await render({
         skills: [platform],
         exploring: [],
         sections: all,
       });
       expect(text(html, "seen")).toEqual(["seen in R01 R04"]);
-      // Plain text: a project's page arrives with PR 5.1, and these become links then.
-      expect(html).not.toContain("<a ");
-      expect(html).not.toContain("href=");
+    });
+
+    describe("the seen-in links", () => {
+      const anchors = (html: string) =>
+        [...html.matchAll(/<a\b([^>]*)>(.*?)<\/a>/g)].map((m) => ({
+          href: /\shref="([^"]*)"/.exec(m[1]!)?.[1],
+          name: /\saria-label="([^"]*)"/.exec(m[1]!)?.[1],
+          text: m[2]!.replace(/<[^>]+>/g, "").trim(),
+        }));
+
+      it("makes each code a link to its run sheet, by the project's file name, showing the code alone", async () => {
+        const html = await render({
+          skills: [platform],
+          exploring: [],
+          sections: all,
+        });
+        expect(anchors(html)).toEqual([
+          {
+            href: "/projects/first-one/",
+            name: "R01, First one",
+            text: "R01",
+          },
+          {
+            href: "/projects/this-website/",
+            name: "R04, This website",
+            text: "R04",
+          },
+        ]);
+      });
+
+      it("starts the name with the words the link shows, so a voice control user who says them reaches it", async () => {
+        const html = await render({
+          skills: [platform],
+          exploring: [],
+          sections: all,
+        });
+        for (const { name, text: shown } of anchors(html)) {
+          expect(name!.startsWith(shown)).toBe(true);
+        }
+      });
+
+      it("names a placeholder title by its hint, never by TODO:", async () => {
+        const html = await render({
+          skills: [platform],
+          projects: [
+            {
+              id: "first-one",
+              data: { code: "R01", title: "TODO: project title" },
+            },
+            ...linked.slice(1),
+          ],
+          exploring: [],
+          sections: all,
+          context: "preview",
+        });
+        expect(anchors(html)[0]!.name).toBe("R01, project title");
+        expect(html).not.toContain("TODO:");
+      });
+
+      it("links only the codes of projects it was given, so no link is dead", async () => {
+        const html = await render({
+          skills: [platform],
+          projects: linked.slice(1),
+          exploring: [],
+          sections: all,
+        });
+        expect(anchors(html).map((a) => a.text)).toEqual(["R04"]);
+        // The other code is still said, as text.
+        expect(text(html, "seen")).toEqual(["seen in R01 R04"]);
+      });
+
+      it("keeps the codes against their tags and one space apart, which compressHTML would otherwise widen", async () => {
+        const container = await AstroContainer.create();
+        const raw = await container.renderToString(Skills, {
+          props: {
+            skills: [platform],
+            projects: linked,
+            exploring: [],
+            sections: all,
+          },
+        });
+        expect(raw).toMatch(
+          /seen in\s+<span class="codes"[^>]*><a [^>]*>R01<\/a> <a [^>]*>R04<\/a><\/span>/,
+        );
+      });
+
+      it("has no link in a row without runs", async () => {
+        const html = await render({
+          skills: [scripting],
+          exploring: [],
+          sections: all,
+        });
+        expect(html).not.toContain("<a ");
+      });
     });
 
     it("has no seen-in line when it has no runs", async () => {
@@ -215,7 +314,9 @@ describe("<Skills>", () => {
           m[1]!.replace(/<[^>]+>/g, "").trim(),
         ),
       ).toEqual(["Internal developer platforms", "Policy as code"]);
-      expect(html).not.toContain("<a ");
+      // The rows above it link to run sheets; this list links to nothing.
+      const list = html.slice(html.indexOf('class="explore"'));
+      expect(list).not.toContain("<a ");
     });
 
     it("is a list a screen reader announces as one, though the styles remove the markers", async () => {
