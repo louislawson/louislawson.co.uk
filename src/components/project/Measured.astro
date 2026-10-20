@@ -38,6 +38,8 @@ const shownLinks = links.flatMap((link) => {
 });
 // A measurement is real or absent, so these need no placeholder handling.
 const rows = measurementRows(project.data.measurements);
+// The heading's id is fixed, not its words: an id taken from "links" would be the nav's menu panel's.
+const HEADING_ID = "project-details";
 // The heading says only what the block holds: "measured" promises figures, so a project without
 // any is headed "tools", and one with neither is headed for the links it has left.
 const heading =
@@ -46,9 +48,9 @@ const heading =
 const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
 ---
 
-{shown && <section class="wrap p-section" aria-labelledby={heading}>
+{shown && <section class="wrap p-section" aria-labelledby={HEADING_ID}>
   <div class="p-cols">
-    <h2 id={heading}>{heading}</h2>
+    <h2 id={HEADING_ID}>{heading}</h2>
     <div>
       {rows.length > 0 && <table class="diff">
         <caption class="vh">

@@ -38,8 +38,10 @@ describe("<Measured>", () => {
 
   it("is a region headed measured when the project has measurements, which the prompt hash does not become part of", async () => {
     const html = await render({ project: project({ measurements }) });
-    expect(html).toMatch(/<section[^>]*aria-labelledby="measured"/);
-    expect(html).toMatch(/<h2[^>]*\sid="measured"[^>]*>\s*measured\s*<\/h2>/);
+    expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+    expect(html).toMatch(
+      /<h2[^>]*\sid="project-details"[^>]*>\s*measured\s*<\/h2>/,
+    );
     const css = readFileSync(
       new URL("../../styles/global.css", import.meta.url),
       "utf-8",
@@ -52,8 +54,10 @@ describe("<Measured>", () => {
   it("is headed tools when it has no measurements, so the heading never promises figures that are not there", async () => {
     for (const none of [undefined, []]) {
       const html = await render({ project: project({ measurements: none }) });
-      expect(html).toMatch(/<section[^>]*aria-labelledby="tools"/);
-      expect(html).toMatch(/<h2[^>]*\sid="tools"[^>]*>\s*tools\s*<\/h2>/);
+      expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+      expect(html).toMatch(
+        /<h2[^>]*\sid="project-details"[^>]*>\s*tools\s*<\/h2>/,
+      );
       expect(html).not.toContain("measured");
       expect(html).not.toContain("<table");
     }
@@ -67,9 +71,30 @@ describe("<Measured>", () => {
       }),
       context: "production",
     });
-    expect(html).toMatch(/<section[^>]*aria-labelledby="links"/);
-    expect(html).toMatch(/<h2[^>]*\sid="links"[^>]*>\s*links\s*<\/h2>/);
+    expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+    expect(html).toMatch(
+      /<h2[^>]*\sid="project-details"[^>]*>\s*links\s*<\/h2>/,
+    );
     expect(html).not.toContain("tools");
+  });
+
+  it('gives the heading one id whatever it says, because an id taken from its words can meet another on the page (the nav\'s menu panel is "links")', async () => {
+    const ids = new Set<string>();
+    for (const over of [
+      { measurements },
+      { measurements: undefined },
+      {
+        stack: ["TODO: tools used"] as string[],
+        links: [{ label: "Source", url: "https://example.com/repo" }],
+      },
+    ]) {
+      const html = await render({
+        project: project(over),
+        context: "production",
+      });
+      for (const m of html.matchAll(/\sid="([^"]+)"/g)) ids.add(m[1]!);
+    }
+    expect([...ids]).toEqual(["project-details"]);
   });
 
   describe("the measurements", () => {

@@ -1,55 +1,18 @@
-import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  buildCopy,
+  copyOfProject,
+  removeCopies,
+} from "../../__tests__/project-copy";
 
 // R04 has no measurements, so the table is built here from a copy of the project whose R04 has
 // some. The demo figures exist only in the copy: nothing with a measurement is ever committed.
-const root = process.cwd();
-const copies: string[] = [];
-
-afterAll(() => {
-  for (const dir of copies) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(removeCopies);
 
 function buildCopyWithMeasurements(): string {
-  const dir = mkdtempSync(join(tmpdir(), "measured-build-"));
-  copies.push(dir);
-  for (const path of [
-    "src",
-    "public",
-    "astro.config.mjs",
-    "tsconfig.json",
-    "package.json",
-  ]) {
-    cpSync(join(root, path), join(dir, path), { recursive: true });
-  }
-  // A junction needs no elevated rights on Windows, unlike a symbolic link to a directory.
-  symlinkSync(
-    join(root, "node_modules"),
-    join(dir, "node_modules"),
-    "junction",
-  );
-  // Astro keeps the content it has read in node_modules/.astro, which the junction shares with the
-  // real project: the demo figures would be read back by every other build. The copy keeps its own.
-  const config = join(dir, "astro.config.mjs");
-  const configSource = readFileSync(config, "utf-8");
-  expect(configSource).toContain("defineConfig({");
-  writeFileSync(
-    config,
-    configSource.replace(
-      "defineConfig({",
-      'defineConfig({\n  cacheDir: "./.cache",',
-    ),
-  );
+  const dir = copyOfProject("measured-build-");
   const file = join(dir, "src", "content", "projects", "this-website.md");
   const source = readFileSync(file, "utf-8");
   expect(source).toContain("\nstack:\n");
@@ -72,17 +35,8 @@ function buildCopyWithMeasurements(): string {
       ].join("\n"),
     ),
   );
-  execFileSync(
-    process.execPath,
-    [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
-    {
-      cwd: dir,
-      env: { ...process.env, DEPLOY_CONTEXT: "production", SITE_URL: "" },
-      stdio: "pipe",
-      // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its own.
-      timeout: 80_000,
-    },
-  );
+  const output = buildCopy(dir, { DEPLOY_CONTEXT: "production" });
+  if (output !== "") throw new Error(`the build failed:\n${output}`);
   return readFileSync(
     join(dir, "dist", "projects", "this-website", "index.html"),
     "utf-8",
@@ -101,8 +55,10 @@ describe("a production build of a project that has measurements", () => {
       .trim();
 
   it("heads the block measured and shows the table before the tools", () => {
-    expect(html).toMatch(/<h2[^>]*\sid="measured"[^>]*>\s*measured\s*<\/h2>/);
-    expect(html).not.toMatch(/<h2[^>]*\sid="tools"/);
+    expect(html).toMatch(
+      /<h2[^>]*\sid="project-details"[^>]*>\s*measured\s*<\/h2>/,
+    );
+    expect(html).not.toMatch(/<h2[^>]*>\s*tools\s*<\/h2>/);
     expect(html.match(/<table\b/g)).toHaveLength(1);
     expect(html.indexOf("</table>")).toBeLessThan(
       html.indexOf('aria-label="Tools used"'),

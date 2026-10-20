@@ -1081,6 +1081,21 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       }
     });
 
+    it("use no id twice on any page of the build, because aria-controls and aria-labelledby find the first", () => {
+      const pages = Object.entries(pagesAndStyles(dir)).filter(([name]) =>
+        name.endsWith(".html"),
+      );
+      expect(pages.length).toBeGreaterThanOrEqual(3);
+      for (const [name, html] of pages) {
+        const seen = new Map<string, number>();
+        for (const m of html.matchAll(/\sid="([^"]*)"/g)) {
+          seen.set(m[1]!, (seen.get(m[1]!) ?? 0) + 1);
+        }
+        const repeated = [...seen].filter(([, count]) => count > 1);
+        expect(repeated, name).toEqual([]);
+      }
+    });
+
     it("show R04's page with its real values on production and in a preview alike", () => {
       const html = page("this-website");
       // The space the formatter puts inside a block's tags collapses, and is no gap in a word.
@@ -1093,8 +1108,10 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         expect(html).toMatch(new RegExp(`<h2[^>]*>${column}</h2>`));
       }
       // R04 has no measurements, so its block is headed for what it holds and has no table.
-      expect(html).toMatch(/<h2[^>]*\sid="tools"[^>]*>\s*tools\s*<\/h2>/);
-      expect(html).not.toContain('id="measured"');
+      expect(html).toMatch(
+        /<h2[^>]*\sid="project-details"[^>]*>\s*tools\s*<\/h2>/,
+      );
+      expect(html).not.toContain(">measured<");
       expect(html).not.toContain("<table");
       // The tools and the link, which is the repository.
       expect(html).toContain('aria-label="Tools used"');
