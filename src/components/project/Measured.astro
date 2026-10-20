@@ -131,6 +131,17 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
     width: 40%;
   }
 
+  @media (max-width: 560px) {
+    .diff th,
+    .diff td {
+      padding-inline: 10px;
+    }
+
+    .diff th:first-child {
+      width: 36%;
+    }
+  }
+
   /* Before is dim and after is bone. The - and + are decoration: the second line gives each an
      empty alt text, so a screen reader hears the column headings, not the signs. */
   .before {
@@ -138,8 +149,8 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
   }
 
   .before::before {
-    content: "- ";
-    content: "- " / "";
+    content: "-\2060\00a0";
+    content: "-\2060\00a0" / "";
   }
 
   .after {
@@ -148,8 +159,8 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
   }
 
   .after::before {
-    content: "+ ";
-    content: "+ " / "";
+    content: "+\00a0";
+    content: "+\00a0" / "";
   }
 
   .diff + .stack {

@@ -156,8 +156,10 @@ describe("<Measured>", () => {
       // The mock's red is no token, and green is the contract's for live state alone.
       expect(source).not.toMatch(/#ff8f8f|var\(--ok\)|#[0-9a-f]{3,8}\b/i);
       // The - and + are decoration, given an empty alt text.
-      expect(source).toMatch(/content:\s*"- "\s*\/\s*""/);
-      expect(source).toMatch(/content:\s*"\+ "\s*\/\s*""/);
+      // A no-break space joins each to its value, so a narrow column wraps the value, not the sign
+      // away from it. A hyphen may break before a no-break space, so the - also takes a word joiner.
+      expect(source).toMatch(/content:\s*"-\\2060\\00a0"\s*\/\s*""/);
+      expect(source).toMatch(/content:\s*"\+\\00a0"\s*\/\s*""/);
     });
   });
 
