@@ -250,9 +250,7 @@ export async function renderCard(card: Card): Promise<Uint8Array> {
     height: CARD_HEIGHT,
     fonts: loadFonts(),
   });
-  return new Resvg(svg, {
-    fitTo: { mode: "width", value: CARD_WIDTH },
-  })
-    .render()
-    .asPng();
+  // Rendered at the SVG's own size, so a size that satori and this file disagree on shows as a
+  // card of the wrong size (the tests check 1200 × 630) and is not rescaled to hide it.
+  return new Resvg(svg).render().asPng();
 }

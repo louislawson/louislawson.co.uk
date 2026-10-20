@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Project } from "../content/schema";
 import {
@@ -131,6 +132,17 @@ describe("a card's alt text", () => {
       status: "TODO: s",
     });
     expect(cardAlt(card)).not.toMatch(/todo/i);
+  });
+});
+
+describe("a card's brand", () => {
+  it("is the nav's wordmark, which the card copies: louis, a dot, lawson", () => {
+    const nav = readFileSync("src/components/Nav.astro", "utf-8");
+    const wordmark =
+      /class="nav__home"[^>]*>([^<]+)<span>([^<]*)<\/span>([^<]+)</.exec(nav);
+    expect(wordmark, "the wordmark in Nav.astro").not.toBeNull();
+    expect(wordmark!.slice(1, 4).join("")).toBe(homeCard({}).brand);
+    expect(projectCard("x", real).brand).toBe(homeCard({}).brand);
   });
 });
 
