@@ -7,10 +7,11 @@ import { CONTEXTS, folderOf, originOf, pagesOf } from "./contexts.ts";
 // path that does not exist answers with the 404 page. They run on the desktop and the phone.
 
 /** What went wrong while a page loaded: anything a visitor's browser would report. */
-function watch(page: Page) {
+function watch(page: Page, documentUrl?: string) {
   const problems: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error") {
+    // A page that is itself a 404 is reported by the browser as a console error at its own URL.
+    if (message.type() === "error" && message.location().url !== documentUrl) {
       problems.push(`console error: ${message.text()}`);
     }
   });
@@ -23,7 +24,8 @@ function watch(page: Page) {
     ),
   );
   page.on("response", (response) => {
-    if (response.status() >= 400) {
+    // A page's own status is asserted by each test, which a 404 page's would otherwise fail.
+    if (response.status() >= 400 && !response.request().isNavigationRequest()) {
       problems.push(`status ${response.status()}: ${response.url()}`);
     }
   });
@@ -58,9 +60,20 @@ for (const context of CONTEXTS) {
 
   /** Every header the build's config sets for all pages arrives, so a dropped one is noticed. */
   const expectGlobalHeaders = (response: Response | null) => {
-    expect(Object.keys(config.globalHeaders)).toContain(
+    // The loop below compares with the build's own config, which the server also applies, so a
+    // header the build stopped emitting would not show. These are named here instead.
+    for (const name of [
       "Content-Security-Policy",
-    );
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "Referrer-Policy",
+    ]) {
+      expect(Object.keys(config.globalHeaders), name).toContain(name);
+    }
+    // Every preview is noindex, whatever the launch switch says.
+    if (context.name === "preview") {
+      expect(config.globalHeaders["X-Robots-Tag"]).toBe("noindex");
+    }
     const received = response?.headers() ?? {};
     for (const [name, value] of Object.entries(config.globalHeaders)) {
       expect(received[name.toLowerCase()], name).toBe(value);
@@ -107,9 +120,15 @@ for (const context of CONTEXTS) {
     test("answers a made-up path with status 404 and the 404 page", async ({
       page,
     }) => {
-      const response = await page.goto(`${origin}/no-such-page-6f1c2e`);
+      const url = `${origin}/no-such-page-6f1c2e`;
+      const watching = watch(page, url);
+      const response = await page.goto(url);
+      await page.waitForLoadState("networkidle");
 
       expect(response?.status()).toBe(404);
+      // Its styles and fonts load from a path other than the page's own, as a visitor sees them.
+      expect(await watching.violations()).toEqual([]);
+      expect(watching.problems).toEqual([]);
       expect(await response?.text()).toBe(
         readFileSync(join(folder, "404.html"), "utf-8"),
       );

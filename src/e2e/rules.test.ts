@@ -146,6 +146,16 @@ describe("which headers an answer carries", () => {
     );
   });
 
+  it.each(["/images/*.png", "/*.{css,js}", "/a/*/b"])(
+    "refuses a route pattern it cannot apply (%s) instead of never matching it",
+    (route) => {
+      const config: StaticWebAppRules = {
+        routes: [{ route, headers: { A: "route" } }],
+      };
+      expect(() => respond(config, "/", exists)).toThrow(/route/);
+    },
+  );
+
   it("matches an exact route only on that path", () => {
     const exact: StaticWebAppRules = {
       globalHeaders: { A: "global" },
@@ -178,6 +188,12 @@ describe("content type", () => {
     ["a.webp", "image/webp"],
     ["_astro/f.woff2", "font/woff2"],
     ["favicon.svg", "image/svg+xml"],
+    ["manifest.webmanifest", "application/manifest+json; charset=utf-8"],
+    ["a.avif", "image/avif"],
+    ["a.gif", "image/gif"],
+    ["f.ttf", "font/ttf"],
+    ["f.otf", "font/otf"],
+    ["a.js.map", "application/json; charset=utf-8"],
     ["unknown.bin", "application/octet-stream"],
     ["NOEXT", "application/octet-stream"],
   ])("%s is %s", (file, type) => {

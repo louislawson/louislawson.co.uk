@@ -15,6 +15,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // A check that failed and then passed on a retry is a failure, so a flaky page is not hidden.
+  failOnFlakyTests: !!process.env.CI,
   webServer: CONTEXTS.map((context) => ({
     name: context.name,
     command: `node e2e/serve.ts ${folderOf(context).replaceAll("\\", "/")} ${context.port}`,

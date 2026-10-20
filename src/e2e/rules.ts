@@ -51,6 +51,13 @@ function routeHeaders(
 ): Record<string, string> {
   const merged: Record<string, string> = {};
   for (const { route, headers } of routes ?? []) {
+    // Only a trailing star is applied. Another pattern would silently never match and the headers
+    // would differ from what Static Web Apps sends, so it is an error to add support or rewrite.
+    if (route.slice(0, -1).includes("*")) {
+      throw new Error(
+        `the e2e server applies only an exact route or one ending in "*", not the route "${route}"`,
+      );
+    }
     const matches = route.endsWith("*")
       ? path.startsWith(route.slice(0, -1))
       : path === route;
@@ -125,6 +132,12 @@ const TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   webp: "image/webp",
   ico: "image/x-icon",
+  gif: "image/gif",
+  avif: "image/avif",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  webmanifest: "application/manifest+json; charset=utf-8",
+  map: "application/json; charset=utf-8",
   woff: "font/woff",
   woff2: "font/woff2",
   pdf: "application/pdf",
