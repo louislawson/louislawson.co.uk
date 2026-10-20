@@ -1,9 +1,15 @@
 ---
 import type { InferGetStaticPropsType } from "astro";
+import { render } from "astro:content";
 import Measured from "../../components/project/Measured.astro";
 import NextProject from "../../components/project/NextProject.astro";
 import ProjectHead from "../../components/project/ProjectHead.astro";
-import { pageTitle, projectPages } from "../../components/home/project-display";
+import WriteUp from "../../components/project/WriteUp.astro";
+import {
+  pageTitle,
+  projectPages,
+  writeUpKind,
+} from "../../components/home/project-display";
 import { getSiteContent } from "../../content/site-content";
 import Base from "../../layouts/Base.astro";
 
@@ -23,10 +29,15 @@ export async function getStaticPaths() {
 // Astro types Astro.props from the name `Props`.
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 const { project, next, sections } = Astro.props;
+const writeUp = writeUpKind(project.body);
+// A body that is only a placeholder is hatched, not rendered, and no body has no write-up at all.
+const { Content } = await render(project);
 ---
 
 <Base title={pageTitle(project.data)} sections={sections}>
   <ProjectHead project={project} />
   <Measured project={project} />
+  {writeUp.kind === "placeholder" && <WriteUp placeholder={writeUp.text} />}
+  {writeUp.kind === "prose" && <WriteUp><Content /></WriteUp>}
   <NextProject next={next} />
 </Base>

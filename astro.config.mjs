@@ -15,5 +15,8 @@ export default defineConfig({
   // Nor may an asset be inlined: Vite turns any asset under this size into a data: URL, and Astro
   // inlines a processed script under it into the page. The policy blocks both.
   vite: { build: { assetsInlineLimit: 0 } },
+  // Shiki, the default highlighter, writes a style attribute on every token of a code block, which
+  // the policy blocks. A write-up's code is plain monospace on the panel colour instead.
+  markdown: { syntaxHighlight: false },
   integrations: [staticWebAppConfig({ noindex: site.noindex })],
 });

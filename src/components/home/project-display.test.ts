@@ -10,6 +10,7 @@ import {
   projectPages,
   projectPath,
   statusLabel,
+  writeUpKind,
 } from "./project-display";
 
 /** The fields of a project that these functions read. */
@@ -259,5 +260,31 @@ describe("projectPages", () => {
   it("has no next link for a single project, and no page for none", () => {
     expect(projectPages([entry("a", 1)])[0]!.props.next).toBeUndefined();
     expect(projectPages([])).toEqual([]);
+  });
+});
+
+describe("writeUpKind", () => {
+  it("is none for a body with nothing in it, so the page has no heading over nothing", () => {
+    expect(writeUpKind(undefined)).toEqual({ kind: "none" });
+    expect(writeUpKind("")).toEqual({ kind: "none" });
+    expect(writeUpKind("  \n\n ")).toEqual({ kind: "none" });
+  });
+
+  it("is a placeholder for a body that is wholly one, naming the text to hatch", () => {
+    expect(
+      writeUpKind("TODO: write the run sheet for this project.\n"),
+    ).toEqual({
+      kind: "placeholder",
+      text: "TODO: write the run sheet for this project.",
+    });
+  });
+
+  it("is prose for anything else, a half-finished body included, which the preview shows as written", () => {
+    expect(writeUpKind("### Context\n\nWords.\n")).toEqual({ kind: "prose" });
+    expect(writeUpKind("Words.\n\nTODO: more\n")).toEqual({ kind: "prose" });
+    // A placeholder that goes on into more paragraphs is more than a placeholder.
+    expect(writeUpKind("TODO: start\n\nMore words.\n")).toEqual({
+      kind: "prose",
+    });
   });
 });

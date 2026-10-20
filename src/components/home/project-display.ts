@@ -70,6 +70,24 @@ export function projectPages<E extends Listed>(projects: readonly E[]) {
   }));
 }
 
+export type WriteUpKind =
+  { kind: "none" } | { kind: "placeholder"; text: string } | { kind: "prose" };
+
+/**
+ * What a project's Markdown body is for the page. A body with nothing in it has no write-up
+ * section. A body that is one placeholder paragraph is hatched in a preview like any other
+ * placeholder. Anything else is rendered as written: a half-finished body keeps its project out of
+ * production, and a preview shows it as it stands.
+ */
+export function writeUpKind(body: string | undefined): WriteUpKind {
+  const text = body?.trim() ?? "";
+  if (text === "") return { kind: "none" };
+  if (isPlaceholder(text) && !/\n\s*\n/.test(text)) {
+    return { kind: "placeholder", text };
+  }
+  return { kind: "prose" };
+}
+
 /**
  * The two halves of a project's meta line. A work project says what kind of organisation it was
  * for, which is anonymised. A personal or open-source project names its organisation when it has

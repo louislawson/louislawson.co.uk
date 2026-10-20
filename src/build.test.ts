@@ -1122,12 +1122,58 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(html).not.toContain('class="tag"');
     });
 
+    it("render R04's write-up under the write-up heading: its ### headings as h3, in order, with no h1 or h2 of its own", () => {
+      const source = readFileSync(
+        join(process.cwd(), "src", "content", "projects", "this-website.md"),
+        "utf-8",
+      );
+      // The headings the file writes, as the page shows them: smartypants makes ' a curly quote.
+      const written = [...source.matchAll(/^### (.+)$/gm)].map((m) =>
+        m[1]!.replace(/'/g, "’"),
+      );
+      expect(written.length).toBeGreaterThanOrEqual(5);
+      // The rule forbids # and ##, so none is left in the file for the build to have rendered.
+      expect(source).not.toMatch(/^#{1,2} /m);
+
+      const html = page("this-website");
+      expect(html.match(/<h2[^>]*\sid="writeup"/g)).toHaveLength(1);
+      const prose =
+        /<div class="prose"[^>]*>(.*?)<\/div>\s*<\/div>\s*<\/section>/s.exec(
+          html,
+        )?.[1] ?? "";
+      const headings = [...prose.matchAll(/<h([1-6])\b[^>]*>(.*?)<\/h\1>/gs)];
+      expect(headings.map((m) => m[1])).toEqual(written.map(() => "3"));
+      expect(headings.map((m) => m[2])).toEqual(written);
+      // The prose sits between the measured block and the end of the page's content.
+      expect(html.indexOf('id="project-details"')).toBeLessThan(
+        html.indexOf('id="writeup"'),
+      );
+    });
+
+    it("keep a code block in a write-up free of an inline style, since no highlighter is on", () => {
+      // No project has a code block today, and a build with one is WriteUp.build.test.ts. This holds
+      // the whole project pages to the content security policy's rule, whatever they come to hold.
+      for (const slug of slugs()) {
+        expect(page(slug), slug).not.toMatch(STYLE_ATTRIBUTE);
+        expect(page(slug), slug).not.toContain("astro-code");
+      }
+    });
+
     if (deployContext === "preview") {
       it("hatch a placeholder project's values, and follow the home page's order from one page to the next, wrapping", () => {
         const html = page("r01-placeholder");
         expect(html).toContain('class="ph"');
         expect(html).toContain("Placeholder: ");
         expect(html).not.toContain("TODO:");
+        // Its write-up is a placeholder too: the heading stays, and the placeholder is hatched
+        // under it, not printed as the Markdown it is.
+        const writeUp =
+          /<section[^>]*aria-labelledby="writeup".*?<\/section>/s.exec(
+            html,
+          )?.[0] ?? "";
+        expect(writeUp).toMatch(/<h2[^>]*>\s*write-up\s*<\/h2>/);
+        expect(writeUp).toContain('class="ph"');
+        expect(writeUp).toContain("Placeholder: ");
         // R01 is the featured project, so it carries the tag and leads the order.
         expect(html).toContain('class="tag"');
         const next = (slug: string) =>

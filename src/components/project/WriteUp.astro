@@ -1,0 +1,145 @@
+---
+// A project's write-up: the Markdown body, rendered by the page and given to this as its slot, under
+// the "# write-up" heading. The Markdown's elements carry no class and none of this component's
+// scope attribute, so each rule reaches them through :global() under .prose.
+//
+// The # in front of the heading is the shared .p-cols > h2::before in global.css.
+//
+// A write-up that is only a placeholder is not Markdown to render: the page gives its text as
+// `placeholder`, and a preview hatches it under the heading like any other placeholder. Production
+// leaves a placeholder out, and with it the heading, which would stand over nothing.
+import { site, type DeployContext } from "../../config/site";
+import { renderDecision } from "../../content/visibility";
+import Placeholder from "../Placeholder.astro";
+
+interface Props {
+  /** The write-up's text when the whole of it is a placeholder. */
+  placeholder?: string;
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { placeholder, context = site.deployContext } = Astro.props;
+const shown =
+  placeholder === undefined || renderDecision(placeholder, context) !== "omit";
+---
+
+{shown && <section class="wrap p-section" aria-labelledby="writeup">
+  <div class="p-cols">
+    <h2 id="writeup">write-up</h2>
+    <div class="prose">
+      {placeholder === undefined ? (
+        <slot />
+      ) : (
+        <p><Placeholder value={placeholder} context={context} /></p>
+      )}
+    </div>
+  </div>
+</section>}
+
+<style>
+  .prose {
+    max-width: 68ch;
+    line-height: 1.75;
+  }
+
+  .prose > :global(* + *) {
+    margin-top: 1.1em;
+  }
+
+  /* Directly beside the heading in the left columns, not a heading's margin below it. */
+  .prose > :global(:first-child) {
+    margin-top: 0;
+  }
+
+  /* A write-up's headings are ###, under the page's h1 and the h2 above, and are drawn as the mock's
+     ##. The ## is decoration: the second line gives it an empty alt text, so a screen reader
+     hears the heading's words. */
+  .prose :global(h3) {
+    margin-top: 2.2em;
+    font-size: clamp(1.2rem, 1rem + 0.8vw, 1.6rem);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .prose :global(h3)::before {
+    content: "## ";
+    content: "## " / "";
+    color: var(--hivis);
+    font-weight: 400;
+  }
+
+  /* The reset gives every list list-style: none, so a list asks for its marker. A bullet list's is
+     the mock's -; a numbered list keeps its numbers. */
+  .prose :global(ul) {
+    padding-left: 1.4em;
+    list-style: disc;
+  }
+
+  .prose :global(ol) {
+    padding-left: 1.4em;
+    list-style: decimal;
+  }
+
+  .prose :global(ul > li)::marker {
+    content: "- ";
+    content: "- " / "";
+    color: var(--hivis);
+  }
+
+  .prose :global(ol > li)::marker {
+    color: var(--hivis);
+  }
+
+  .prose :global(strong) {
+    color: var(--bone);
+    font-weight: 700;
+  }
+
+  /* Code is plain monospace on the panel colour. The browser's own monospace and its smaller size
+     would otherwise replace the site's face. */
+  .prose :global(pre) {
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.88em;
+    line-height: 1.6;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    scrollbar-color: var(--line-strong) var(--panel);
+  }
+
+  .prose :global(pre code) {
+    padding: 0;
+    font-size: inherit;
+    background: none;
+    border: 0;
+  }
+
+  .prose :global(:not(pre) > code) {
+    padding: 0.1em 0.4em;
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+
+  /* A diagram sits in the column on the panel colour, so a transparent one has a ground. Its
+     caption is the paragraph that follows it, by convention: a paragraph that is only the image,
+     then the next paragraph. */
+  .prose :global(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+
+  .prose :global(p:has(> img:only-child) + p) {
+    margin-top: 0.6rem;
+    color: var(--dim);
+    font-size: 0.85rem;
+  }
+</style>
