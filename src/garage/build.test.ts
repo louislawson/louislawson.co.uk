@@ -1,18 +1,12 @@
-import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  buildCopy,
+  copyOfProject as copyProject,
+  removeCopies,
+} from "../__tests__/project-copy";
 import { checkImage } from "../metadata/image";
 import { DITHER_HEIGHT, DITHER_WIDTH } from "./dither";
 
@@ -20,29 +14,7 @@ import { DITHER_HEIGHT, DITHER_WIDTH } from "./dither";
 // imports it, because what the build publishes can only be seen by building. A photo must come out
 // as its optimised copy alone: the original is unlinked but would still be public, full size, and
 // counted against the hosting plan's size limit.
-const root = process.cwd();
-const copies: string[] = [];
-
-function copyOfProject(): string {
-  const dir = mkdtempSync(join(tmpdir(), "garage-build-"));
-  copies.push(dir);
-  for (const path of [
-    "src",
-    "public",
-    "astro.config.mjs",
-    "tsconfig.json",
-    "package.json",
-  ]) {
-    cpSync(join(root, path), join(dir, path), { recursive: true });
-  }
-  // A junction needs no elevated rights on Windows, unlike a symbolic link to a directory.
-  symlinkSync(
-    join(root, "node_modules"),
-    join(dir, "node_modules"),
-    "junction",
-  );
-  return dir;
-}
+const copyOfProject = () => copyProject("garage-build-");
 
 /** Every file under `dir`, as a path relative to it with forward slashes. */
 function filesUnder(dir: string): string[] {
@@ -145,32 +117,30 @@ function addPhotosAndEntry(
   );
 }
 
-/** Builds the copy in production, the strictest context: an entry with a placeholder is left out. */
-function build(dir: string) {
-  execFileSync(
-    process.execPath,
-    [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
-    {
-      cwd: dir,
-      env: { ...process.env, DEPLOY_CONTEXT: "production", SITE_URL: "" },
-      stdio: "pipe",
-      timeout: 55_000,
-    },
-  );
+/**
+ * Builds the copy in production, the strictest context: an entry with a placeholder is left out.
+ * Returns what a failed build printed ("" if it succeeded).
+ */
+function build(dir: string): string {
+  return buildCopy(dir, { DEPLOY_CONTEXT: "production" });
+}
+
+/** Builds a copy that is meant to build, and says what the build printed when it does not. */
+function buildOrThrow(dir: string) {
+  const output = build(dir);
+  if (output !== "") throw new Error(`the build failed:\n${output}`);
 }
 
 beforeAll(async () => {
   dir = copyOfProject();
   original = await makeOriginal();
   addPhotosAndEntry(dir, { "test-car.jpg": original });
-  build(dir);
+  buildOrThrow(dir);
   files = filesUnder(join(dir, "dist"));
   html = readFileSync(join(dir, "dist", "index.html"), "utf-8");
 });
 
-afterAll(() => {
-  for (const copy of copies) rmSync(copy, { recursive: true, force: true });
-});
+afterAll(removeCopies);
 
 describe("a build with a photo in src/assets/garage/", () => {
   it("starts from a photo that has what an original has: its size, an orientation tag and a colour profile", async () => {
@@ -254,13 +224,7 @@ describe("a build with a photo in src/assets/garage/ that no entry uses", () => 
       "stray-tractor.jpg": await makeOriginal(),
     });
 
-    let output = "";
-    try {
-      build(copy);
-    } catch (error) {
-      const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-      output = `${stdout ?? ""}${stderr ?? ""}`;
-    }
+    const output = build(copy);
 
     expect(output, "the build should have failed").not.toBe("");
     expect(output).toContain("stray-tractor.jpg");
@@ -285,7 +249,7 @@ describe("a production build with a real photo in an entry that still has placeh
       { "test-car.jpg": await makeOriginal() },
       "placeholders",
     );
-    build(hiddenDir);
+    buildOrThrow(hiddenDir);
     hiddenFiles = filesUnder(join(hiddenDir, "dist"));
     hiddenHtml = readFileSync(join(hiddenDir, "dist", "index.html"), "utf-8");
   });

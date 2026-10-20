@@ -90,6 +90,8 @@ describe("a push to main", () => {
     "src/metadata/pdf.ts",
     "src/metadata/__fixtures__/pdf.ts",
     "src/metadata/image.test.ts",
+    // The helper the build tests share, which only they import.
+    "src/__tests__/project-copy.ts",
     // Markdown under src/ is content, but not under src/metadata/: the later re-include of
     // src/**/*.md must not win over the exclusion.
     "src/metadata/NOTES.md",
@@ -128,6 +130,7 @@ describe("a pull request", () => {
     "src/metadata/check.ts",
     "src/metadata/NOTES.md",
     "src/metadata/__fixtures__/containers.ts",
+    "src/__tests__/project-copy.ts",
     "src/content/list-placeholders.ts",
     "src/content/schema.test.ts",
     "scripts/check-metadata.ts",

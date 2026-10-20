@@ -31,10 +31,17 @@ async function render(props: Record<string, unknown>): Promise<string> {
 }
 
 describe("<Measured>", () => {
-  it("is a region headed measured, which the prompt hash does not become part of", async () => {
-    const html = await render({ project: project() });
-    expect(html).toMatch(/<section[^>]*aria-labelledby="measured"/);
-    expect(html).toMatch(/<h2[^>]*\sid="measured"[^>]*>\s*measured\s*<\/h2>/);
+  const measurements = [
+    { label: "Time to environment", before: "8", after: "2", unit: "hours" },
+    { label: "Incidents caught before users", before: "70", unit: "%" },
+  ];
+
+  it("is a region headed measured when the project has measurements, which the prompt hash does not become part of", async () => {
+    const html = await render({ project: project({ measurements }) });
+    expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+    expect(html).toMatch(
+      /<h2[^>]*\sid="project-details"[^>]*>\s*measured\s*<\/h2>/,
+    );
     const css = readFileSync(
       new URL("../../styles/global.css", import.meta.url),
       "utf-8",
@@ -42,6 +49,156 @@ describe("<Measured>", () => {
     // The # is decoration, set where the project page's sections share it: the second line gives
     // it an empty alt text.
     expect(css).toMatch(/content:\s*"# ";\s*content:\s*"# "\s*\/\s*"";/);
+  });
+
+  it("is headed tools when it has no measurements, so the heading never promises figures that are not there", async () => {
+    for (const none of [undefined, []]) {
+      const html = await render({ project: project({ measurements: none }) });
+      expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+      expect(html).toMatch(
+        /<h2[^>]*\sid="project-details"[^>]*>\s*tools\s*<\/h2>/,
+      );
+      expect(html).not.toContain("measured");
+      expect(html).not.toContain("<table");
+    }
+  });
+
+  it("is headed links when all it holds is links, so the heading still names only what is there", async () => {
+    const html = await render({
+      project: project({
+        stack: ["TODO: tools used"],
+        links: [{ label: "Source", url: "https://example.com/repo" }],
+      }),
+      context: "production",
+    });
+    expect(html).toMatch(/<section[^>]*aria-labelledby="project-details"/);
+    expect(html).toMatch(
+      /<h2[^>]*\sid="project-details"[^>]*>\s*links\s*<\/h2>/,
+    );
+    expect(html).not.toContain("tools");
+  });
+
+  it('gives the heading one id whatever it says, because an id taken from its words can meet another on the page (the nav\'s menu panel is "links")', async () => {
+    const ids = new Set<string>();
+    for (const over of [
+      { measurements },
+      { measurements: undefined },
+      {
+        stack: ["TODO: tools used"] as string[],
+        links: [{ label: "Source", url: "https://example.com/repo" }],
+      },
+    ]) {
+      const html = await render({
+        project: project(over),
+        context: "production",
+      });
+      for (const m of html.matchAll(/\sid="([^"]+)"/g)) ids.add(m[1]!);
+    }
+    expect([...ids]).toEqual(["project-details"]);
+  });
+
+  describe("the measurements", () => {
+    const body = (html: string) =>
+      /<tbody\b[^>]*>(.*?)<\/tbody>/.exec(html)?.[1] ?? "";
+    const rows = (html: string) =>
+      [...body(html).matchAll(/<tr\b[^>]*>(.*?)<\/tr>/g)].map((m) => m[1]!);
+    const cells = (row: string) => [
+      ...row.matchAll(/<(t[hd])\b([^>]*)>(.*?)<\/\1>/g),
+    ];
+    const text = (html: string) =>
+      html
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    it("are a real table with a caption for screen readers, and columns for the measure, before and after", async () => {
+      const html = await render({ project: project({ measurements }) });
+      expect(html.match(/<table\b/g)).toHaveLength(1);
+      expect(html).toMatch(
+        /<caption[^>]*class="vh"[^>]*>\s*Before and after measurements\s*<\/caption>/,
+      );
+      const head = /<thead\b[^>]*>(.*?)<\/thead>/.exec(html)?.[1] ?? "";
+      expect(head.match(/<th scope="col"/g)).toHaveLength(3);
+      expect(cells(head).map((m) => text(m[3]!))).toEqual([
+        "measure",
+        "before",
+        "after",
+      ]);
+      // Each row names its measure as a row header.
+      expect(body(html).match(/<th scope="row"/g)).toHaveLength(2);
+    });
+
+    it("show a before-and-after row with its unit on each value, in the before and after columns", async () => {
+      const html = await render({ project: project({ measurements }) });
+      const row = cells(rows(html)[0]!);
+      expect(row.map((m) => text(m[3]!))).toEqual([
+        "Time to environment",
+        "8 hours",
+        "2 hours",
+      ]);
+      expect(row[1]![2]).toMatch(/class="before"/);
+      expect(row[2]![2]).toMatch(/class="after"/);
+    });
+
+    it("show a measurement with no after once, across both value columns, with its unit", async () => {
+      const html = await render({ project: project({ measurements }) });
+      const row = cells(rows(html)[1]!);
+      expect(row.map((m) => text(m[3]!))).toEqual([
+        "Incidents caught before users",
+        "70%",
+      ]);
+      expect(row[1]![2]).toMatch(/colspan="2"/);
+      // It is a figure, not a change: neither end of one.
+      expect(row[1]![2]).not.toMatch(/class="(before|after)"/);
+    });
+
+    it("keep the measurements in the order they were written", async () => {
+      const html = await render({
+        project: project({ measurements: [...measurements].reverse() }),
+      });
+      expect(rows(html).map((row) => text(cells(row)[0]![3]!))).toEqual([
+        "Incidents caught before users",
+        "Time to environment",
+      ]);
+    });
+
+    it("come before the tools and the links", async () => {
+      const html = await render({
+        project: project({
+          measurements,
+          links: [{ label: "Source", url: "https://example.com/repo" }],
+        }),
+      });
+      expect(html.indexOf("</table>")).toBeLessThan(
+        html.indexOf('class="stack"'),
+      );
+      expect(html.indexOf('class="stack"')).toBeLessThan(html.indexOf("<a "));
+    });
+
+    it("are the same in both contexts, since a measurement is real or absent", async () => {
+      const real = project({ measurements });
+      expect(await render({ project: real, context: "production" })).toBe(
+        await render({ project: real, context: "preview" }),
+      );
+    });
+
+    it("are drawn in tokens: before dim, after bone, no red and no green, and markers that are not read out", () => {
+      const source = readFileSync(
+        new URL("./Measured.astro", import.meta.url),
+        "utf-8",
+      );
+      const rule = (selector: string) =>
+        new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(source)?.[1] ?? "";
+      expect(rule(String.raw`\.before`)).toMatch(/color:\s*var\(--dim\)/);
+      expect(rule(String.raw`\.after`)).toMatch(/color:\s*var\(--bone\)/);
+      // The mock's red is no token, and green is the contract's for live state alone.
+      expect(source).not.toMatch(/#ff8f8f|var\(--ok\)|#[0-9a-f]{3,8}\b/i);
+      // The - and + are decoration, given an empty alt text.
+      // A no-break space joins each to its value, so a narrow column wraps the value, not the sign
+      // away from it. A hyphen may break before a no-break space, so the - also takes a word joiner.
+      expect(source).toMatch(/content:\s*"-\\2060\\00a0"\s*\/\s*""/);
+      expect(source).toMatch(/content:\s*"\+\\00a0"\s*\/\s*""/);
+    });
   });
 
   describe("the tools", () => {
