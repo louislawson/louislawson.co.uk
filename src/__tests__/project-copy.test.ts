@@ -39,6 +39,14 @@ describe("copyOfProject", () => {
     );
   });
 
+  it("keeps Vite's own cache in the copy too: its default is node_modules/.vite, which concurrent builds would share", () => {
+    const dir = copyOfProject("project-copy-test-");
+    const config = readFileSync(join(dir, "astro.copy.config.mjs"), "utf-8");
+    expect(config).toMatch(/vite:\s*\{[^}]*cacheDir:\s*"\.\/\.cache\/vite"/);
+    // The copied config's own vite options are kept, not replaced.
+    expect(config).toMatch(/\.\.\.config\.vite/);
+  });
+
   it("leaves the real config alone, and shares only node_modules with the real project", () => {
     const dir = copyOfProject("project-copy-test-");
     expect(readFileSync(join(root, "astro.config.mjs"), "utf-8")).not.toContain(

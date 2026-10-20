@@ -12,6 +12,7 @@ import {
 } from "../../components/home/project-display";
 import { getSiteContent } from "../../content/site-content";
 import Base from "../../layouts/Base.astro";
+import { projectMeta } from "../../seo/page-meta";
 
 // One page per project this build shows, from the same list as the home page: production builds the
 // real projects, a preview builds every one, and a project that is left out has no page, so its
@@ -35,7 +36,11 @@ const Content =
   writeUp.kind === "prose" ? (await render(project)).Content : undefined;
 ---
 
-<Base title={pageTitle(project.data)} sections={sections}>
+<Base
+  title={pageTitle(project.data)}
+  sections={sections}
+  meta={projectMeta(project.id, project.data)}
+>
   <ProjectHead project={project} />
   <Measured project={project} />
   {writeUp.kind === "placeholder" && <WriteUp placeholder={writeUp.text} />}

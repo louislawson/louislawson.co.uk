@@ -8,6 +8,7 @@ import Nav from "../components/Nav.astro";
 import { buildCommitDate } from "../config/last-updated";
 import { site } from "../config/site";
 import type { Section } from "../content/visibility";
+import { metaTags, type PageMeta } from "../seo/meta";
 import shortcutsState from "../scripts/shortcuts-state.js?url";
 import "../styles/global.css";
 
@@ -20,12 +21,20 @@ interface Props {
    * getSiteContent() returned, and a page that forgets fails `astro check`.
    */
   sections: Section[];
+  /**
+   * What a link to the page previews as: its description (left out while there is none) and its
+   * card. The home and project pages pass it; the 404 page does not, and has no sharing tags.
+   */
+  meta?: Pick<PageMeta, "description" | "image" | "imageAlt" | "type">;
 }
 
-const { title, canonical = true, sections } = Astro.props;
+const { title, canonical = true, sections, meta } = Astro.props;
 const canonicalUrl = canonical
   ? new URL(Astro.url.pathname, site.url).href
   : undefined;
+const tags = meta
+  ? metaTags({ ...meta, title, pathname: Astro.url.pathname }, site.url)
+  : [];
 // shortcutsState sets <html data-shortcuts> before the first paint, so the number hints do not
 // flash. It is a file, as the policy allows no inline code; a classic script in <head>, so it
 // blocks rendering and runs before anything shows; and a hashed asset (cached for good, so a repeat
@@ -41,6 +50,13 @@ const canonicalUrl = canonical
     <meta name="color-scheme" content="dark" />
     {site.noindex && <meta name="robots" content="noindex" />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    {tags.map((tag) =>
+      tag.attribute === "name" ? (
+        <meta name={tag.key} content={tag.content} />
+      ) : (
+        <meta property={tag.key} content={tag.content} />
+      ),
+    )}
     <script is:inline src={shortcutsState}></script>
     <link
       rel="preload"
