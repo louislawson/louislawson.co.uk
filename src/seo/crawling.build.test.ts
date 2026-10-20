@@ -21,7 +21,8 @@ import type { DeployContext } from "../config/site";
 afterAll(removeCopies);
 
 const SITE_URL = "https://example.test";
-const LAUNCH_LINE = "const LAUNCH = false;";
+// Either value, so the test still finds its line once the launch PR has flipped it.
+const LAUNCH_LINE = /const LAUNCH = (?:true|false);/;
 
 const ALLOW_ALL = `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap-index.xml\n`;
 const DISALLOW_ALL = "User-agent: *\nDisallow: /\n";
@@ -34,43 +35,73 @@ interface Built {
 }
 
 /** Replaces text that must be there, so an edit that stopped matching fails instead of passing. */
-function replaceOnce(path: string, from: string | RegExp, to: string): void {
+function replaceOnce(path: string, from: RegExp, to: string): void {
   const source = readFileSync(path, "utf-8");
   expect(source, `${path} no longer holds ${from}`).toMatch(from);
   writeFileSync(path, source.replace(from, to));
 }
 
+/** A project entry, real or a placeholder the way the committed ones are. */
+function project(opts: {
+  code: string;
+  featured: boolean;
+  placeholder?: boolean;
+}): string {
+  const text = (real: string, todo: string) =>
+    opts.placeholder ? `"TODO: ${todo}"` : real;
+  return `---
+code: ${opts.code}
+title: ${text("Demo project", "project title")}
+summary: ${text("A demo summary.", "one sentence on the result")}
+headline: ${text("Demo headline", "a headline of two to five words")}
+status: ${text("commissioning", "status")}
+period: ${text('"2026"', "period")}
+featured: ${opts.featured}
+order: ${Number(opts.code.slice(1))}
+kind: open-source
+setup: ${text("A demo setup.", "where it started")}
+change: ${text("A demo change.", "what you changed")}
+result: ${text("A demo result.", "what is different now")}
+stack:
+  - ${text("Astro", "tools used")}
+---
+
+### how it works
+
+${opts.placeholder ? "TODO: write the run sheet for this project." : "A demo write-up."}
+`;
+}
+
 /**
  * Gives the copy what the launch gate requires, which a launched build refuses to start without:
  * the intro, career line, role line and LinkedIn link, a CV, and two real projects with the
- * featured one real. A demo project takes the place of R01 and R04 is the second. None of it is
- * committed.
+ * featured one real. The copy's own projects are replaced by two demos and a placeholder, which
+ * production leaves out, so the copy does not depend on what the committed content is by then.
+ * None of it is committed.
  */
 function makeLaunchable(dir: string): void {
   const profile = join(dir, "src", "data", "profile.ts");
-  replaceOnce(profile, /roleLine: "TODO[^"]*"/, 'roleLine: "A demo role"');
-  replaceOnce(profile, /intro: "TODO[^"]*"/, 'intro: "A demo introduction."');
+  replaceOnce(profile, /roleLine: "[^"]*"/, 'roleLine: "A demo role"');
+  replaceOnce(profile, /intro: "[^"]*"/, 'intro: "A demo introduction."');
+  replaceOnce(profile, /careerLine: "[^"]*"/, 'careerLine: "A demo career"');
   replaceOnce(
     profile,
-    /careerLine: "TODO[^"]*"/,
-    'careerLine: "A demo career"',
-  );
-  replaceOnce(
-    profile,
-    /linkedin: "TODO[^"]*"/,
+    /linkedin: "[^"]*"/,
     'linkedin: "https://www.linkedin.com/in/demo"',
   );
-  replaceOnce(profile, /cv: "TODO[^"]*"/, 'cv: "/cv.pdf"');
+  replaceOnce(profile, /cv: "[^"]*"/, 'cv: "/cv.pdf"');
   writeFileSync(join(dir, "public", "cv.pdf"), "%PDF-1.4\n");
 
   const projects = join(dir, "src", "content", "projects");
-  const demo = readFileSync(join(projects, "this-website.md"), "utf-8")
-    .replace("code: R04", "code: R01")
-    .replace("title: This website", "title: Demo project")
-    .replace("featured: false", "featured: true")
-    .replace("order: 4", "order: 1");
-  rmSync(join(projects, "r01-placeholder.md"));
-  writeFileSync(join(projects, "demo-project.md"), demo);
+  for (const file of readdirSync(projects)) rmSync(join(projects, file));
+  const entries = [
+    { slug: "demo-one", code: "R01", featured: true },
+    { slug: "demo-two", code: "R02", featured: false },
+    { slug: "demo-draft", code: "R03", featured: false, placeholder: true },
+  ];
+  for (const { slug, ...entry } of entries) {
+    writeFileSync(join(projects, `${slug}.md`), project(entry));
+  }
 }
 
 function build(launch: boolean, deployContext: DeployContext): Built {
@@ -168,11 +199,11 @@ describe("a production build after launch", () => {
   });
 
   it("lists the home page and each project page, and neither the 404 nor a file that is not a page", () => {
-    // The two real projects of the launchable copy; its R02 and R03 are placeholders and have no page.
+    // The launchable copy has two real projects and a placeholder one, which production leaves out.
     expect(locations(built.read("sitemap-0.xml")).sort()).toEqual([
       `${SITE_URL}/`,
-      `${SITE_URL}/projects/demo-project/`,
-      `${SITE_URL}/projects/this-website/`,
+      `${SITE_URL}/projects/demo-one/`,
+      `${SITE_URL}/projects/demo-two/`,
     ]);
   });
 });
