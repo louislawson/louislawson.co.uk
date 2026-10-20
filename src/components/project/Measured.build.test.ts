@@ -47,7 +47,7 @@ describe("a production build of a project that has measurements", () => {
   let html = "";
   beforeAll(() => {
     html = buildCopyWithMeasurements();
-  }, 90_000);
+  });
   const text = (fragment: string) =>
     fragment
       .replace(/<[^>]+>/g, "")

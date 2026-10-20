@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import {
   cpSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -18,16 +17,21 @@ import { join } from "node:path";
 const root = process.cwd();
 const copies: string[] = [];
 
-/** The config with its own cache directory, in the copy. */
-export function withOwnCacheDir(source: string): string {
-  const call = "defineConfig({";
-  if (!source.includes(call)) {
-    throw new Error(
-      `astro.config.mjs no longer calls ${call}: update withOwnCacheDir in src/__tests__/project-copy.ts, which gives each test copy its own Astro cache`,
-    );
-  }
-  return source.replace(call, `${call}\n  cacheDir: "./.cache",`);
-}
+/**
+ * What a build may take before it is killed. A synchronous call cannot be interrupted by the test
+ * timeout, so a hung build needs its own, and it ends inside the 60 s that vitest.config.ts gives
+ * every test and hook, so the failure it reports is this one, with the build's output.
+ */
+export const BUILD_TIMEOUT_MS = 55_000;
+
+// The copy builds through this config, which is the copied one with a cache of its own. Wrapping it
+// finds nothing in its text, so a change to how astro.config.mjs is written cannot leave the cache
+// shared without a word.
+const COPY_CONFIG = "astro.copy.config.mjs";
+const COPY_CONFIG_SOURCE = `import config from "./astro.config.mjs";
+
+export default { ...config, cacheDir: "./.cache" };
+`;
 
 /** A copy of the project in a temporary folder, which `removeCopies` deletes. */
 export function copyOfProject(prefix: string): string {
@@ -48,14 +52,15 @@ export function copyOfProject(prefix: string): string {
     join(dir, "node_modules"),
     "junction",
   );
-  const config = join(dir, "astro.config.mjs");
-  writeFileSync(config, withOwnCacheDir(readFileSync(config, "utf-8")));
+  writeFileSync(join(dir, COPY_CONFIG), COPY_CONFIG_SOURCE);
   return dir;
 }
 
 /**
- * Builds the copy and returns what a failed build printed ("" if it succeeded). The environment is
- * the one a local build has, with `env` over it.
+ * Builds the copy and returns what a failed build printed ("" if it succeeded). A build that fails
+ * without printing anything, because it could not start or was killed at the timeout, returns the
+ * error's own message, so "" always means it worked. The environment is the one a local build has,
+ * with `env` over it.
  */
 export function buildCopy(
   dir: string,
@@ -64,20 +69,27 @@ export function buildCopy(
   try {
     execFileSync(
       process.execPath,
-      [join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"],
+      [
+        join(dir, "node_modules", "astro", "bin", "astro.mjs"),
+        "build",
+        "--config",
+        COPY_CONFIG,
+      ],
       {
         cwd: dir,
         env: { ...process.env, DEPLOY_CONTEXT: "", SITE_URL: "", ...env },
         stdio: "pipe",
-        // A synchronous call cannot be interrupted by the test timeout, so a hung build needs its
-        // own. It sits inside the 90 s a build's hook is given.
-        timeout: 80_000,
+        timeout: BUILD_TIMEOUT_MS,
       },
     );
     return "";
   } catch (error) {
-    const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-    return `${stdout ?? ""}${stderr ?? ""}`;
+    const { stdout, stderr, message } = error as {
+      stdout?: Buffer;
+      stderr?: Buffer;
+      message?: string;
+    };
+    return `${stdout ?? ""}${stderr ?? ""}${message ?? "the build failed"}`;
   }
 }
 
