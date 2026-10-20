@@ -22,3 +22,16 @@ export const INSPECT_LABELS = {
   notFound:
     "static page · Static Web Apps serves it for any address that does not exist",
 } as const;
+
+/**
+ * A project page's label: the page is made from one file, so the label names it. The name is the
+ * file's own, taken from its path (the id is the name slugged, which differs for a name with
+ * capitals or spaces), and the folder is the loader's.
+ */
+export function projectPageLabel(entry: {
+  id: string;
+  filePath?: string | undefined;
+}): string {
+  const file = entry.filePath?.split(/[\\/]/).pop() ?? `${entry.id}.md`;
+  return `generated at build from src/content/projects/${file}`;
+}

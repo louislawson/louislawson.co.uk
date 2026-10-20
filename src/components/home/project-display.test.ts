@@ -5,7 +5,10 @@ import {
   countLabel,
   featuredFirst,
   metaParts,
+  pageTitle,
   projectLayout,
+  projectPages,
+  projectPath,
   statusLabel,
 } from "./project-display";
 
@@ -176,5 +179,85 @@ describe("countLabel", () => {
     expect(countLabel(2)).toBe("(02)");
     expect(countLabel(9)).toBe("(09)");
     expect(countLabel(12)).toBe("(12)");
+  });
+});
+
+/** An entry as the collection holds it: an id (the file name) and the data these functions read. */
+const entry = (id: string, order: number, featured = false) => ({
+  id,
+  data: { ...work("A descriptor"), code: `R0${order}`, order, featured },
+});
+
+describe("projectPath", () => {
+  it("is the page's address: the file name under /projects/, with the trailing slash", () => {
+    expect(projectPath("this-website")).toBe("/projects/this-website/");
+  });
+});
+
+describe("the next project, as each page gets it", () => {
+  const list = [
+    entry("a", 1),
+    entry("b", 2),
+    entry("c", 3),
+    entry("d", 4, true),
+  ];
+  /** The file name of the project the page for `id` links on to. */
+  const nextOf = (projects: typeof list, id: string) =>
+    projectPages(projects).find((page) => page.params.slug === id)!.props.next
+      ?.id;
+
+  it("is the next in the home page's order, which leads with the featured project", () => {
+    // The home page's order is d, a, b, c.
+    expect(nextOf(list, "d")).toBe("a");
+    expect(nextOf(list, "a")).toBe("b");
+    expect(nextOf(list, "b")).toBe("c");
+  });
+
+  it("wraps from the last to the first", () => {
+    expect(nextOf(list, "c")).toBe("d");
+  });
+
+  it("wraps in `order` when no project is featured", () => {
+    const plain = [entry("b", 2), entry("a", 1)];
+    expect(nextOf(plain, "b")).toBe("a");
+    expect(nextOf(plain, "a")).toBe("b");
+  });
+
+  it("does not depend on the order the projects arrive in", () => {
+    expect(nextOf([...list].reverse(), "d")).toBe("a");
+    expect(nextOf([...list].reverse(), "c")).toBe("d");
+  });
+
+  it("is nothing when the project is the only one, so it never links to itself", () => {
+    expect(nextOf([entry("a", 1)] as typeof list, "a")).toBeUndefined();
+  });
+});
+
+describe("pageTitle", () => {
+  it("is the project's title and the site's name", () => {
+    expect(pageTitle({ title: "This website", code: "R04" })).toBe(
+      "This website · Louis Lawson",
+    );
+  });
+
+  it("names the code when the title is still a placeholder, which a tab cannot hatch", () => {
+    expect(pageTitle({ title: "TODO: project title", code: "R01" })).toBe(
+      "R01 · Louis Lawson",
+    );
+  });
+});
+
+describe("projectPages", () => {
+  it("is one page per project, at its file name, with the project that follows it", () => {
+    const pages = projectPages([entry("a", 1), entry("b", 2)]);
+    expect(pages.map((page) => page.params.slug)).toEqual(["a", "b"]);
+    expect(pages[0]!.props.project.id).toBe("a");
+    expect(pages[0]!.props.next?.id).toBe("b");
+    expect(pages[1]!.props.next?.id).toBe("a");
+  });
+
+  it("has no next link for a single project, and no page for none", () => {
+    expect(projectPages([entry("a", 1)])[0]!.props.next).toBeUndefined();
+    expect(projectPages([])).toEqual([]);
   });
 });

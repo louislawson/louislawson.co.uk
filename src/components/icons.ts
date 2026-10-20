@@ -5,6 +5,8 @@
 export const ICONS = {
   /** Points right: actions that go on to something. */
   arrow: ["M4 12h15", "M13 6l6 6-6 6"],
+  /** Points left: the way back to where the visitor came from. */
+  back: ["M20 12H5", "M11 6l-6 6 6 6"],
   /** Points up and right: links that leave the site. */
   external: ["M7 17L17 7", "M9 7h8v8"],
   /** Points down onto a line: a file that comes to the visitor's device. */

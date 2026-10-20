@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-19): **Phases 0 to 4 are built.** Phase 5 has been reviewed with Louis but is **not yet approved for build**. Phases 6–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-19): **Phases 0 to 4 are built.** Phase 5 is **approved for build**. Phases 6–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 

@@ -12,7 +12,7 @@ import { visibleSections } from "../content/visibility";
 import { profile } from "../data/profile";
 import Contact from "./home/Contact.astro";
 import Hero from "./home/Hero.astro";
-import { INSPECT_LABELS } from "./inspect-labels";
+import { INSPECT_LABELS, projectPageLabel } from "./inspect-labels";
 import Nav from "./Nav.astro";
 
 const root = new URL("../../", import.meta.url);
@@ -490,4 +490,54 @@ describe("the inspect labels", () => {
       expect(await holds()).toBe(true);
     },
   );
+});
+
+describe("a project page's label", () => {
+  // The loader's own folder and pattern, read from the loader: the label names a file that the
+  // loader reads, so it stops being true if either changes.
+  const loader = /glob\(\{([^}]*)\}\)/.exec(read("src/content.config.ts"))?.[1];
+  const pattern = /pattern:\s*"([^"]+)"/.exec(loader ?? "")?.[1];
+  const base = /base:\s*"([^"]+)"/.exec(loader ?? "")?.[1];
+
+  it("names the page's own file, in the folder and with the ending the loader reads", () => {
+    expect(pattern, "no pattern in the loader").toBe("*.md");
+    expect(base, "no base in the loader").toBe("./src/content/projects");
+    expect(
+      projectPageLabel({
+        id: "this-website",
+        filePath: "src/content/projects/this-website.md",
+      }),
+    ).toBe("generated at build from src/content/projects/this-website.md");
+  });
+
+  it("takes the file name from the entry's path, which is the real name when the id is not (a name with capitals or spaces is slugged)", () => {
+    expect(
+      projectPageLabel({
+        id: "landing-zone",
+        filePath: "src/content/projects/Landing Zone.md",
+      }),
+    ).toBe("generated at build from src/content/projects/Landing Zone.md");
+  });
+
+  it("falls back on the id when the entry has no path", () => {
+    expect(projectPageLabel({ id: "r01-placeholder" })).toBe(
+      "generated at build from src/content/projects/r01-placeholder.md",
+    );
+  });
+
+  it("is one short line like the others, whatever the file's name", () => {
+    const label = projectPageLabel({
+      id: "r01-placeholder",
+      filePath: "src/content/projects/r01-placeholder.md",
+    });
+    expect(label.length).toBeLessThanOrEqual(110);
+    expect(label).toMatch(/^[a-z]/);
+    expect(label).not.toMatch(/\.$|[\n\r]/);
+  });
+
+  it("says “generated at build”, and that is so: astro.config.mjs sets no server output", () => {
+    expect(read("astro.config.mjs")).not.toMatch(
+      /output:\s*["'](server|hybrid)["']/,
+    );
+  });
 });

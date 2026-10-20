@@ -1,9 +1,13 @@
 import type { Project } from "../../content/schema";
+import { isPlaceholder } from "../../content/todo";
 
 /** Up to this many projects are shown in full, as strips; more are compact rows. */
 export const STRIP_LIMIT = 3;
 
 export type ProjectLayout = "strip" | "row";
+
+/** What the lists read of a collection entry: its file name, and what puts it in order. */
+type Listed = { id: string; data: { featured: boolean; order: number } };
 
 export function projectLayout(count: number): ProjectLayout {
   return count <= STRIP_LIMIT ? "strip" : "row";
@@ -16,14 +20,54 @@ export function projectLayout(count: number): ProjectLayout {
  * (production leaves a placeholder one out and promotes no other), and then this is `order`
  * alone. It returns a new list, and the entries themselves are the ones it was given.
  */
-export function featuredFirst<
-  E extends { data: { featured: boolean; order: number } },
->(projects: readonly E[]): E[] {
+export function featuredFirst<E extends Pick<Listed, "data">>(
+  projects: readonly E[],
+): E[] {
   return [...projects].sort(
     (a, b) =>
       Number(b.data.featured) - Number(a.data.featured) ||
       a.data.order - b.data.order,
   );
+}
+
+/** A project's page: its file name (the collection's id) under /projects/. */
+export function projectPath(id: string): string {
+  return `/projects/${id}/`;
+}
+
+/**
+ * The project after this one in a list that is in the home page's order, which wraps from the last
+ * to the first. A project that stands alone has none to point to, and neither has one that is not
+ * in the list.
+ */
+function following<E extends Listed>(
+  ordered: readonly E[],
+  id: string,
+): E | undefined {
+  const index = ordered.findIndex((project) => project.id === id);
+  if (index === -1 || ordered.length < 2) return undefined;
+  return ordered[(index + 1) % ordered.length];
+}
+
+/**
+ * The browser tab's title. A placeholder title is shown hatched on the page, which a tab cannot
+ * do, so the tab names the project by its code instead.
+ */
+export function pageTitle(data: { title: string; code: string }): string {
+  return `${isPlaceholder(data.title) ? data.code : data.title} · Louis Lawson`;
+}
+
+/**
+ * What getStaticPaths() returns: a page for each project it is given, at its file name, with the
+ * project to link on to. The pages built in a deploy context are the projects that context shows.
+ */
+export function projectPages<E extends Listed>(projects: readonly E[]) {
+  // The order is the same for every page, so it is worked out once.
+  const ordered = featuredFirst(projects);
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project, next: following(ordered, project.id) },
+  }));
 }
 
 /**

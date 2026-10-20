@@ -1,0 +1,98 @@
+---
+// The tools, and the links that follow them. The links' labels and arrows hug their tags:
+// compressHTML keeps a line break as a space, which would show as a gap before an arrow.
+import { site, type DeployContext } from "../../config/site";
+import type { Project } from "../../content/schema";
+import { renderDecision } from "../../content/visibility";
+import Icon from "../Icon.astro";
+import Placeholder from "../Placeholder.astro";
+
+interface Props {
+  /** The project this page is for, from getSiteContent(). */
+  project: { data: Project };
+  /** Defaults to the deploy context of this build. */
+  context?: DeployContext;
+}
+
+const { project, context = site.deployContext } = Astro.props;
+const { stack, links } = project.data;
+
+// A value is shown, hatched where a preview has a placeholder, or left out. Production has already
+// dropped the placeholders in these lists; this keeps a stray one from rendering as an empty cell.
+const tools = stack.filter((tool) => renderDecision(tool, context) !== "omit");
+const shownLinks = links.flatMap((link) => {
+  const label = renderDecision(link.label, context);
+  const url = renderDecision(link.url, context);
+  if (label === "omit" || url === "omit") return [];
+  // A link is a link only when both halves are real. Otherwise it is a button that is not one, and
+  // it shows the label, then the address hatched beside it when only the address is missing.
+  return [
+    {
+      ...link,
+      real: label === "show" && url === "show",
+      labelShown: label === "show",
+    },
+  ];
+});
+// Nothing to put in the block, nothing rendered: no heading over an empty list.
+const shown = tools.length > 0 || shownLinks.length > 0;
+---
+
+{shown && <section class="wrap p-section" aria-labelledby="measured">
+  <div class="p-cols">
+    <h2 id="measured">measured</h2>
+    <div>
+      {tools.length > 0 && <ul class="stack" aria-label="Tools used">
+        {tools.map((tool) => <li>
+          <Placeholder value={tool} context={context} />
+        </li>)}
+      </ul>}
+      {shownLinks.length > 0 && <div class="links">
+        {shownLinks.map(({ label, url, real, labelShown }) =>
+          real ? (
+            <a class="btn" href={url}
+              >{label}<Icon name="external" size={14}
+            /></a>
+          ) : (
+            <span class="btn"
+              ><Placeholder value={label} context={context} />{labelShown &&
+                " "}{labelShown && (
+                <Placeholder value={url} context={context} />
+              )}</span
+            >
+          ),
+        )}
+      </div>}
+    </div>
+  </div>
+</section>}
+
+<style>
+  .stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stack li {
+    padding: 2px 10px;
+    color: var(--dim);
+    border: 1px solid var(--line-strong);
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 1.5rem;
+  }
+
+  /* A button with a placeholder in it is not an action, so it neither points nor lights on hover. */
+  .links span.btn {
+    cursor: default;
+  }
+
+  .links span.btn:hover {
+    border-color: var(--line-strong);
+  }
+</style>
