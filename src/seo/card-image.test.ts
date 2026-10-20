@@ -76,6 +76,43 @@ describe("a card's text", () => {
   });
 });
 
+describe("a card's status marker", () => {
+  /** The marker's element: the square before the status word, as <Status> draws it. */
+  function marker(key: string) {
+    const card = projectCard("x", { ...real, status: key });
+    const tree = JSON.stringify(cardElement(card));
+    return {
+      border: /"border":"4px solid (#[0-9a-f]{6})"/.exec(tree)?.[1],
+      filled: /"backgroundColor":"(#[0-9a-f]{6})","marginRight":18/.test(tree),
+    };
+  }
+
+  it("is drawn as <Status> draws it: green and filled only for in service", () => {
+    expect(marker("in-service")).toEqual({
+      border: CARD_COLOURS.ok,
+      filled: true,
+    });
+    expect(marker("commissioning")).toEqual({
+      border: CARD_COLOURS.hivis,
+      filled: false,
+    });
+    expect(marker("complete")).toEqual({
+      border: CARD_COLOURS.bone,
+      filled: true,
+    });
+    expect(marker("archived")).toEqual({
+      border: CARD_COLOURS.dim,
+      filled: false,
+    });
+  });
+
+  it("fails the build on a status it has no marker for, rather than drawing another's", () => {
+    expect(() =>
+      cardElement(projectCard("x", { ...real, status: "paused" })),
+    ).toThrow(/no marker for the status "paused"/);
+  });
+});
+
 describe("a card's picture", () => {
   // The PNG signature, then the IHDR chunk: its width and height are the first eight data bytes.
   function size(png: Uint8Array) {

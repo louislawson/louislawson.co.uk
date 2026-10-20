@@ -78,15 +78,23 @@ let preview: Built;
 let production: Built;
 let demo: Built;
 
+/** The profile with its role line and intro made real; a line that is not found is an error. */
+function withDemoValues(profile: string): string {
+  const edited = profile
+    .replace(/^ {2}roleLine: ".*",$/m, `  roleLine: "${DEMO_ROLE}",`)
+    .replace(/^ {2}intro: ".*",$/m, `  intro: "${DEMO_INTRO}",`);
+  expect(edited).toContain(`roleLine: "${DEMO_ROLE}"`);
+  expect(edited).toContain(`intro: "${DEMO_INTRO}"`);
+  return edited;
+}
+
+// Three builds in a row, each of which may take what buildCopy allows (55 s) on a cold runner, so
+// the hook gets more than the 60 s every other hook has.
 beforeAll(() => {
   preview = build("preview", { DEPLOY_CONTEXT: "preview" });
   production = build("production", { DEPLOY_CONTEXT: "production" });
-  demo = build("demo", { DEPLOY_CONTEXT: "production" }, (profile) =>
-    profile
-      .replace(/^ {2}roleLine: ".*",$/m, `  roleLine: "${DEMO_ROLE}",`)
-      .replace(/^ {2}intro: ".*",$/m, `  intro: "${DEMO_INTRO}",`),
-  );
-});
+  demo = build("demo", { DEPLOY_CONTEXT: "production" }, withDemoValues);
+}, 180_000);
 
 describe.each([
   ["preview", () => preview],

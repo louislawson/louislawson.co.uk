@@ -33,13 +33,13 @@ export interface ProjectCard {
 
 export type Card = HomeCard | ProjectCard;
 
-// A card is a picture, so it cannot hatch a placeholder the way a page does: a placeholder is left
-// off in every build, and so is a value that production already dropped.
-const real = realText;
-
-/** The home page's card: the name, and the role line when it is real. */
+/**
+ * The home page's card: the name, and the role line when it is real. A card is a picture, so it
+ * cannot hatch a placeholder the way a page does: a placeholder is left off in every build, and
+ * so is a value that production already dropped.
+ */
 export function homeCard(profile: { roleLine?: string | undefined }): HomeCard {
-  const role = real(profile.roleLine);
+  const role = realText(profile.roleLine);
   return {
     kind: "home",
     brand: BRAND,
@@ -54,9 +54,9 @@ export function projectCard(
   id: string,
   data: Pick<Project, "code" | "title" | "headline" | "status">,
 ): ProjectCard {
-  const title = real(data.title);
-  const headline = real(data.headline);
-  const status = real(data.status);
+  const title = realText(data.title);
+  const headline = realText(data.headline);
+  const status = realText(data.status);
   return {
     kind: "project",
     brand: BRAND,

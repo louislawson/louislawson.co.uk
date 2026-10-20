@@ -89,7 +89,11 @@ const MARKERS: Record<string, { colour: string; filled: boolean }> = {
 };
 
 function statusRow(status: NonNullable<ProjectCard["status"]>): Element {
-  const marker = MARKERS[status.key] ?? MARKERS.archived!;
+  const marker = MARKERS[status.key];
+  // A status the schema gains must be given its marker here, not drawn as another's.
+  if (marker === undefined) {
+    throw new Error(`The card has no marker for the status "${status.key}"`);
+  }
   return el(
     "div",
     { ...row, alignItems: "center", marginTop: 24 },
