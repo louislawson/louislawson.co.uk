@@ -63,7 +63,7 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     // A file that vanished or could not be read (a rebuild during a run): say so, and keep serving
     // rather than let one request's rejection end the process and every later test with it.
-    console.error(`${request.method} ${request.url}:`, error);
+    console.error("could not answer a request:", { url: request.url }, error);
     if (!response.headersSent) response.writeHead(500);
     response.end();
   }
