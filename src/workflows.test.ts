@@ -300,6 +300,11 @@ describe("the E2E job in ci.yml", () => {
   it("is not allowed to fail quietly", () => {
     expect(job).not.toMatch(/continue-on-error|\|\| true/);
   });
+
+  it("runs the tests on 4 workers in CI, one per CPU of the hosted runner, and leaves local runs to Playwright", () => {
+    const config = read(new URL("playwright.config.ts", root));
+    expect(config).toMatch(/workers: process\.env\.CI \? 4 : undefined,/);
+  });
 });
 
 // Louis adds this job's name to the required checks, so a rename would leave main unprotected
