@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page, type Response } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
+import { expect, test, type Analytics } from "./test.ts";
 import { CONTEXTS, folderOf, originOf, pagesOf } from "./contexts.ts";
 
 // The smoke checks: every page of both builds loads cleanly under the site's real headers, and a
@@ -50,6 +51,9 @@ function watch(page: Page, documentUrl?: string) {
   };
 }
 
+/** The one address the beacon is loaded from; its reports go to a host the stub never sees. */
+const BEACON = "https://static.cloudflareinsights.com/beacon.min.js";
+
 for (const context of CONTEXTS) {
   const folder = folderOf(context);
   const origin = originOf(context);
@@ -80,6 +84,26 @@ for (const context of CONTEXTS) {
     }
   };
 
+  /**
+   * Only the production build counts visits: it asks Cloudflare for the beacon (answered by the
+   * fixture with an empty 204, never the network) and a preview or local build asks for nothing.
+   * The policy lets it, so the page's own checks (no violation, no failed request) still hold.
+   */
+  const expectBeaconRequests = async (page: Page, analytics: Analytics) => {
+    const tag = page.locator("script[data-cf-beacon]");
+    if (context.name === "production") {
+      expect(analytics.requests).toEqual([BEACON]);
+      await expect(tag).toHaveCount(1);
+      const token = JSON.parse(
+        (await tag.getAttribute("data-cf-beacon")) ?? "",
+      );
+      expect(token).toEqual({ token: expect.stringMatching(/^[0-9a-f]{32}$/) });
+    } else {
+      expect(analytics.requests).toEqual([]);
+      await expect(tag).toHaveCount(0);
+    }
+  };
+
   test.describe(`${context.name} build`, () => {
     test("has the pages every build has", () => {
       expect(pages).toContain("/");
@@ -88,7 +112,10 @@ for (const context of CONTEXTS) {
 
     for (const path of pages) {
       test.describe(path, () => {
-        test("loads cleanly under the site's headers", async ({ page }) => {
+        test("loads cleanly under the site's headers", async ({
+          page,
+          analytics,
+        }) => {
           const watching = watch(page);
           const response = await page.goto(`${origin}${path}`);
           await page.waitForLoadState("networkidle");
@@ -98,6 +125,7 @@ for (const context of CONTEXTS) {
           expectGlobalHeaders(response);
           expect(await watching.violations()).toEqual([]);
           expect(watching.problems).toEqual([]);
+          await expectBeaconRequests(page, analytics);
         });
 
         test("has no horizontal scroll at 320 px", async ({ page }) => {
@@ -119,6 +147,7 @@ for (const context of CONTEXTS) {
 
     test("answers a made-up path with status 404 and the 404 page", async ({
       page,
+      analytics,
     }) => {
       const url = `${origin}/no-such-page-6f1c2e`;
       const watching = watch(page, url);
@@ -133,6 +162,7 @@ for (const context of CONTEXTS) {
         readFileSync(join(folder, "404.html"), "utf-8"),
       );
       expectGlobalHeaders(response);
+      await expectBeaconRequests(page, analytics);
     });
   });
 }

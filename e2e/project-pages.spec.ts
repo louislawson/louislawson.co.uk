@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./test.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
 
 // The links between a project's page and the rest of the site: the way back and the next project.
