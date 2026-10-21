@@ -1,0 +1,55 @@
+name: Scorecard
+
+# Runs OpenSSF Scorecard on the repository and publishes the result, which feeds the badge in the
+# README and the viewer at scorecard.dev. The result is also uploaded to code scanning. It reads the
+# repository's settings, so it is not part of a pull request, and it never builds the site.
+#
+# Publishing the result is only accepted from a workflow that stays within Scorecard's rules: no
+# `env` or `defaults` at any level, no container, a GitHub-hosted Ubuntu runner, and only the
+# actions below (ossf/scorecard-action checks them). Keep it that way when editing this file.
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Mondays, at an odd minute away from the top of the hour.
+    - cron: "23 5 * * 1"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Read the repository and its settings, which includes the "Protect main" ruleset, so no
+      # personal access token is needed.
+      contents: read
+      # Read the workflows and their runs (Token-Permissions, Pinned-Dependencies).
+      actions: read
+      # Upload the result to code scanning.
+      security-events: write
+      # Publish the result, and prove to Scorecard's service where it came from.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 5
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: results.sarif
