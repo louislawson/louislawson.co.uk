@@ -28,10 +28,30 @@ const TEXT_SPACING = `
   p { margin-block-end: 2em !important; }
 `;
 
+/** A visitor who sets the browser's text size to twice the default (WCAG 1.4.4 asks for 200 %). */
+const TEXT_200 = "html { font-size: 200% !important; }";
+
 async function open(page: Page, url: string, path: string, width: number) {
   await page.setViewportSize({ width, height: HEIGHT });
   await page.goto(url);
   await settle(page, path);
+}
+
+/**
+ * Adds a visitor's stylesheet to a settled page. The page runs under its own policy, as it does for
+ * a visitor: the styles go in as a constructed stylesheet, which the policy does not block (an
+ * inline <style> it would). Resolves once the page has laid them out.
+ */
+async function addStyles(page: Page, css: string) {
+  await page.evaluate(async (css) => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    const frame = () =>
+      new Promise((resolve) => requestAnimationFrame(resolve));
+    await frame();
+    await frame();
+  }, css);
 }
 
 /** What does not fit at this width: a sideways scroll, or text cut off where it is hidden. */
@@ -109,8 +129,28 @@ for (const context of CONTEXTS) {
       });
     }
 
-    // The page runs under its own policy, as it does for a visitor: the spacing goes in as a
-    // constructed stylesheet, which the policy does not block (an inline <style> it would).
+    // Text at twice the size on the narrowest window: the page must still fit it (1.4.4 with 1.4.10).
+    test.describe("with text at 200 %", () => {
+      for (const path of pages) {
+        test(`${path} fits a 320 px window without losing content`, async ({
+          page,
+        }) => {
+          await open(page, `${origin}${path}`, path, 320);
+          const before = await page.evaluate(() =>
+            parseFloat(getComputedStyle(document.documentElement).fontSize),
+          );
+          await addStyles(page, TEXT_200);
+          // If the size had not doubled, nothing below would mean anything.
+          expect(
+            await page.evaluate(() =>
+              parseFloat(getComputedStyle(document.documentElement).fontSize),
+            ),
+          ).toBe(before * 2);
+          expect(await reflowProblems(page, 320, ["x"])).toEqual([]);
+        });
+      }
+    });
+
     test.describe("with the text spacing of 1.4.12", () => {
       for (const path of pages) {
         test(`${path} fits every width without losing content`, async ({
@@ -119,21 +159,7 @@ for (const context of CONTEXTS) {
           const problems: string[] = [];
           for (const width of WIDTHS) {
             await open(page, `${origin}${path}`, path, width);
-            await page.evaluate((css) => {
-              const sheet = new CSSStyleSheet();
-              sheet.replaceSync(css);
-              document.adoptedStyleSheets = [
-                ...document.adoptedStyleSheets,
-                sheet,
-              ];
-            }, TEXT_SPACING);
-            // The page was settled by open(); the new styles need only to be laid out.
-            await page.evaluate(
-              () =>
-                new Promise((resolve) =>
-                  requestAnimationFrame(() => requestAnimationFrame(resolve)),
-                ),
-            );
+            await addStyles(page, TEXT_SPACING);
             // If the styles had not applied, nothing below would mean anything.
             const spaced = await page.evaluate(() => {
               const style = getComputedStyle(document.body);

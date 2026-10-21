@@ -78,4 +78,12 @@ describe("<Status>", () => {
     expect(green.length).toBeGreaterThan(0);
     for (const selector of rules) expect(selector).toContain("in-service");
   });
+
+  it("breaks the word rather than run out of its column at twice the text size", () => {
+    const rule = /\.status\s*\{([^}]*)\}/.exec(style())?.[1] ?? "";
+    // No nowrap: the cell is as wide as its own text, up to the width of its column.
+    expect(rule).not.toContain("white-space: nowrap");
+    expect(rule).toContain("max-width: 100%");
+    expect(rule).toContain("overflow-wrap: anywhere");
+  });
 });

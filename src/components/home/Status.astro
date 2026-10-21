@@ -26,11 +26,15 @@ const { status, context = site.deployContext } = Astro.props;
 
 <style>
   /* The square marker and the word. Only in service uses green, which is for live state alone. */
+  /* One line at the size it is drawn: the cell is as wide as its own text, so the marker and the
+     word sit together. Where text at twice the size is wider than its column it breaks, instead of
+     running out of the page. */
   .status {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .status::before {
