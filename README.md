@@ -55,8 +55,8 @@ The **Scorecard** workflow (`scorecard.yml`) runs [OpenSSF Scorecard](https://sc
 Some checks stay low for reasons that are not worth gaming:
 
 - **Code-Review:** one maintainer merges every pull request, so no change has a second reviewer.
-- **Maintained:** the repository is under 90 days old, and the check scores a young repository low.
-- **Contributors:** a personal site has one contributor.
+- **Maintained:** the check scores a young repository low until it has a longer history.
+- **Contributors:** a personal site has one contributor, and the check counts contributing organisations.
 - **CII-Best-Practices, Fuzzing, Signed-Releases and Packaging:** they do not apply to a website that releases nothing and parses no untrusted input.
 
 ## Content and placeholders

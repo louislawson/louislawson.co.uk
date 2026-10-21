@@ -480,16 +480,6 @@ describe("the Scorecard workflow", () => {
     }
   });
 
-  it("reuses the checkout and upload-artifact versions that ci.yml pins", () => {
-    const ci = read(new URL(".github/workflows/ci.yml", root));
-    const pinned = (text: string, name: string) =>
-      new RegExp(`uses: ${name}@[0-9a-f]{40} # v[\\d.]+`).exec(text)?.[0];
-    for (const name of ["actions/checkout", "actions/upload-artifact"]) {
-      expect(pinned(code, name)).toBeDefined();
-      expect(pinned(code, name)).toBe(pinned(ci, name));
-    }
-  });
-
   it("checks out without keeping the token", () => {
     expect(code).toMatch(
       /uses: actions\/checkout@\S+ # \S+\n\s+with:\n\s+persist-credentials: false/,

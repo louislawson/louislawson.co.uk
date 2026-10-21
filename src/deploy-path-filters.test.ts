@@ -99,6 +99,7 @@ describe("a push to main", () => {
     ".github/workflows/links.yml",
     // Scorecard reads the repository's settings and publishes a score; it builds nothing.
     ".github/workflows/scorecard.yml",
+    // Markdown outside src/ is documentation, not content.
     "SECURITY.md",
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
