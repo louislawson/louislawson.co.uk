@@ -14,6 +14,10 @@ const WIDTHS = [320, 375, 768, 1024, 1440];
 
 const HEIGHT = 800;
 
+// Each check loads its page five times, once per width. On a slow runner that can pass the default
+// 30 s, and a timeout would read as a flaky test instead of a finding.
+test.describe.configure({ timeout: 90_000 });
+
 /** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
 const TEXT_SPACING = `
   *, *::before, *::after {
@@ -69,6 +73,14 @@ for (const context of CONTEXTS) {
           const problems: string[] = [];
           for (const width of WIDTHS) {
             await open(page, `${origin}${path}`, path, width);
+            // Where the section links fold into a menu they are hidden until it is opened, and a
+            // hidden link has no box to measure: open it, as a visitor does, and measure those too.
+            const menu = page.locator("[data-nav-menu]");
+            if (await menu.isVisible()) {
+              await menu.click();
+              await expect(menu).toHaveAttribute("aria-expanded", "true");
+              await expect(page.locator("#links a").first()).toBeVisible();
+            }
             const targets = await targetsOf(page);
             // A page with nothing to hit would pass for the wrong reason.
             expect(

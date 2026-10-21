@@ -37,6 +37,18 @@ export function clippedText(page: Page, axes: ("x" | "y")[] = ["x"]) {
       const text = (element.textContent ?? "").trim().replace(/\s+/g, " ");
       return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${classes} “${text.slice(0, 40)}”`;
     };
+    /** A pixel box between the text and the element: screen-reader-only text, cut off on purpose. */
+    const inTinyBox = (node: Node, element: Element) => {
+      for (
+        let p = node.parentElement;
+        p && p !== element;
+        p = p.parentElement
+      ) {
+        const box = p.getBoundingClientRect();
+        if (box.width <= 1 && box.height <= 1) return true;
+      }
+      return false;
+    };
     /** The boxes of the text a visitor reads in the element: none of it inside anything aria-hidden. */
     const readText = (element: Element) => {
       const boxes: DOMRect[] = [];
@@ -44,6 +56,7 @@ export function clippedText(page: Page, axes: ("x" | "y")[] = ["x"]) {
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         if (!node.textContent?.trim()) continue;
         if (node.parentElement?.closest('[aria-hidden="true"]')) continue;
+        if (inTinyBox(node, element)) continue;
         const range = document.createRange();
         range.selectNodeContents(node);
         for (const box of range.getClientRects()) {
@@ -132,7 +145,8 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
       return text;
     };
 
-    return [...document.querySelectorAll<HTMLElement>(TARGETS)].map(
+    const before = document.activeElement;
+    const facts = [...document.querySelectorAll<HTMLElement>(TARGETS)].map(
       (element) => {
         let box = element.getBoundingClientRect();
         const hidden = box.width <= 1 && box.height <= 1 && box.width > 0;
@@ -140,10 +154,12 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
           element.focus({ preventScroll: true });
           box = element.getBoundingClientRect();
         }
+        const display = getComputedStyle(element).display;
         const facts = {
           name: nameOf(element),
-          display: getComputedStyle(element).display,
-          surroundingText: surroundingText(element),
+          display,
+          // Only a link that flows with text can be in a sentence, so only it needs the words.
+          surroundingText: display === "inline" ? surroundingText(element) : "",
           width: round(box.width),
           height: round(box.height),
         };
@@ -151,5 +167,10 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
         return facts;
       },
     );
+    // Measuring must leave the page as it found it.
+    if (before instanceof HTMLElement && before !== document.body) {
+      before.focus({ preventScroll: true });
+    }
+    return facts;
   });
 }
