@@ -47,6 +47,8 @@ function allowSource(policy: string, name: string, source: string): string {
   if (existing === undefined) {
     return writePolicy([...directives, [name, ["'self'", source]]]);
   }
+  // 'none' beside another source is ignored by a browser, so the source replaces it.
+  existing[1] = existing[1].filter((value) => value !== "'none'");
   if (!existing[1].includes(source)) existing[1].push(source);
   return writePolicy(directives);
 }

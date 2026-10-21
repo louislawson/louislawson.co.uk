@@ -184,6 +184,20 @@ describe("buildStaticWebAppConfig: the content security policy", () => {
     expect(header).toContain("https://static.cloudflareinsights.com");
   });
 
+  it("replaces a baseline 'none' with the origin, since 'none' beside another source is ignored", () => {
+    const none = {
+      globalHeaders: {
+        "Content-Security-Policy": `${CSP}; script-src 'none'`,
+      },
+    };
+    const csp = policy(
+      buildStaticWebAppConfig(none, { noindex: true, beacon: true }),
+    );
+    expect(csp.get("script-src")).toEqual([
+      "https://static.cloudflareinsights.com",
+    ]);
+  });
+
   it("does not add the origin twice when the baseline already allows it", () => {
     const already = {
       globalHeaders: {

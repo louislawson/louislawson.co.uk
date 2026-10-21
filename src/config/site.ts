@@ -1,4 +1,4 @@
-import { isPlaceholder } from "../content/todo";
+import { isPlaceholder } from "../content/todo.ts";
 
 export type DeployContext = "local" | "preview" | "production";
 
