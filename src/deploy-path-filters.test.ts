@@ -94,6 +94,8 @@ describe("a push to main", () => {
     // The settings of the HTML and link checks, which read the built site and are not part of it.
     "lychee.toml",
     ".htmlvalidate.mjs",
+    // The secret scan's allowlist, which gitleaks reads and the build does not.
+    ".gitleaks.toml",
     ".github/workflows/links.yml",
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
@@ -155,6 +157,7 @@ describe("a pull request", () => {
     "playwright.config.ts",
     "lychee.toml",
     ".htmlvalidate.mjs",
+    ".gitleaks.toml",
     ".github/workflows/links.yml",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",

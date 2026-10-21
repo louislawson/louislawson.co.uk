@@ -454,9 +454,15 @@ describe("the live check in deploy.yml", () => {
   });
 
   it("checks out only what the script needs, and installs nothing from npm", () => {
-    expect(job).toMatch(
-      /sparse-checkout: \|\n\s+\/scripts\/\n\s+\/src\/e2e\/\n/,
-    );
+    const patterns = (
+      /sparse-checkout: \|\n((?: {12}\S.*\n)+)/.exec(job)?.[1] ?? ""
+    )
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    // The version file setup-node reads, the script, and the rules it imports: nothing else.
+    expect(patterns).toEqual(["/.nvmrc", "/scripts/", "/src/e2e/"]);
+    expect(job).toContain("node-version-file: .nvmrc");
     expect(job).toContain("sparse-checkout-cone-mode: false");
     expect(job).not.toMatch(/npm ci|npm install|cache: npm/);
   });

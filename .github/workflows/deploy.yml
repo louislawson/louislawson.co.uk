@@ -5,7 +5,7 @@ on:
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
   # folders, the scripts, the e2e tests, code only the scripts and tests use, tests, the test,
-  # lint, format and link-check configs, editor and ignore files, the licence, Markdown outside
+  # lint, format, link-check and secret-scan configs, editor and ignore files, the licence, Markdown outside
   # src/, and the workflows other than this one and the local actions; .gitattributes is
   # deliberately not excluded, since it controls line endings in the checkout), because each
   # production deploy fetches the deployment token and runs Microsoft's client. The code only
@@ -31,6 +31,7 @@ on:
       - "!playwright.config.ts"
       - "!lychee.toml"
       - "!.htmlvalidate.mjs"
+      - "!.gitleaks.toml"
       - "!eslint.config.mjs"
       - "!.prettierrc.json"
       - "!.prettierignore"
@@ -276,6 +277,7 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
+            /.nvmrc
             /scripts/
             /src/e2e/
           sparse-checkout-cone-mode: false # cone mode would also check out every root-level file

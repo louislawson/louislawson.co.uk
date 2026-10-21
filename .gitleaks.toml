@@ -1,0 +1,15 @@
+title = "louislawson.co.uk secret scan"
+
+[extend]
+useDefault = true
+
+# Two values, by value and nothing else: the Cloudflare Web Analytics token, which is public
+# because it is written into every production page (ANALYTICS_TOKEN in src/config/site.ts), and the
+# made-up token of the same shape that the tests use. gitleaks' generic-api-key rule flags a hex
+# value assigned to a name that ends in TOKEN. src/secret-scan.test.ts keeps this list to those two.
+[allowlist]
+description = "The public analytics token, and the made-up one in the tests"
+regexes = [
+  '''5a3dff7ef1dd4aeeb0e9723ff20467fc''',
+  '''0123456789abcdef0123456789abcdef''',
+]
