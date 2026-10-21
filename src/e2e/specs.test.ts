@@ -33,23 +33,23 @@ describe("the e2e specs", () => {
   });
 });
 
-// bypassCSP switches the site's policy off for a browser context. The text-spacing checks need it,
-// because a test cannot inject a stylesheet under the policy, and nothing else may have it: every
-// other check should see the page under the policy a visitor gets.
+// bypassCSP switches the site's policy off for a browser context. No test may use it: every check,
+// the text-spacing ones included (they add a constructed stylesheet, which the policy allows), sees
+// the page under the CSP and Trusted Types a visitor gets.
 describe("bypassCSP", () => {
-  const using = specs.filter((name) => /\bbypassCSP\b/.test(read(name)));
+  const files = readdirSync(folder).filter((name) => name.endsWith(".ts"));
 
-  it("is set in the text-spacing checks and nowhere else", () => {
-    expect(using).toEqual(["reflow.spec.ts"]);
-    expect(read("reflow.spec.ts").match(/bypassCSP: true/g)).toHaveLength(1);
+  it("finds the specs and helpers it is meant to check", () => {
+    expect(files).toEqual(
+      expect.arrayContaining(["reflow.spec.ts", "test.ts"]),
+    );
   });
 
-  it("is not set in the shared fixture, the config or a helper", () => {
-    for (const name of readdirSync(folder).filter(
-      (name) => name.endsWith(".ts") && !name.endsWith(".spec.ts"),
-    )) {
-      expect(read(name), name).not.toMatch(/bypassCSP/);
-    }
+  it.each(files)("%s does not use it", (name) => {
+    expect(read(name)).not.toMatch(/bypassCSP/);
+  });
+
+  it("is not set in the Playwright config", () => {
     const config = readFileSync(
       new URL("../../playwright.config.ts", import.meta.url),
       "utf-8",

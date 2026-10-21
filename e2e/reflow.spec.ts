@@ -109,12 +109,9 @@ for (const context of CONTEXTS) {
       });
     }
 
-    // The one place the site's CSP is switched off: the visitor's stylesheet that 1.4.12 imagines
-    // (a browser extension or a user style) is not subject to the page's policy, and a test cannot
-    // inject its styles under it. Nothing else in the suite sets bypassCSP.
+    // The page runs under its own policy, as it does for a visitor: the spacing goes in as a
+    // constructed stylesheet, which the policy does not block (an inline <style> it would).
     test.describe("with the text spacing of 1.4.12", () => {
-      test.use({ bypassCSP: true });
-
       for (const path of pages) {
         test(`${path} fits every width without losing content`, async ({
           page,
@@ -122,7 +119,14 @@ for (const context of CONTEXTS) {
           const problems: string[] = [];
           for (const width of WIDTHS) {
             await open(page, `${origin}${path}`, path, width);
-            await page.addStyleTag({ content: TEXT_SPACING });
+            await page.evaluate((css) => {
+              const sheet = new CSSStyleSheet();
+              sheet.replaceSync(css);
+              document.adoptedStyleSheets = [
+                ...document.adoptedStyleSheets,
+                sheet,
+              ];
+            }, TEXT_SPACING);
             // The page was settled by open(); the new styles need only to be laid out.
             await page.evaluate(
               () =>
