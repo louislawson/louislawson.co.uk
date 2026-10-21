@@ -427,3 +427,76 @@ describe("the HTML validation config", () => {
     expect(config.extends).toEqual(["html-validate:recommended"]);
   });
 });
+
+// After a deploy, scripts/check-live.ts asks the deployed site for its headers and compares them
+// with the build that was uploaded. It runs in a job of its own: the deploy job holds the Azure
+// identity and runs nothing from the project, and this one runs the project's script.
+describe("the live check in deploy.yml", () => {
+  const deploy = read(new URL(".github/workflows/deploy.yml", root));
+  const job =
+    deploy.match(/^ {2}live-check:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+  const script = read(new URL("scripts/check-live.ts", root));
+  const rules = read(new URL("src/e2e/live.ts", root));
+
+  it("exists", () => {
+    expect(job).not.toBe("");
+  });
+
+  it("runs after the deploy, and only when the deploy reported an address", () => {
+    expect(job).toMatch(/^ {4}needs: deploy$/m);
+    expect(job).toMatch(/^ {4}if: needs\.deploy\.outputs\.url != ''$/m);
+  });
+
+  it("only reads the repository: no Azure identity, no write access", () => {
+    expect(job).toMatch(/permissions:\n\s+contents: read\n/);
+    expect(job).not.toMatch(/id-token|pull-requests|secrets\./);
+    expect(job).toMatch(/persist-credentials: false/);
+  });
+
+  it("checks out only what the script needs, and installs nothing from npm", () => {
+    expect(job).toMatch(
+      /sparse-checkout: \|\n\s+\/scripts\/\n\s+\/src\/e2e\/\n/,
+    );
+    expect(job).toContain("sparse-checkout-cone-mode: false");
+    expect(job).not.toMatch(/npm ci|npm install|cache: npm/);
+  });
+
+  it("takes the address from the deploy step's output, passed through the environment", () => {
+    expect(job).toContain("LIVE_URL: ${{ needs.deploy.outputs.url }}");
+    expect(job).toContain('--url "${LIVE_URL}"');
+    // An expression inside the script itself would be injected into it as text.
+    expect(job.match(/run: [\s\S]*/)?.[0] ?? "").not.toContain("${{");
+  });
+
+  it("compares with the config of the build that was uploaded, in the build's own context", () => {
+    expect(job).toMatch(/actions\/download-artifact@[0-9a-f]{40}/);
+    expect(job).toContain("name: site");
+    expect(job).toContain("--config dist/staticwebapp.config.json");
+    expect(job).toContain(
+      "DEPLOY_CONTEXT: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}",
+    );
+    expect(job).toContain('--context "${DEPLOY_CONTEXT}"');
+  });
+
+  it("pins its actions to full commit SHAs", () => {
+    const uses = [...job.matchAll(/uses: (\S+)@(\S+) # v/g)];
+    expect(uses.length).toBeGreaterThanOrEqual(3);
+    for (const [, , ref] of uses) expect(ref).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("does not hide a failure", () => {
+    expect(job).not.toMatch(/continue-on-error|\|\| true/);
+  });
+
+  it("does not stop the preview comment, which only needs the deploy", () => {
+    const comment =
+      deploy.match(/^ {2}comment:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+    expect(comment).toMatch(/^ {4}needs: deploy$/m);
+  });
+
+  it("names no host: the script and its rules take the address they are given", () => {
+    for (const text of [job, script, rules]) {
+      expect(text).not.toMatch(/azurestaticapps\.net|louislawson\.co\.uk/);
+    }
+  });
+});

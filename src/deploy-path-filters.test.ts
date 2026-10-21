@@ -98,6 +98,9 @@ describe("a push to main", () => {
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
     "src/e2e/rules.test.ts",
+    // The post-deploy check's rules, which only scripts/check-live.ts and its test use.
+    "src/e2e/live.ts",
+    "scripts/check-live.ts",
     "src/e2e/NOTES.md",
     "src/metadata/image.ts",
     "src/metadata/pdf.ts",
@@ -147,6 +150,7 @@ describe("a pull request", () => {
     "src/content/list-placeholders.ts",
     "src/content/schema.test.ts",
     "src/e2e/rules.ts",
+    "src/e2e/live.ts",
     "e2e/smoke.spec.ts",
     "playwright.config.ts",
     "lychee.toml",
