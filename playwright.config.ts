@@ -15,6 +15,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // The hosted runner has 4 CPUs, and Playwright defaults to half of them.
+  workers: process.env.CI ? 4 : undefined,
   // A check that failed and then passed on a retry is a failure, so a flaky page is not hidden.
   failOnFlakyTests: !!process.env.CI,
   webServer: CONTEXTS.map((context) => ({

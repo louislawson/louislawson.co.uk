@@ -302,6 +302,15 @@ describe("the E2E job in ci.yml", () => {
   });
 });
 
+// The E2E job's speed comes from its worker count, which the plan fixes at the hosted runner's 4 CPUs.
+describe("the Playwright config", () => {
+  const config = read(new URL("playwright.config.ts", root));
+
+  it("sets 4 workers in CI and leaves local runs to Playwright's default", () => {
+    expect(config).toMatch(/workers: process\.env\.CI \? 4 : undefined,/);
+  });
+});
+
 // Louis adds this job's name to the required checks, so a rename would leave main unprotected
 // without any check going red: the required check would simply never report.
 describe("the Static checks job in ci.yml", () => {
