@@ -261,12 +261,19 @@ const home = Astro.url.pathname === "/";
   }
 
   /* At 320 px (a 1280 px window at 400 % zoom) the brand, the menu and the inspect button are 272 px
-     in a 288 px row, and two 10 px gaps would make it 292: the last one wrapped to a second row. A
-     6 px gap fits them in one. From 360 px the row is wide enough, and the gap is as it was. A
-     visitor's own text spacing still makes them wider than the row, and then the bar wraps. */
+     wide where the text is drawn narrowest and 282 px where it is drawn widest (Linux), in a 288 px
+     row. With two 10 px gaps they did not fit and the last one wrapped to a second row. A 6 px gap
+     and 8 px instead of 12 px beside the words of each button fit them in one row on both, with
+     room to spare. From 360 px the row is wide enough and none of this applies. A visitor's own
+     text spacing still makes them wider than the row, and then the bar wraps. */
   @media (max-width: 359px) {
     .nav__inner {
       gap: 4px 6px;
+    }
+
+    .nav__menu,
+    .inspect-btn {
+      padding-inline: 8px;
     }
   }
 </style>
