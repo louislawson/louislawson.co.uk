@@ -146,7 +146,7 @@ for (const context of CONTEXTS) {
               parseFloat(getComputedStyle(document.documentElement).fontSize),
             ),
           ).toBe(before * 2);
-          expect(await reflowProblems(page, 320, ["x"])).toEqual([]);
+          expect(await reflowProblems(page, 320, ["x", "y"])).toEqual([]);
         });
       }
     });

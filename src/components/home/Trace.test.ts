@@ -147,8 +147,7 @@ describe("<Trace>", () => {
     expect(total).toContain("flex: none");
     expect(total).not.toContain("flex-shrink");
     expect(total).not.toContain("white-space: nowrap");
-    const caption =
-      /\.trace__head > :first-child\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    const caption = /\.trace__title\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
     expect(caption).toContain("flex: 1 1 0");
   });
 

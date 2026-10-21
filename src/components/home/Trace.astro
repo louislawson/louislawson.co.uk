@@ -12,7 +12,7 @@ const { build } = Astro.props;
 
 <figure class="trace" data-trace data-inspect={INSPECT_LABELS.trace}>
   <figcaption class="trace__head">
-    <span><b>how this page reached you</b></span>
+    <span class="trace__title"><b>how this page reached you</b></span>
     <span class="trace__total" data-trace-total></span>
   </figcaption>
   <p class="trace__nojs" data-trace-nojs>
@@ -54,7 +54,7 @@ const { build } = Astro.props;
     border-bottom: 1px solid var(--line);
   }
 
-  .trace__head > :first-child {
+  .trace__title {
     flex: 1 1 0;
   }
 
