@@ -82,6 +82,8 @@ for (const context of CONTEXTS) {
     test("a number with no section does nothing", async ({ page }) => {
       await page.goto(home);
       const { length } = await sectionKeys(page);
+      // Keys are single characters: with nine sections, there is no digit left to be the extra.
+      test.skip(length >= 9, "every digit has a section");
       await page.keyboard.press(String(length + 1));
       await page.keyboard.press("0");
       expect(await hashOf(page)).toBe("");
@@ -147,15 +149,19 @@ for (const context of CONTEXTS) {
       const [first, second] = await sectionKeys(page);
       expect(second, "needs two sections").toBeDefined();
 
-      await page.keyboard.down(second!.key);
-      await expect.poll(() => hashOf(page)).toBe(`#${second!.id}`);
-      // Move away while the key stays down: a repeat that acted would bring the page back.
-      await page.evaluate((id) => (location.hash = id), first!.id);
-      await page.keyboard.down(second!.key);
-      await page.keyboard.down(second!.key);
-      await page.waitForTimeout(300);
-      expect(await hashOf(page)).toBe(`#${first!.id}`);
-      await page.keyboard.up(second!.key);
+      try {
+        await page.keyboard.down(second!.key);
+        await expect.poll(() => hashOf(page)).toBe(`#${second!.id}`);
+        await expectArrived(page, second!.id);
+        // Move away while the key stays down: a repeat that acted would bring the page back.
+        await page.evaluate((id) => (location.hash = id), first!.id);
+        await page.keyboard.down(second!.key);
+        await page.keyboard.down(second!.key);
+        await page.waitForTimeout(300);
+        expect(await hashOf(page)).toBe(`#${first!.id}`);
+      } finally {
+        await page.keyboard.up(second!.key);
+      }
     });
 
     test.describe("the shortcuts switch", () => {

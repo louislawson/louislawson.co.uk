@@ -71,8 +71,14 @@ for (const context of CONTEXTS) {
         const bytes = statSync(join(folderOf(context), "index.html")).size;
         const shown = (name: string) =>
           hops(page).filter({ hasText: name }).first();
-        await expect(shown("first byte")).toContainText(`${entry.edge} ms`);
-        await expect(shown("static HTML")).toContainText(`${entry.page} ms`);
+        // Whole numbers, so "1 ms" must not match inside "11 ms".
+        const milliseconds = (ms: number) => new RegExp(`(^|\\D)${ms} ms`);
+        await expect(shown("first byte")).toContainText(
+          milliseconds(entry.edge),
+        );
+        await expect(shown("static HTML")).toContainText(
+          milliseconds(entry.page),
+        );
         await expect(shown("static HTML")).toContainText(
           `static HTML, ${Math.max(1, Math.round(bytes / 1024))} KB`,
         );
@@ -85,6 +91,10 @@ for (const context of CONTEXTS) {
         await page.goto(`${origin}/`);
         await page.waitForLoadState("networkidle");
         await expect(replayButton(page)).toBeVisible();
+        // The largest paint arrives last; the replay is compared with the finished panel.
+        await expect(page.locator("[data-trace-total]")).toHaveText(
+          /^\d+ ms to paint$/,
+        );
         const before = await page.locator("[data-trace-hops]").innerText();
 
         await replayButton(page).click();
@@ -114,7 +124,7 @@ for (const context of CONTEXTS) {
 
 // The garage section is left out of production while its entries are placeholders.
 test.describe("preview build", () => {
-  const origin = originOf(CONTEXTS[0]);
+  const origin = originOf(CONTEXTS.find(({ name }) => name === "preview")!);
 
   test("the wheel turns when motion is allowed", async ({ page }) => {
     await page.goto(`${origin}/`);
@@ -130,6 +140,13 @@ test.describe("preview build", () => {
     const wheel = page.locator("[data-wheel]");
     await wheel.scrollIntoViewIfNeeded();
     await expect(wheel).toBeInViewport();
+    // Two frames, so that anything the page does as it settles is over before counting.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
     const still = await wheel.textContent();
     expect(still?.trim()).not.toBe("");
 

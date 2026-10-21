@@ -41,7 +41,8 @@ for (const context of CONTEXTS) {
       const on = await drawnLabels(page);
       expect(on).toHaveLength(before.length);
       for (const { text, drawn } of on) {
-        expect(drawn).toBe(`"${text}"`);
+        // The browser writes the string back with its quotes and backslashes escaped.
+        expect(drawn).toBe(`"${text?.replace(/[\\"]/g, "\\$&")}"`);
       }
 
       await page.keyboard.press("i");
@@ -145,6 +146,7 @@ for (const context of CONTEXTS) {
               }
               return { barLabelBottom, contentTop: Math.min(...tops) };
             });
+            expect(Number.isFinite(barLabelBottom + contentTop)).toBe(true);
             expect(barLabelBottom).toBeLessThanOrEqual(contentTop);
           });
         }
