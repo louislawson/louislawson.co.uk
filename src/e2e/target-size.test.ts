@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_TARGET,
+  SENTENCE_WORDS,
   isInlineInSentence,
   targetProblem,
   type TargetFacts,
@@ -27,12 +28,27 @@ describe("an inline link in a sentence", () => {
     ).toBe(true);
   });
 
-  it("counts a single word beside the link as a sentence", () => {
+  it("needs three words beside the link, so a short run of words is a sentence", () => {
+    expect(SENTENCE_WORDS).toBe(3);
     expect(
       isInlineInSentence(
-        target({ display: "inline", surroundingText: "see " }),
+        target({ display: "inline", surroundingText: "see the sheet" }),
       ),
     ).toBe(true);
+    expect(
+      isInlineInSentence(
+        target({ display: "inline", surroundingText: "see the" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is not a link beside a label, a year or a lone word: a footer's row of links", () => {
+    for (const surroundingText of ["Email: ", "© 2026 ", "Privacy · Cookies"]) {
+      expect(
+        isInlineInSentence(target({ display: "inline", surroundingText })),
+        surroundingText,
+      ).toBe(false);
+    }
   });
 
   it("is not a link alone in its block, which is a control and not a sentence", () => {
@@ -63,7 +79,7 @@ describe("an inline link in a sentence", () => {
   it("reads words in any script", () => {
     expect(
       isInlineInSentence(
-        target({ display: "inline", surroundingText: "日本語 " }),
+        target({ display: "inline", surroundingText: "日本語 の リンク" }),
       ),
     ).toBe(true);
   });

@@ -79,8 +79,20 @@ for (const context of CONTEXTS) {
             if (await menu.isVisible()) {
               await menu.click();
               await expect(menu).toHaveAttribute("aria-expanded", "true");
-              await expect(page.locator("#links a").first()).toBeVisible();
             }
+            // The size rule passes a target with no box as one that is not on the page, so a section
+            // link that had vanished would pass it. Once the menu is open, or where the links sit in
+            // the bar, every one of them must be there.
+            expect(
+              await page
+                .locator("#links a")
+                .evaluateAll((links) =>
+                  links
+                    .filter((link) => link.getBoundingClientRect().width === 0)
+                    .map((link) => link.textContent),
+                ),
+              `${width} px: section links with no box`,
+            ).toEqual([]);
             const targets = await targetsOf(page);
             // A page with nothing to hit would pass for the wrong reason.
             expect(
@@ -111,6 +123,13 @@ for (const context of CONTEXTS) {
           for (const width of WIDTHS) {
             await open(page, `${origin}${path}`, path, width);
             await page.addStyleTag({ content: TEXT_SPACING });
+            // The page was settled by open(); the new styles need only to be laid out.
+            await page.evaluate(
+              () =>
+                new Promise((resolve) =>
+                  requestAnimationFrame(() => requestAnimationFrame(resolve)),
+                ),
+            );
             // If the styles had not applied, nothing below would mean anything.
             const spaced = await page.evaluate(() => {
               const style = getComputedStyle(document.body);
@@ -134,7 +153,6 @@ for (const context of CONTEXTS) {
               fontSize * 0.16,
               1,
             );
-            await settle(page, path);
             problems.push(...(await reflowProblems(page, width, ["x", "y"])));
           }
           expect(problems).toEqual([]);
