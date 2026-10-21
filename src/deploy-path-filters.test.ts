@@ -97,6 +97,10 @@ describe("a push to main", () => {
     // The secret scan's allowlist, which gitleaks reads and the build does not.
     ".gitleaks.toml",
     ".github/workflows/links.yml",
+    // Scorecard reads the repository's settings and publishes a score; it builds nothing.
+    ".github/workflows/scorecard.yml",
+    // Markdown outside src/ is documentation, not content.
+    "SECURITY.md",
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
     "src/e2e/rules.test.ts",
@@ -159,6 +163,8 @@ describe("a pull request", () => {
     ".htmlvalidate.mjs",
     ".gitleaks.toml",
     ".github/workflows/links.yml",
+    ".github/workflows/scorecard.yml",
+    "SECURITY.md",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",
   ])("does not get a preview for a change to %s", (path) => {
@@ -250,6 +256,7 @@ describe("the README's Deploying table", () => {
     expect(push).toContain("`src/e2e/`");
     expect(push).toContain("`lychee.toml`");
     expect(push).toContain("`.htmlvalidate.mjs`");
+    expect(push).toContain("`scorecard.yml`");
   });
 
   it("says a pull request gets no preview for them either", () => {
@@ -261,5 +268,6 @@ describe("the README's Deploying table", () => {
     expect(pullRequest).toContain("`e2e/`");
     expect(pullRequest).toContain("`lychee.toml`");
     expect(pullRequest).toContain("`.htmlvalidate.mjs`");
+    expect(pullRequest).toContain("`scorecard.yml`");
   });
 });

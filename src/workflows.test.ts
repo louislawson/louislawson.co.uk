@@ -421,6 +421,94 @@ describe("the external links workflow", () => {
   });
 });
 
+// OpenSSF Scorecard publishes its result only from a workflow that follows its rules, and refuses
+// the run otherwise: no `env` or `defaults` at any level, no container or service, a GitHub-hosted
+// Ubuntu runner, and only a short list of actions. These tests catch an edit that would make the
+// published run fail after the merge, when nothing else would show it.
+describe("the Scorecard workflow", () => {
+  const scorecard = read(new URL(".github/workflows/scorecard.yml", root));
+  /** The text with comment lines removed, so a comment can name what the rules forbid. */
+  const code = scorecard.replace(/^[ \t]*#.*\n/gm, "");
+  const uses = [...code.matchAll(/uses: (\S+)@(\S+) # (\S+)/g)];
+
+  it("runs on a push to main and weekly, and on nothing else", () => {
+    expect(code).toMatch(/^ {2}push:\n {4}branches: \[main\]$/m);
+    expect(code).toMatch(/^ {2}schedule:\n {4}- cron: "23 5 \* \* 1"$/m);
+    expect(code.match(/^on:\n((?: {2}.*\n)+)/m)?.[1]).not.toMatch(
+      /^ {2}(pull_request|pull_request_target|workflow_dispatch|workflow_run):/m,
+    );
+  });
+
+  it("grants nothing at the top and four read or publish rights to its one job", () => {
+    expect(code).toMatch(/^permissions: \{\}$/m);
+    expect(code.match(/^ {2}\w+:\n {4}name:/gm)).toHaveLength(1);
+    const permissions = code.match(
+      /^ {4}permissions:\n((?: {6}\S.*\n)+)/m,
+    )?.[1];
+    expect(
+      permissions
+        ?.trim()
+        .split("\n")
+        .map((line) => line.trim()),
+    ).toEqual([
+      "contents: read",
+      "actions: read",
+      "security-events: write",
+      "id-token: write",
+    ]);
+  });
+
+  it("has no env or defaults at any level, no container or service, and an Ubuntu runner", () => {
+    expect(code).not.toMatch(/^\s*(env|defaults|container|services):/m);
+    expect(code).toMatch(/^ {4}runs-on: ubuntu-latest$/m);
+  });
+
+  it("uses only checkout, scorecard-action, upload-artifact and upload-sarif", () => {
+    expect(uses.map(([, name]) => name)).toEqual([
+      "actions/checkout",
+      "ossf/scorecard-action",
+      "actions/upload-artifact",
+      "github/codeql-action/upload-sarif",
+    ]);
+    expect(code.match(/^\s*(- )?uses:/gm)).toHaveLength(uses.length);
+  });
+
+  it("pins each action to a full commit SHA with a version comment", () => {
+    for (const [, , ref, version] of uses) {
+      expect(ref).toMatch(/^[0-9a-f]{40}$/);
+      expect(version).toMatch(/^v\d+\.\d+\.\d+$/);
+    }
+  });
+
+  it("checks out without keeping the token", () => {
+    expect(code).toMatch(
+      /uses: actions\/checkout@\S+ # \S+\n\s+with:\n\s+persist-credentials: false/,
+    );
+  });
+
+  it("publishes the result as SARIF", () => {
+    const step = code.match(
+      /uses: ossf\/scorecard-action@[\s\S]*?(?=\n\s+- |$)/,
+    )?.[0];
+    expect(step).toContain("publish_results: true");
+    expect(step).toContain("results_format: sarif");
+    expect(step).toMatch(/results_file: results\.sarif/);
+  });
+
+  it("keeps the SARIF file for 5 days and uploads it to code scanning", () => {
+    expect(code).toMatch(/path: results\.sarif\n\s+retention-days: 5\b/);
+    expect(code).toMatch(/sarif_file: results\.sarif/);
+  });
+
+  it("needs no personal access token: the ruleset is read with the job's own token", () => {
+    expect(code).not.toMatch(/repo_token|secrets\./);
+  });
+
+  it("does not hide a failure", () => {
+    expect(code).not.toMatch(/continue-on-error|\|\| true/);
+  });
+});
+
 describe("the HTML validation config", () => {
   it("starts from the recommended preset", async () => {
     const { default: config } = await import("../.htmlvalidate.mjs");
