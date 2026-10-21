@@ -93,7 +93,7 @@ describe("a push to main", () => {
     "playwright.config.ts",
     // The settings of the HTML and link checks, which read the built site and are not part of it.
     "lychee.toml",
-    ".htmlvalidate.json",
+    ".htmlvalidate.mjs",
     ".github/workflows/links.yml",
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
@@ -150,7 +150,7 @@ describe("a pull request", () => {
     "e2e/smoke.spec.ts",
     "playwright.config.ts",
     "lychee.toml",
-    ".htmlvalidate.json",
+    ".htmlvalidate.mjs",
     ".github/workflows/links.yml",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",
@@ -242,7 +242,7 @@ describe("the README's Deploying table", () => {
     expect(push).toContain("`src/content/list-placeholders.ts`");
     expect(push).toContain("`src/e2e/`");
     expect(push).toContain("`lychee.toml`");
-    expect(push).toContain("`.htmlvalidate.json`");
+    expect(push).toContain("`.htmlvalidate.mjs`");
   });
 
   it("says a pull request gets no preview for them either", () => {
@@ -253,6 +253,6 @@ describe("the README's Deploying table", () => {
     expect(pullRequest).toContain("`src/e2e/`");
     expect(pullRequest).toContain("`e2e/`");
     expect(pullRequest).toContain("`lychee.toml`");
-    expect(pullRequest).toContain("`.htmlvalidate.json`");
+    expect(pullRequest).toContain("`.htmlvalidate.mjs`");
   });
 });

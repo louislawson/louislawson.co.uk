@@ -30,7 +30,7 @@ on:
       - "!vitest.config.ts"
       - "!playwright.config.ts"
       - "!lychee.toml"
-      - "!.htmlvalidate.json"
+      - "!.htmlvalidate.mjs"
       - "!eslint.config.mjs"
       - "!.prettierrc.json"
       - "!.prettierignore"

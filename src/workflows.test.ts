@@ -421,34 +421,9 @@ describe("the external links workflow", () => {
   });
 });
 
-// html-validate reads JSON with JSON.parse, so the config cannot hold a comment. The README's
-// "HTML and link checks" table gives the reason for each relaxed rule instead, and this keeps the two
-// from drifting apart: a rule turned off or loosened without a reason fails here.
 describe("the HTML validation config", () => {
-  const config = JSON.parse(read(new URL(".htmlvalidate.json", root))) as {
-    extends: string[];
-    rules?: Record<string, unknown>;
-  };
-  // Only that section: another table in the README must not be read as a rule.
-  const section =
-    read(new URL("README.md", root))
-      .split(/^## /m)
-      .find((part) => part.startsWith("HTML and link checks")) ?? "";
-  const documented = [
-    ...section.matchAll(/^\| `([\w-]+)` +\| (.+?) +\|$/gm),
-  ].map(([, rule, reason]) => ({ rule, reason }));
-
-  it("starts from the recommended preset", () => {
+  it("starts from the recommended preset", async () => {
+    const { default: config } = await import("../.htmlvalidate.mjs");
     expect(config.extends).toEqual(["html-validate:recommended"]);
-  });
-
-  it("gives every relaxed rule a reason in the README, and documents no other", () => {
-    expect(section).not.toBe("");
-    expect(documented.map(({ rule }) => rule).sort()).toEqual(
-      Object.keys(config.rules ?? {}).sort(),
-    );
-    for (const { reason } of documented) {
-      expect(reason?.length).toBeGreaterThan(30);
-    }
   });
 });

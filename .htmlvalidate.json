@@ -1,7 +1,0 @@
-{
-  "extends": ["html-validate:recommended"],
-  "rules": {
-    "no-redundant-role": ["error", { "exclude": ["list"] }],
-    "no-trailing-whitespace": "off"
-  }
-}
