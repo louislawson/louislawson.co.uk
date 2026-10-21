@@ -262,15 +262,35 @@ const home = Astro.url.pathname === "/";
 </style>
 
 <script>
-  import { onHeightChange, onKeydown, onShortcutsChange } from "../scripts/dom";
+  import { trackBarHeight } from "../scripts/bar-height";
+  import {
+    onHeightChange,
+    onKeydown,
+    onShortcutsChange,
+    scrollSettled,
+  } from "../scripts/dom";
   import { initNav } from "../scripts/nav";
 
   const header = document.querySelector<HTMLElement>("[data-nav]");
   // The page scrolls to a link or a focused control with room for the bar as it is drawn.
   if (header) {
-    onHeightChange(header, (height) =>
-      document.documentElement.style.setProperty("--nav-bar", `${height}px`),
-    );
+    const root = document.documentElement;
+    trackBarHeight({
+      setHeight: (height) => root.style.setProperty("--nav-bar", `${height}px`),
+      onChange: (listener) => onHeightChange(header, listener),
+      settled: scrollSettled,
+      scrollPadding: () => parseFloat(getComputedStyle(root).scrollPaddingTop),
+      landing: () => {
+        // :target is the element the address names, found without reading the address.
+        const section = document.querySelector<HTMLElement>(":target");
+        return section
+          ? {
+              top: () => section.getBoundingClientRect().top,
+              scrollInto: () => section.scrollIntoView(),
+            }
+          : null;
+      },
+    });
   }
   const menu = header?.querySelector<HTMLButtonElement>("[data-nav-menu]");
   if (header && menu) {

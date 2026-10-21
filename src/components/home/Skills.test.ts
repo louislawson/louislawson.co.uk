@@ -376,6 +376,7 @@ describe("<Skills>", () => {
       });
       expect(html).not.toContain("exploring next");
       expect(html).not.toContain('class="explore"');
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
       // The rows are still there.
       expect(html).toContain('class="skill"');
     });
@@ -388,6 +389,9 @@ describe("<Skills>", () => {
       });
       expect(html).toMatch(/<section[^>]*\sid="skills"/);
       expect(html).not.toContain('class="skill"');
+      // No empty list for the rows that are not there: the one list is the exploring one.
+      expect(html).not.toContain('class="skills"');
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
       expect(html).toContain("what I'm exploring next");
     });
 

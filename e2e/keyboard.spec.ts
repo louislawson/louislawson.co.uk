@@ -24,15 +24,26 @@ async function open(page: Page, url: string, path: string, width: number) {
   await settle(page, path);
 }
 
+/** A colour with no opacity: the browser reports it as rgba(0, 0, 0, 0), or as the keyword. */
+const invisible = (color: string) =>
+  color === "transparent" || /^rgba(.*,s*0)$/.test(color);
+
 /** A ring a visitor can see: an outline with a style, a width and a colour, or a shadow. */
 function indicatorProblem(stop: FocusFacts) {
   const { style, width, color } = stop.outline;
-  const outline = style !== "none" && width > 0 && color !== "transparent";
+  const outline = style !== "none" && width > 0 && !invisible(color);
   const shadow = stop.boxShadow !== "none";
   return outline || shadow
     ? null
     : `${stop.name}: no focus indicator (outline ${style} ${width}px ${color}, box-shadow ${stop.boxShadow})`;
 }
+
+/** The windows the bar is checked in: wide, a phone, and a phone under the text spacing of 1.4.12. */
+const BAR_VARIANTS = [
+  { label: "1280 px", width: 1280, spacing: false },
+  { label: "320 px", width: 320, spacing: false },
+  { label: "320 px with the spacing of 1.4.12", width: 320, spacing: true },
+];
 
 for (const context of CONTEXTS) {
   const origin = originOf(context);
@@ -54,41 +65,27 @@ for (const context of CONTEXTS) {
           ).toEqual([]);
         });
 
-        test("the bar never covers the focused control", async ({ page }) => {
-          const problems: string[] = [];
-          const variants = [
-            { label: "1280 px", width: 1280, spacing: false },
-            { label: "320 px", width: 320, spacing: false },
-            {
-              label: "320 px with the spacing of 1.4.12",
-              width: 320,
-              spacing: true,
-            },
-          ];
-          for (const { label, width, spacing } of variants) {
+        for (const { label, width, spacing } of BAR_VARIANTS) {
+          test(`the bar never covers the focused control at ${label}`, async ({
+            page,
+          }) => {
             await open(page, `${origin}${path}`, path, width);
             if (spacing) await addStyles(page, TEXT_SPACING);
             const { stops } = await walkTabOrder(page);
-            expect(stops.length, `${label}: controls reached`).toBeGreaterThan(
-              0,
-            );
-            problems.push(
-              ...(await focusFromUnderBar(page)).map(
-                (problem) => `${label}: ${problem}`,
-              ),
-            );
+            expect(stops.length, "controls reached").toBeGreaterThan(0);
+            const problems = await focusFromUnderBar(page);
             for (const stop of stops) {
               // The bar's own controls are in the bar: nothing of it lies under itself.
               if (stop.inBar || stop.onTop) continue;
               if (stop.top < stop.barBottom - 0.5) {
                 problems.push(
-                  `${label}: ${stop.name} starts ${Math.round(stop.barBottom - stop.top)} px under the bar (top ${Math.round(stop.top)}, bar ends ${Math.round(stop.barBottom)})`,
+                  `${stop.name} starts ${Math.round(stop.barBottom - stop.top)} px under the bar (top ${Math.round(stop.top)}, bar ends ${Math.round(stop.barBottom)})`,
                 );
               }
             }
-          }
-          expect(problems).toEqual([]);
-        });
+            expect(problems).toEqual([]);
+          });
+        }
 
         test("the scroll offset is the bar's own height and follows it when it grows", async ({
           page,
@@ -194,6 +191,34 @@ for (const context of CONTEXTS) {
         });
       });
     }
+
+    // A link to a section from outside the page (the address with #projects) scrolls before the
+    // script has measured the bar, so the page has to correct itself once it has.
+    test("a section the address names lands clear of the bar on a phone", async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 320, height: HEIGHT });
+      await page.goto(`${origin}/#projects`);
+      // Not settle(): it scrolls the page down and back up, which would undo the landing.
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("[data-trace-total]")).not.toHaveText("");
+      // The browser scrolls (smoothly) with the offset it had; the page then corrects it once the
+      // bar is measured, so the section arrives a moment later than the scroll ends.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              () =>
+                document.getElementById("projects")!.getBoundingClientRect()
+                  .top -
+                document.querySelector("[data-nav]")!.getBoundingClientRect()
+                  .bottom,
+            ),
+          { message: "the section's distance below the bar", timeout: 5_000 },
+        )
+        // The mock leaves 38 px under the bar; a section at the bar's edge would be hidden by it.
+        .toBeGreaterThanOrEqual(37);
+    });
 
     // The entries of the three lists on the home page are list items, so a screen reader announces
     // "list, 4 items" and a visitor can move through them item by item.
