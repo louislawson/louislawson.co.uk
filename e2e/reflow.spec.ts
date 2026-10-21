@@ -105,6 +105,39 @@ for (const context of CONTEXTS) {
           }
           expect(problems).toEqual([]);
         });
+
+        // 320 px is also a 1280 px window at 400 % zoom (1.4.10). With the browser's default text the
+        // brand, the menu and the inspect button fit the row; a bar that wraps there costs 40 px of
+        // the screen on every page. Only a visitor's own text spacing is meant to make it wrap.
+        test("the bar is one row at the set height at 320 px", async ({
+          page,
+        }) => {
+          await open(page, `${origin}${path}`, path, 320);
+          const bar = await page.evaluate(() => {
+            const inner = document.querySelector(".nav__inner")!;
+            const root = getComputedStyle(document.documentElement);
+            return {
+              height: inner.getBoundingClientRect().height,
+              set: parseFloat(root.getPropertyValue("--nav-height")),
+              // Each control the bar shows: where its middle sits, which is the same in one row.
+              middles: [...inner.children]
+                // Not the dropdown's own strip, which hangs below the bar and takes no room in it.
+                .filter(
+                  (child) =>
+                    child.getBoundingClientRect().width > 0 &&
+                    getComputedStyle(child).position !== "absolute",
+                )
+                .map((child) => {
+                  const box = child.getBoundingClientRect();
+                  return Math.round(box.top + box.height / 2);
+                }),
+            };
+          });
+          expect(bar.set, "the set height").toBe(58);
+          expect(bar.middles.length, "controls in the bar").toBeGreaterThan(1);
+          expect(new Set(bar.middles).size, `middles ${bar.middles}`).toBe(1);
+          expect(bar.height).toBe(bar.set);
+        });
       });
     }
 
