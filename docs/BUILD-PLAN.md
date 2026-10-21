@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-20): **Phases 0 to 5 are built.** Phase 6 has been reviewed with Louis and is **approved for build**. Phases 7–8 are still a draft and will be reviewed, and may change substantially, before they are built. Sessions treat any phase not approved for build as context only.
+Status (2026-10-21): **Phases 0 to 6 are built.** Phase 7 has been reviewed with Louis but is **not yet approved for build**. Phase 8 is Louis's own launch; its order was agreed in the same review. Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
@@ -107,7 +107,7 @@ The guardrails, definition of done and conventions every PR follows live in [`CL
 - `infra/site/` (same layout and version pins as bootstrap): committed `azurerm` backend block holding only non-sensitive placement and the auth type (`storage_account_name`, `container_name = "tfstate"`, `key = "site.tfstate"`, `use_azuread_auth = true`); **credentials and the auth method come from environment variables**, as the backend docs recommend (values passed with `-backend-config` are written into `.terraform/` and plan files). CI sets `ARM_USE_OIDC=true`, `ARM_CLIENT_ID`, `ARM_TENANT_ID` and `ARM_SUBSCRIPTION_ID` from Actions secrets (same-named Dependabot secrets for Dependabot runs; never repository variables, which print unmasked in a public log), and the provider and backend both pick up GitHub's OIDC token automatically; a local plan by Louis sets `ARM_USE_CLI=true` instead. `lookup_blob_endpoint` stays `false`, so no `resource_group_name` and no Reader role on the storage account are needed; data source for the site resource group; `azurerm_static_web_app` (`sku_tier`/`sku_size` Free, West Europe, tags, `preview_environments_enabled = true`, and `lifecycle { ignore_changes = [repository_branch, repository_url] }`, because deploying with the API key from CI makes Azure record those fields and the provider would otherwise show drift on every plan). Written as the resource directly rather than through a wrapper module (one resource gains nothing from indirection), following the conventions of Microsoft's Azure Verified Module for Static Web Apps: typed and described variables for name, location, SKU and tags; `sku_tier`/`sku_size` set explicitly to Free even though it is the default; and `lifecycle { prevent_destroy = true }` as deletion protection (the AVM module offers a `CanNotDelete` management lock instead, which would need Owner-level rights the apply identity doesn't have). The AVM module itself can't be called here: version 0.6.x requires azurerm 4.x (`< 5.0.0`). Output: default hostname.
 - `infra/site/tests/static_web_app.tftest.hcl`: `terraform test` with `mock_provider "azurerm"`, so it runs in CI without Azure access. It asserts the Free SKU, West Europe, the required tags, `preview_environments_enabled = true` and SKU validation. `terraform test` cannot observe lifecycle rules (nor seed non-computed attributes in a mocked state), so a workflow step greps the Static Web App block for `ignore_changes` on `repository_branch` and `repository_url` and for `prevent_destroy = true`; the proof that there is no drift is the plan after the first deploy.
 - `.github/workflows/infra.yml`:
-  - **Plan** on PRs touching `infra/**` (plan identity, no environment so the `pull_request` subject applies; `id-token: write`, `pull-requests: write`): `fmt -check`, `init -lockfile=readonly`, `validate`, `tflint` (azurerm ruleset), Trivy, `terraform test`, `plan`; post the plan as a sticky PR comment, which a failed plan overwrites with a notice so it is never stale. **Dependabot's own run skips the plan job** (`github.triggering_actor != 'dependabot[bot]'`; checks still run, unprivileged): the plan identity can read the deployment token, so Louis reads a provider bump first and then re-runs the workflow, which makes him the triggering actor; the re-run keeps Dependabot's privileges, so it uses the same-named Dependabot secrets and posts no comment.
+  - **Plan** on PRs touching `infra/**` (plan identity, no environment so the `pull_request` subject applies; `id-token: write`, `pull-requests: write`): `fmt -check`, `init -lockfile=readonly`, `validate`, `tflint` (azurerm ruleset), Trivy, `terraform test`, `plan`; post the plan as a sticky PR comment, which a failed plan overwrites with a notice so it is never stale. **Dependabot's own run skips the plan job** (`github.triggering_actor != 'dependabot[bot]'`; checks still run, unprivileged): the plan identity can read the deployment token, so Louis reads a provider bump first and then re-runs the workflow, which makes Louis the triggering actor; the re-run keeps Dependabot's privileges, so it uses the same-named Dependabot secrets and posts no comment.
   - **Plan on `main` and manual dispatch:** pushes to `main` that change `infra/site` (not Markdown or tests) plan too, so the plan is on screen while the production approval is pending. `workflow_dispatch` from `main` runs checks and plan only, never apply, to prove a plan against the live app.
   - **Apply** on those pushes to `main` (apply identity, `environment: production` so Louis approves). It re-plans, because a saved plan would embed the `api_key`, and refuses a commit only when a later commit on `main` changed `infra/site` (outside Markdown and tests), since that commit has a run of its own; a later docs-only or non-infra merge starts no run and must not strand this one. Nothing is cancelled mid-run (a killed run can leave the state lease held); the workflow-level concurrency group serialises applies, so there is no separate `tf-site-prod` group. Azure IDs come from Actions secrets only.
   - Trivy: `aquasecurity/trivy-action` pinned to the SHA of **0.35.0 or later**. Earlier tags were compromised in March 2026 (CVE-2026-33634).
@@ -783,20 +783,172 @@ Only what needs a real browser. The markup is already covered by the Container A
 
 ## Phase 7 · Finish and document
 
-### PR 7.1 · `docs(design): finish review and DESIGN.md`
+Reviewed with Louis on 2026-10-21. Phase 7 is six narrow PRs and one handback (7.3), in this order. The CI PRs come first, so every later PR gets the faster E2E and the quieter CodeQL, and the runbook comes last, so it can document the domain. The per-PR rules from Phase 6 still apply:
 
-Impeccable finish workflow: detector run, desktop and mobile captures, the `impeccable-finish-reviewer` agent, one batch of fixes, then the `impeccable-documenter` writes `DESIGN.md` and `.impeccable/design.json`.
+- tests in both the `preview` and `production` contexts
+- screenshots for any visual change, pushed to `pr-assets/phase-7` after the metadata check
 
-### PR 7.2 · `docs: runbook`
+**The Impeccable finish workflow (7.3 to 7.5).** This is section 7 of the Impeccable skill's `reference/new-work.md`. The direction contract's last line commits the build to it:
 
-README runbook: editing content, the placeholders command, adding photos safely, the launch checklist, and generic steps for connecting a custom domain to Azure Static Web Apps (provider-specific details stay in `PRIVATE-NOTES.md`).
+1. **Capture.** Take full-page screenshots into `.impeccable/review/`, which git ignores.
+2. **Detect.** Run the detector, `impeccable detect --json`.
+3. **Review.** A fresh subagent, `impeccable-finish-reviewer`, reviews the captures against the contract and a reference. It has no browser and edits nothing. It returns one of four dispositions (`recapture`, `rebuild`, `fix` or `ship`), at most eight ordered material fixes, and one line on what to keep.
+4. **Fix.** Apply one batch of fixes, recapture the same files, and send them back to the same reviewer, which scores each fix resolved, partial or unresolved. Two rounds at most.
+5. **Document.** A second subagent, `impeccable-documenter`, writes `DESIGN.md` and its sidecar from the built code.
+
+**What differs for this site:**
+
+- **A code-led build.** There is no approved comp image. The chosen HTML mock is the critique reference, captured as screenshots because the reviewer cannot open HTML.
+- **No quality-bar card.** The world was user-pinned from references, not picked from Impeccable's catalogue. The packet says so in one line.
+- **The contract is complete.** It already carries the seed key and the FINISH line that the reviewer checks.
+
+### PR 7.1 · `ci(e2e): faster end-to-end tests`
+
+- **First step:** set Playwright's CI `workers` to 4, matching the hosted runner's 4 CPUs.
+- **Measure:** the E2E job's time before and after, on CI, in the PR.
+- **Shards only if needed:** if the job still takes more than about 4 minutes, split it into parallel shards.
+- **The required check:** with shards, one job must still be named exactly `E2E` and wait for them, because "E2E" is a required check and a renamed job would never report. `workflows.test.ts` pins this.
+- **Acceptance:**
+  - the timing before and after, from CI
+  - the full suite green, with no change in tests run or skipped
+
+### PR 7.2 · `ci(security): CodeQL advanced setup`
+
+- **Workflow:** `.github/workflows/codeql.yml`.
+  - **Languages:** JavaScript and TypeScript, and the Actions workflows.
+  - **Ignored paths:** a CodeQL config ignores `**/*.test.ts`, `e2e/**` and `src/__tests__/**`, so test code raises no alerts.
+  - **Triggers:** pull requests, pushes to `main`, and a weekly schedule.
+  - **Permissions:** `permissions: {}` at the top, then least privilege per job (`security-events: write`, `contents: read`, and `actions: read` where the action needs it).
+  - **Actions:** `github/codeql-action` pinned to a full commit SHA with a version comment.
+- **Tests and filters:** `workflows.test.ts` pins the above. The workflow stays out of `deploy.yml`'s pull-request allow-list and on its push deny-list.
+- **Acceptance:** the first run on the PR shows no alerts from test code.
+- **Handback:** Louis switches CodeQL default setup off when this merges (the two cannot run together), then adds the CodeQL check to "Protect main" after its first run on `main`.
+
+### PR 7.3 · Finish review (a handback, no PR)
+
+This step changes no code, so it opens no pull request. Sonnet runs the review and reports to Louis, who chooses the fixes for 7.4.
+
+- **Builds:** `npm run build:e2e`, served by `e2e/serve.ts`, so the real headers apply. The preview build is the only one with every section; the production build is what visitors see today.
+- **Captures:** into `.impeccable/review/`, motion settled, fonts loaded, from the top of the document, each image opened and checked before use:
+  - the home page, preview build: `desktop.png` (1440 wide, full page) and `mobile.png` (390 wide)
+  - the home page, production build: `production-desktop.png` and `production-mobile.png`
+  - R04's project page: `project-desktop.png` and `project-mobile.png`
+  - the 404 page: `404-desktop.png`
+  - the reference mock, `docs/design/mock/index.html` and `project.html`, at the same widths: `reference-desktop.png`, `reference-mobile.png`, `reference-project-desktop.png` and `reference-project-mobile.png`
+- **Detector:** `impeccable detect --json` over `src/`. Mechanical findings are fixed in 7.4, not here.
+- **The packet** the reviewer is spawned with:
+  - the original request: `PRODUCT.md` and the surface brief
+  - the direction contract, from `.impeccable/surfaces/src-pages-index-astro.md`
+  - the artifact paths: `src/pages/`, `src/components/`, `src/layouts/` and `src/styles/`
+  - every capture above, named as required
+  - the reference captures, labelled as the critique reference. Where the mock and the contract differ, the contract wins.
+  - one line: code-led, and no quality-bar card exists because the world was user-pinned
+  - one line: hatched `TODO:` text is a placeholder by design under `PRODUCT.md`, so the review judges composition and craft, not copy
+  - the decisions Louis has already confirmed: the footer wording and the trace label (PR 6.5), and the heading break under a visitor's text spacing (PR 6.6)
+  - the detector's findings
+  - the existing findings, for the reviewer to rank against its own:
+    - controls under 44 px on touch screens (the menu, inspect and the shortcuts switch at 40 px; replay at 24 px)
+    - the sticky bar's share of a landscape phone screen
+    - the footer's link to the repository, 16 px tall
+    - the hero name breaking mid-word at 200 % text on a 320 px window
+    - the footer's privacy line breaking at a hyphen on a phone
+  - the path to the skill's `reference/craft-floor.md`
+- **Output:** the reviewer's full return goes only to `%TEMP%\impeccable-finish-review.md`, never committed and never pasted into a PR. At handback, Sonnet gives Louis the disposition word, verbatim, and a short summary of the material fixes.
+- **If the disposition is `recapture`:** recapture and run a full review again, as the workflow says.
+- **If it is `rebuild`:** stop and ask Louis.
+
+### PR 7.4 · `fix(ui): finish review fixes`
+
+- **Scope:** only the fixes Louis chose from 7.3, in one batch, plus one carried test: an axe scan of the open phone menu at 390 px, in both builds, with the same tags as PR 6.3.
+- **Evidence:** before and after screenshots for each fix, and a test wherever the fix can be tested.
+- **Verdict pass:** recapture the same files in `.impeccable/review/`, then send them back to the same reviewer to score each fix resolved, partial or unresolved. If it cannot be continued, run the scoring fresh from the skill's `reference/degraded/finish-reviewer.md` Verdict Pass. Two rounds at most. The disposition goes to Louis word for word.
+- **Stop and ask Louis:** on a `rebuild`, or before any change to approved wording or to the direction contract.
+- **Acceptance:** the verdict pass, at its scope, in the PR body.
+
+### PR 7.5 · `docs(design): DESIGN.md`
+
+- **The documenter:** spawn `impeccable-documenter` with the project root, the artifact paths, the direction contract, `PRODUCT.md`, the skill's `reference/document.md` and the repository root as the write boundary.
+- **Output:**
+  - `DESIGN.md` at the repository root
+  - `.impeccable/design.json`, which git does not ignore
+- **Rules:**
+  - Every token and rule is evidenced by the built code.
+  - A craft-floor refusal is never written up as a rule.
+  - Both files are public-safe.
+- **Raster provenance:** one line in `DESIGN.md` covers the contract's FINISH line. The only rasters the site ships are the social cards, which the code generates at build, and Louis's photos, whose metadata is stripped and checked in CI.
+- **`CLAUDE.md`:**
+  - "The mock is a spec" is retired; the mock becomes history.
+  - `DESIGN.md` becomes the record of the visual system.
+  - The direction contract still decides direction.
+- **Acceptance:** both files exist with tokens (not prose alone), and the documenter's summary is in the PR.
+
+### PR 7.6 · `feat(infra): custom domain, off by default`
+
+- **Terraform** in `infra/site`:
+  - `azurerm_static_web_app_custom_domain` resources, made from a `custom_domains` variable that defaults to empty, so applying the merge changes nothing
+  - the apex uses `dns-txt-token` validation (Azure requires it for an apex), and its `validation_token` is an output
+  - `www` uses `cname-delegation`, which needs its CNAME record in place before the apply
+  - `terraform test` with mocked providers covers empty, apex only, and apex plus `www`
+  - `fmt`, `validate` and `tflint` are clean, and `terraform-style-guide` applies
+- **What Terraform cannot do:** the redirect from `www` (and from the `azurestaticapps.net` address) to the apex is Azure's "Set default domain", a portal setting with no Terraform argument. The runbook covers it.
+- **The Live check:** once the apex is the default domain, the production `azurestaticapps.net` address redirects, and the Live check would fail on the 301. So production checks the `SITE_URL` host after launch, and previews keep checking their own address. `workflows.test.ts` and the Live check's tests cover both.
+- **Check first:** in the current Azure docs, whether "Set default domain" also redirects the `azurestaticapps.net` address, and whether the Free plan supports it. If it does not, stop and ask.
+- **Acceptance:** a `terraform plan` with the variable empty shows no changes, from CI.
+
+### PR 7.7 · `docs: runbook`
+
+- **Where:** `docs/RUNBOOK.md`, linked from the README. The README stays the developer quick start and "how it works". The runbook is Louis's "how do I…". Where the README already explains something, the runbook links to it instead of repeating it.
+- **Every section is a numbered procedure** with exact commands and a final "check it worked" step.
+- **Proven, not recalled:** every command is run, and its output is shown in the PR. For example, a photo with GPS data fails the metadata check, then passes once it is stripped.
+- **Sections:**
+  1. **Editing content:** `profile.ts` and `src/content/projects/*.md`. The fields, the write-up rules (`###` headings, alt text, the diagrams folder) and the measurements.
+  2. **Placeholders:** what `TODO:` does in a preview and in production, `npm run placeholders`, and the launch gate's required set.
+  3. **Adding a garage photo safely:** where it goes, stripping its metadata with `exiftool` (everything except the orientation and colour profile), `npm run metadata:check` as the gate, the import in `profile.ts`, and its alt text.
+  4. **The CV PDF:** exporting it web-safe, and the metadata check.
+  5. **Previews and deploys:**
+     - what triggers each
+     - the 3-preview limit
+     - the daily rebuild, and turning its schedule back on when GitHub disables it after 60 quiet days
+     - the Live check
+  6. **Connecting the custom domain:** the generic steps, in this order:
+     1. add the DNS-only records
+     2. set `custom_domains` and apply
+     3. add the TXT validation token
+     4. "Set default domain" on the apex
+
+     Then check that the apex serves over HTTPS, `www` and the `azurestaticapps.net` address redirect to it, and the Live check passes against it. Provider-specific details stay in `PRIVATE-NOTES.md`.
+
+  7. **The launch checklist:** Phase 8's steps, each with what it changes and how to check it (see Phase 8).
+  8. **When something goes wrong:**
+     - a failed Live check
+     - a fourth preview failing to upload
+     - Windows test flakes
+     - CodeQL alerts on test code
+     - a Scorecard score dropping
+- **Acceptance:** every procedure's commands run, with their output in the PR.
 
 ## Phase 8 · Louis's launch (no agent PRs)
 
-- [ ] Real content, photos (metadata stripped) and the web-safe CV.
-- [ ] Flip `launch: true` (the gate now enforces the required set).
-- [ ] Connect the domain (steps in `PRIVATE-NOTES.md`), update `SITE_URL`.
-- [ ] Set R04 to `in-service`.
+The domain is connected before the launch switch is flipped. Otherwise production would become indexable on a host whose canonical points at a domain that does not answer yet. Each step's commands and checks are in `docs/RUNBOOK.md` (PR 7.7).
+
+- [ ] **Real content:** photos (metadata stripped), the web-safe CV and the rest. `npm run placeholders` shows nothing left in the required set, and the metadata check passes.
+- [ ] **Connect the domain:**
+  1. add the DNS-only records (provider details in `PRIVATE-NOTES.md`)
+  2. set `custom_domains` and apply
+  3. add the TXT validation token
+  4. "Set default domain" on the apex
+  5. check: HTTPS on the apex, the redirects to it, and the Live check against it
+- [ ] **Flip `launch: true`.** Check:
+  - production sends no `noindex`
+  - `robots.txt` allows crawling, and the sitemap exists
+  - the canonical and `og:` addresses use the domain
+  - previews still send `noindex`
+  - Cloudflare starts counting
+- [ ] **Set R04 to `in-service`.**
+- [ ] **HSTS:** add `includeSubDomains`. Leave `preload` out, because it is hard to undo.
+- [ ] **Optional:** Google Search Console, which needs Louis's account.
+
+`SITE_URL` already defaults to the domain, so it needs setting only if the site's address ever differs.
 
 ---
 
