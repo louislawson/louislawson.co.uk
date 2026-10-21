@@ -57,34 +57,36 @@ const shown =
   intro={skills.length > 0 ? SECTION_INTROS.skills : undefined}
   inspect={INSPECT_LABELS.skills}
 >
-  {skills.map((skill) => <div class="skill">
-    <h3><Placeholder value={skill.group} context={context} /></h3>
-    <p class="ctx"><Placeholder value={skill.context} context={context} /></p>
-    <p class="tools">
-      {shownTools(skill.tools).map((tool, index) => <Fragment
-        >{index > 0 && " / "}<Placeholder value={tool} context={context}
-      /></Fragment>)}
-    </p>
-    {skill.runs.length > 0 && <p class="seen">
-      seen in
-      <span class="codes"
-        >{skill.runs.map((code, index) => {
-          const project = byCode.get(code);
-          return <Fragment
-            >{index > 0 && " "}{project ? (
-              <a
-                href={projectPath(project.id)}
-                aria-label={seenInLinkName(project.data)}
-                >{code}</a
-              >
-            ) : (
-              code
-            )}</Fragment
-          >;
-        })}</span
-      >
-    </p>}
-  </div>)}
+  {skills.length > 0 && <ul class="skills" role="list">
+    {skills.map((skill) => <li class="skill">
+      <h3><Placeholder value={skill.group} context={context} /></h3>
+      <p class="ctx"><Placeholder value={skill.context} context={context} /></p>
+      <p class="tools">
+        {shownTools(skill.tools).map((tool, index) => <Fragment
+          >{index > 0 && " / "}<Placeholder value={tool} context={context}
+        /></Fragment>)}
+      </p>
+      {skill.runs.length > 0 && <p class="seen">
+        seen in
+        <span class="codes"
+          >{skill.runs.map((code, index) => {
+            const project = byCode.get(code);
+            return <Fragment
+              >{index > 0 && " "}{project ? (
+                <a
+                  href={projectPath(project.id)}
+                  aria-label={seenInLinkName(project.data)}
+                  >{code}</a
+                >
+              ) : (
+                code
+              )}</Fragment
+            >;
+          })}</span
+        >
+      </p>}
+    </li>)}
+  </ul>}
   {exploring.length > 0 && <div class="explore">
     <h3>what I'm exploring next</h3>
     <ul role="list">

@@ -50,13 +50,13 @@ const layout = projectLayout(projects.length);
   inspect={INSPECT_LABELS.projects}
   count={countLabel(projects.length)}
 >
-  <div class={`runs runs--${layout}`}>
+  <ul class={`runs runs--${layout}`} role="list">
     {projects.map(({ id, data }) => {
       const { lead, period } = metaParts(data);
       // One link to the project's page covers the whole entry, and is last in it.
       const hit = { href: projectPath(id), name: runSheetLinkName(data) };
       return layout === "strip" ? (
-        <article class="run run--strip">
+        <li class="run run--strip">
           <div class="run__line">
             <span class="run__code">{data.code}</span>
             <h3 class="run__title">
@@ -90,9 +90,9 @@ const layout = projectLayout(projects.length);
             >read the run sheet <Icon name="arrow" size={16}
           /></span>
           <a class="hit" href={hit.href}><span class="vh">{hit.name}</span></a>
-        </article>
+        </li>
       ) : (
-        <article class="run run--row">
+        <li class="run run--row">
           <span class="run__code">{data.code}</span>
           <div class="run__name">
             <h3 class="run__title">
@@ -106,10 +106,10 @@ const layout = projectLayout(projects.length);
           <Status status={data.status} context={context} />
           <span class="arr"><Icon name="arrow" size={16} /></span>
           <a class="hit" href={hit.href}><span class="vh">{hit.name}</span></a>
-        </article>
+        </li>
       );
     })}
-  </div>
+  </ul>
 </Section>}
 
 <style>

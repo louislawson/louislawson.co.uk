@@ -78,6 +78,13 @@ async function render(props: Record<string, unknown>): Promise<string> {
   return html.replace(/\s+/g, " ");
 }
 
+/** The markup of each project entry, which is a list item. */
+const entriesOf = (html: string) =>
+  html
+    .split('<li class="run')
+    .slice(1)
+    .map((a) => a.split("</li>")[0]!);
+
 /** The text of an element with this class, with its tags taken out. */
 const text = (html: string, className: string) =>
   [
@@ -135,8 +142,21 @@ describe("<Projects>", () => {
       });
       expect(html).toMatch(/class="[^"]*\bruns--strip\b/);
       expect(html).not.toMatch(/class="[^"]*\bruns--row\b/);
-      expect(html.match(/<article\b/g)).toHaveLength(count);
+      expect(html.match(/<li class="run /g)).toHaveLength(count);
       expect(html.match(/class="[^"]*\brun--strip\b/g)).toHaveLength(count);
+    });
+
+    it.each([
+      ["strips", three.slice(0, 2)],
+      ["rows", four],
+    ])("holds the entries of the %s in one list", async (_layout, projects) => {
+      const html = await render({ projects, sections: all });
+      // A list to a screen reader ("list, 4 items"), not an article each in a div. The reset's
+      // list-style: none would make Safari drop the semantics, so the role is stated.
+      expect(html).toMatch(/<ul[^>]*class="runs [^"]*"[^>]*role="list"/);
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
+      expect(html).not.toMatch(/<article\b/);
+      expect(entriesOf(html)).toHaveLength(projects.length);
     });
 
     it.each([4, 5])("is compact rows for %i projects", async (count) => {
@@ -182,7 +202,7 @@ describe("<Projects>", () => {
           count === 3 ? ["R03", "R01", "R02"] : ["R03", "R01", "R02", "R04"],
         );
         // And the tag is on that first one.
-        expect(html.split("<article")[1]).toContain('class="tag"');
+        expect(html.split('<li class="run')[1]).toContain('class="tag"');
       },
     );
 
@@ -315,14 +335,14 @@ describe("<Projects>", () => {
       const html = await render({ projects: featured(three), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
       expect(text(html, "run__code")[0]).toBe("R02");
-      expect(html.split("<article")[1]).toContain('class="tag"');
+      expect(html.split('<li class="run')[1]).toContain('class="tag"');
     });
 
     it("is on the featured project in a row, which leads, and on no other", async () => {
       const html = await render({ projects: featured(four), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
       expect(text(html, "run__code")[0]).toBe("R02");
-      expect(html.split("<article")[1]).toContain('class="tag"');
+      expect(html.split('<li class="run')[1]).toContain('class="tag"');
     });
 
     it.each([
@@ -580,12 +600,6 @@ describe("<Projects> links to the run sheets", () => {
   const filed = (...files: [string, string][]) =>
     files.map(([id, code]) => ({ id, data: work({ code }) }));
 
-  const articles = (html: string) =>
-    html
-      .split("<article")
-      .slice(1)
-      .map((a) => a.split("</article>")[0]!);
-
   it.each([
     ["strips", 3],
     ["rows", 4],
@@ -599,7 +613,7 @@ describe("<Projects> links to the run sheets", () => {
         ["this-website", "R04"],
       ).slice(0, count);
       const html = await render({ projects, sections: all });
-      const entries = articles(html);
+      const entries = entriesOf(html);
       expect(entries).toHaveLength(count);
       entries.forEach((entry, index) => {
         const found = anchors(entry);
@@ -627,7 +641,7 @@ describe("<Projects> links to the run sheets", () => {
     "covers the whole entry with the link in %s, which holds nothing visible of its own",
     async (_name, list) => {
       const html = await render({ projects: list, sections: all });
-      for (const entry of articles(html)) {
+      for (const entry of entriesOf(html)) {
         expect(entry).toMatch(
           /<a\b[^>]*class="hit"[^>]*><span class="vh"[^>]*>Read the run sheet: Title R0\d<\/span><\/a>/,
         );
@@ -689,7 +703,7 @@ describe("<Projects> links to the run sheets", () => {
     expect(text(html, "run__more")).toEqual(
       Array(3).fill("read the run sheet"),
     );
-    for (const entry of articles(html)) {
+    for (const entry of entriesOf(html)) {
       expect(entry.indexOf("run__sheet")).toBeLessThan(
         entry.indexOf("run__more"),
       );
@@ -703,7 +717,7 @@ describe("<Projects> links to the run sheets", () => {
     const html = await render({ projects: four, sections: all });
     expect(html).not.toContain("run__more");
     expect(html).not.toContain("read the run sheet");
-    for (const entry of articles(html)) {
+    for (const entry of entriesOf(html)) {
       expect(entry).toMatch(
         /<span class="arr"[^>]*><svg[^>]*aria-hidden="true"/,
       );

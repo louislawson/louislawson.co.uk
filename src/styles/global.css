@@ -16,8 +16,12 @@
   --gutter: clamp(16px, 3.2vw, 44px);
   --col-gap: clamp(16px, 2vw, 32px);
   --section: clamp(4.5rem, 3rem + 6vw, 9rem);
-  /* The sticky navigation bar: its height, where its dropdown starts, and the scroll offset. */
+  /* The sticky navigation bar: its set height, which its dropdown hangs from. */
   --nav-height: 58px;
+  /* Its real height, for the scroll offset. The bar takes a second row when a visitor's own text
+     spacing needs one, so the script in Nav.astro keeps this at what the bar measures; without
+     script it is the set height. */
+  --nav-bar: var(--nav-height);
   /* The page's widest width: .wrap's, and the grid inspect mode draws over it. */
   --wrap-max: 1520px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -32,8 +36,9 @@
 
 html {
   scroll-behavior: smooth;
-  /* Room for the sticky navigation, so a link to a section does not land under it. */
-  scroll-padding-top: calc(var(--nav-height) + 38px);
+  /* Room for the sticky navigation, so neither a link to a section nor the control the focus
+     scrolls to lands under it. */
+  scroll-padding-top: calc(var(--nav-bar) + 38px);
   scrollbar-color: var(--line-strong) var(--bg);
   -webkit-text-size-adjust: 100%;
 }

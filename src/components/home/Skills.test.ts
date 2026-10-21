@@ -298,6 +298,32 @@ describe("<Skills>", () => {
     });
   });
 
+  describe("the rows as a list", () => {
+    it("are list items in one list a screen reader announces as one, though the styles remove the markers", async () => {
+      const html = await render({
+        skills: [platform, scripting],
+        exploring: [],
+        sections: all,
+      });
+      expect(html).toMatch(/<ul[^>]*class="skills"[^>]*role="list"/);
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
+      expect(html.match(/<li class="skill"/g)).toHaveLength(2);
+      expect(html).not.toMatch(/<div class="skill"/);
+    });
+
+    it("leaves the exploring list as a second list, after the rows", async () => {
+      const html = await render({
+        skills: [platform],
+        exploring: ["One"],
+        sections: all,
+      });
+      expect(html.match(/<ul\b/g)).toHaveLength(2);
+      expect(html.indexOf('class="skills"')).toBeLessThan(
+        html.indexOf('class="explore"'),
+      );
+    });
+  });
+
   describe("what I'm exploring next", () => {
     it("is under an h3 after the rows, as plain items with no links", async () => {
       const html = await render({
@@ -310,9 +336,11 @@ describe("<Skills>", () => {
         html.indexOf("what I'm exploring next"),
       );
       expect(
-        [...html.matchAll(/<li[^>]*>(.*?)<\/li>/g)].map((m) =>
-          m[1]!.replace(/<[^>]+>/g, "").trim(),
-        ),
+        [
+          ...html
+            .slice(html.indexOf('class="explore"'))
+            .matchAll(/<li[^>]*>(.*?)<\/li>/g),
+        ].map((m) => m[1]!.replace(/<[^>]+>/g, "").trim()),
       ).toEqual(["Internal developer platforms", "Policy as code"]);
       // The rows above it link to run sheets; this list links to nothing.
       const list = html.slice(html.indexOf('class="explore"'));
@@ -335,7 +363,9 @@ describe("<Skills>", () => {
         exploring: five,
         sections: all,
       });
-      expect(html.match(/<li\b/g)).toHaveLength(5);
+      expect(
+        html.slice(html.indexOf('class="explore"')).match(/<li\b/g),
+      ).toHaveLength(5);
     });
 
     it("is left out, heading and all, when there is nothing in it", async () => {
@@ -345,7 +375,8 @@ describe("<Skills>", () => {
         sections: all,
       });
       expect(html).not.toContain("exploring next");
-      expect(html).not.toContain("<ul");
+      expect(html).not.toContain('class="explore"');
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
       // The rows are still there.
       expect(html).toContain('class="skill"');
     });
@@ -358,6 +389,9 @@ describe("<Skills>", () => {
       });
       expect(html).toMatch(/<section[^>]*\sid="skills"/);
       expect(html).not.toContain('class="skill"');
+      // No empty list for the rows that are not there: the one list is the exploring one.
+      expect(html).not.toContain('class="skills"');
+      expect(html.match(/<ul\b/g)).toHaveLength(1);
       expect(html).toContain("what I'm exploring next");
     });
 

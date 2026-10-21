@@ -1,7 +1,13 @@
 import type { Page } from "@playwright/test";
 import { targetProblem } from "../src/e2e/target-size.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
-import { clippedText, horizontalExtent, targetsOf } from "./layout.ts";
+import {
+  addStyles,
+  clippedText,
+  horizontalExtent,
+  targetsOf,
+  TEXT_SPACING,
+} from "./layout.ts";
 import { settle } from "./settle.ts";
 import { expect, test } from "./test.ts";
 
@@ -18,16 +24,6 @@ const HEIGHT = 800;
 // 30 s, and a timeout would read as a flaky test instead of a finding.
 test.describe.configure({ timeout: 90_000 });
 
-/** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
-const TEXT_SPACING = `
-  *, *::before, *::after {
-    line-height: 1.5 !important;
-    letter-spacing: 0.12em !important;
-    word-spacing: 0.16em !important;
-  }
-  p { margin-block-end: 2em !important; }
-`;
-
 /** A visitor who sets the browser's text size to twice the default (WCAG 1.4.4 asks for 200 %). */
 const TEXT_200 = "html { font-size: 200% !important; }";
 
@@ -35,23 +31,6 @@ async function open(page: Page, url: string, path: string, width: number) {
   await page.setViewportSize({ width, height: HEIGHT });
   await page.goto(url);
   await settle(page, path);
-}
-
-/**
- * Adds a visitor's stylesheet to a settled page. The page runs under its own policy, as it does for
- * a visitor: the styles go in as a constructed stylesheet, which the policy does not block (an
- * inline <style> it would). Resolves once the page has laid them out.
- */
-async function addStyles(page: Page, css: string) {
-  await page.evaluate(async (css) => {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    const frame = () =>
-      new Promise((resolve) => requestAnimationFrame(resolve));
-    await frame();
-    await frame();
-  }, css);
 }
 
 /** What does not fit at this width: a sideways scroll, or text cut off where it is hidden. */
@@ -125,6 +104,54 @@ for (const context of CONTEXTS) {
             }
           }
           expect(problems).toEqual([]);
+        });
+
+        // 320 px is also a 1280 px window at 400 % zoom (1.4.10). With the browser's default text the
+        // brand, the menu and the inspect button fit the row; a bar that wraps there costs 40 px of
+        // the screen on every page. Only a visitor's own text spacing is meant to make it wrap.
+        test("the bar is one row at the set height at 320 px", async ({
+          page,
+        }) => {
+          await open(page, `${origin}${path}`, path, 320);
+          const bar = await page.evaluate(() => {
+            const inner = document.querySelector(".nav__inner")!;
+            const root = getComputedStyle(document.documentElement);
+            const style = getComputedStyle(inner);
+            // Each control the bar shows. Not the dropdown's own strip, which hangs below the bar and
+            // takes no room in it.
+            const shown = [...inner.children].filter(
+              (child) =>
+                child.getBoundingClientRect().width > 0 &&
+                getComputedStyle(child).position !== "absolute",
+            );
+            return {
+              height: inner.getBoundingClientRect().height,
+              set: parseFloat(root.getPropertyValue("--nav-height")),
+              // The room the controls have, and what they take: a platform that draws the text wider
+              // shows here, so a failure says by how much.
+              room:
+                inner.clientWidth -
+                parseFloat(style.paddingLeft) -
+                parseFloat(style.paddingRight),
+              widths: shown.map(
+                (child) =>
+                  Math.round(child.getBoundingClientRect().width * 10) / 10,
+              ),
+              gap: style.columnGap,
+              // Where each one's middle sits, which is the same in one row.
+              middles: shown.map((child) => {
+                const box = child.getBoundingClientRect();
+                return Math.round(box.top + box.height / 2);
+              }),
+            };
+          });
+          expect(bar.set, "the set height").toBe(58);
+          expect(bar.middles.length, "controls in the bar").toBeGreaterThan(1);
+          expect(
+            new Set(bar.middles).size,
+            `middles ${bar.middles}; widths ${bar.widths} (gap ${bar.gap}) in a ${bar.room} px row`,
+          ).toBe(1);
+          expect(bar.height).toBe(bar.set);
         });
       });
     }
