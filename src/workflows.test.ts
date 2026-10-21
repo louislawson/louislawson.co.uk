@@ -471,6 +471,9 @@ describe("the live check in deploy.yml", () => {
     expect(job).toContain("node-version-file: .nvmrc");
     expect(job).toContain("sparse-checkout-cone-mode: false");
     expect(job).not.toMatch(/npm ci|npm install|cache: npm/);
+    // With package.json checked out, setup-node would turn its npm cache on by itself, and look for
+    // a lockfile this job does not have.
+    expect(job).toContain("package-manager-cache: false");
   });
 
   it("takes the address from the deploy step's output, passed through the environment", () => {
