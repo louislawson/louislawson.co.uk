@@ -81,7 +81,7 @@ async function render(props: Record<string, unknown>): Promise<string> {
 /** The markup of each project entry, which is a list item. */
 const entriesOf = (html: string) =>
   html
-    .split("<li ")
+    .split('<li class="run')
     .slice(1)
     .map((a) => a.split("</li>")[0]!);
 
@@ -142,7 +142,7 @@ describe("<Projects>", () => {
       });
       expect(html).toMatch(/class="[^"]*\bruns--strip\b/);
       expect(html).not.toMatch(/class="[^"]*\bruns--row\b/);
-      expect(html.match(/<li\b/g)).toHaveLength(count);
+      expect(html.match(/<li class="run /g)).toHaveLength(count);
       expect(html.match(/class="[^"]*\brun--strip\b/g)).toHaveLength(count);
     });
 
@@ -202,7 +202,7 @@ describe("<Projects>", () => {
           count === 3 ? ["R03", "R01", "R02"] : ["R03", "R01", "R02", "R04"],
         );
         // And the tag is on that first one.
-        expect(html.split("<li ")[1]).toContain('class="tag"');
+        expect(html.split('<li class="run')[1]).toContain('class="tag"');
       },
     );
 
@@ -335,14 +335,14 @@ describe("<Projects>", () => {
       const html = await render({ projects: featured(three), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
       expect(text(html, "run__code")[0]).toBe("R02");
-      expect(html.split("<li ")[1]).toContain('class="tag"');
+      expect(html.split('<li class="run')[1]).toContain('class="tag"');
     });
 
     it("is on the featured project in a row, which leads, and on no other", async () => {
       const html = await render({ projects: featured(four), sections: all });
       expect(text(html, "tag")).toEqual(["featured"]);
       expect(text(html, "run__code")[0]).toBe("R02");
-      expect(html.split("<li ")[1]).toContain('class="tag"');
+      expect(html.split('<li class="run')[1]).toContain('class="tag"');
     });
 
     it.each([

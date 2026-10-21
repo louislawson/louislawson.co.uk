@@ -56,6 +56,8 @@ export function scrollRest(page: Page) {
  */
 export async function walkTabOrder(page: Page): Promise<TabWalk> {
   const expected = await page.evaluate((selector) => {
+    // A walk starts afresh: the first stop of an earlier walk on this page is forgotten.
+    delete (window as unknown as { __firstStop?: Element }).__firstStop;
     const name = (element: Element) => {
       const classes = [...element.classList].map((c) => `.${c}`).join("");
       const text = (

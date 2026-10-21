@@ -90,6 +90,32 @@ for (const context of CONTEXTS) {
           expect(problems).toEqual([]);
         });
 
+        test("the scroll offset is the bar's own height and follows it when it grows", async ({
+          page,
+        }) => {
+          const offset = () =>
+            page.evaluate(() => ({
+              bar: document.querySelector("[data-nav]")!.getBoundingClientRect()
+                .height,
+              padding: parseFloat(
+                getComputedStyle(document.documentElement).scrollPaddingTop,
+              ),
+            }));
+          await open(page, `${origin}${path}`, path, 1280);
+          const wide = await offset();
+          await open(page, `${origin}${path}`, path, 320);
+          await addStyles(page, TEXT_SPACING);
+          await addStyles(page, "html { font-size: 150% !important; }");
+          const grown = await offset();
+          // The mock's 38 px lies under the bar, whatever the bar's height.
+          for (const { bar, padding } of [wide, grown]) {
+            expect(padding - bar).toBeGreaterThanOrEqual(38);
+            expect(padding - bar).toBeLessThan(40);
+          }
+          // If the bar had not grown, nothing above would show that the offset follows it.
+          expect(grown.bar).toBeGreaterThan(wide.bar);
+        });
+
         test("forced colours keep the focus ring, the status squares and the placeholders", async ({
           page,
         }) => {
