@@ -4,14 +4,15 @@ on:
   # Pushes to main use a deny-list, which fails safe: anything not explicitly excluded still builds
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
-  # folders, the scripts, code only the scripts and tests use, tests, the test, lint and format
-  # configs, editor and ignore files, the licence, Markdown outside src/, and the workflows other
-  # than this one and the local actions; .gitattributes is deliberately not excluded, since it
-  # controls line endings in the checkout), because each production deploy fetches the
-  # deployment token and runs Microsoft's client. The code only the scripts use is
-  # src/metadata/ (the metadata check) and src/content/list-placeholders.ts (the placeholder
-  # listing); nothing the build reads imports either, which src/deploy-path-filters.test.ts
-  # checks. Negations need a positive pattern first, and a later pattern overrides an earlier one.
+  # folders, the scripts, the e2e tests, code only the scripts and tests use, tests, the test,
+  # lint and format configs, editor and ignore files, the licence, Markdown outside src/, and the
+  # workflows other than this one and the local actions; .gitattributes is deliberately not
+  # excluded, since it controls line endings in the checkout), because each production deploy
+  # fetches the deployment token and runs Microsoft's client. The code only the scripts and
+  # tests use is src/metadata/ (the metadata check), src/content/list-placeholders.ts (the
+  # placeholder listing) and src/e2e/ (the e2e server's rules); nothing the build reads imports
+  # any of them, which src/deploy-path-filters.test.ts checks. Negations need a positive pattern
+  # first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
     paths:
@@ -19,6 +20,7 @@ on:
       - "!docs/**"
       - "!infra/**"
       - "!scripts/**"
+      - "!e2e/**"
       - "!.impeccable/**"
       - "!.claude/**"
       - "!src/**/*.test.*"
@@ -26,6 +28,7 @@ on:
       - "!src/**/__tests__/**"
       - "!src/**/__fixtures__/**"
       - "!vitest.config.ts"
+      - "!playwright.config.ts"
       - "!eslint.config.mjs"
       - "!.prettierrc.json"
       - "!.prettierignore"
@@ -41,14 +44,15 @@ on:
       # Last, so that the Markdown re-include above cannot win over them.
       - "!src/metadata/**"
       - "!src/content/list-placeholders.ts"
+      - "!src/e2e/**"
   # Pull requests use an allow-list instead, because there a wrong guess only costs a preview, not
   # a production deploy. They get a preview only for changes the build reads: the source
   # (Markdown under src/ is content; tests, specs and fixtures are not, and neither are
-  # src/metadata/ and src/content/list-placeholders.ts, which only the scripts use), static
-  # files, and the files the build or install reads. Tests, lint and format configs, docs,
-  # infrastructure and tooling folders are not on it, so they would only produce a preview
-  # identical to production and use up one of the Free plan's 3 slots. Such pull requests still
-  # build and test in CI.
+  # src/metadata/, src/content/list-placeholders.ts and src/e2e/, which only the scripts and
+  # tests use), static files, and the files the build or install reads. Tests, lint and format
+  # configs, docs, infrastructure and tooling folders are not on it, so they would only produce a
+  # preview identical to production and use up one of the Free plan's 3 slots. Such pull requests
+  # still build and test in CI.
   # A draft pull request builds in CI but gets no preview until it is marked ready for review.
   # Removing a preview (on close, or when a pull request goes back to draft) is a separate
   # workflow, preview-cleanup.yml, because this paths filter is evaluated on the final diff and
@@ -63,6 +67,7 @@ on:
       - "!src/**/__fixtures__/**"
       - "!src/metadata/**"
       - "!src/content/list-placeholders.ts"
+      - "!src/e2e/**"
       - public/**
       - astro.config.mjs
       - package.json

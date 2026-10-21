@@ -1,5 +1,12 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "node_modules", "docs/design/mock"]
+  "exclude": [
+    "dist",
+    "dist-e2e",
+    "test-results",
+    "playwright-report",
+    "node_modules",
+    "docs/design/mock"
+  ]
 }

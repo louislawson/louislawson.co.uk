@@ -256,3 +256,48 @@ describe("the build info in deploy.yml", () => {
     expect(deploy.match(/GIT_SHA=/g)).toHaveLength(1);
   });
 });
+
+// Louis adds this job's name to the required checks, so a rename would leave main unprotected
+// without any check going red: the required check would simply never report.
+describe("the E2E job in ci.yml", () => {
+  const ci = read(new URL(".github/workflows/ci.yml", root));
+  const job = ci.match(/^ {2}e2e:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+
+  it("exists", () => {
+    expect(job).not.toBe("");
+  });
+
+  it('is named exactly "E2E"', () => {
+    expect(job).toMatch(/^ {4}name: E2E$/m);
+  });
+
+  it("runs on every pull request and every push to main", () => {
+    expect(job).not.toMatch(/^ {4}if:/m);
+  });
+
+  it("only reads the repository", () => {
+    expect(job).toMatch(/permissions:\n\s+contents: read/);
+    expect(job).toMatch(/persist-credentials: false/);
+  });
+
+  it("installs both browsers, at the version in the lockfile", () => {
+    expect(job).toContain("npm ci");
+    // npx runs the locked Playwright, so the browsers match the tests' version.
+    expect(job).toContain("npx playwright install --with-deps chromium webkit");
+    expect(job).not.toMatch(/playwright@|npm install/);
+  });
+
+  it("builds both contexts and runs the tests through the script", () => {
+    expect(job).toContain("npm run test:e2e");
+  });
+
+  it("keeps the HTML report for 7 days, and only when a test failed", () => {
+    expect(job).toMatch(/if: failure\(\)/);
+    expect(job).toContain("path: playwright-report/");
+    expect(job).toContain("retention-days: 7");
+  });
+
+  it("is not allowed to fail quietly", () => {
+    expect(job).not.toMatch(/continue-on-error|\|\| true/);
+  });
+});
