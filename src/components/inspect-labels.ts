@@ -9,7 +9,7 @@
 export const INSPECT_LABELS = {
   hero: "h1 · Martian Mono 800 · static HTML, no JavaScript",
   trace:
-    "measured in your browser by the Navigation Timing API · nothing sent anywhere",
+    "measured in your browser by the Navigation Timing API · the trace sends nothing",
   projects: "generated at build from src/content/projects/*.md",
   skills: "from profile.ts · 'seen in' codes checked at build",
   certifications:

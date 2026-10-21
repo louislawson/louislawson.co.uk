@@ -378,7 +378,7 @@ Reviewed with Louis on 2026-10-18, against the reference mock. Each PR is delibe
   - The footer shows "build 412 · commit 0af5e05". The deploy build step already passes `GIT_SHA`; this PR adds `BUILD_NUMBER: ${{ github.run_number }}` to the same step, pinned by `src/workflows.test.ts`.
   - A local build shows "local build".
 - **Without JavaScript:** the panel explains that timings need JavaScript, rather than showing empty values. An unmeasured step shows an ellipsis, never a guess.
-- **Inspect:** "measured in your browser by the Navigation Timing API · nothing sent anywhere".
+- **Inspect:** "measured in your browser by the Navigation Timing API · the trace sends nothing".
 - **Acceptance:**
   - Real values on the preview URL.
   - Replay works.

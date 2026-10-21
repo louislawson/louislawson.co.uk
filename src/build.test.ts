@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SECTION_INTROS } from "./components/home/section-intros";
 import { INSPECT_LABELS, projectPageLabel } from "./components/inspect-labels";
-import { parseDeployContext } from "./config/site";
+import { ANALYTICS_TOKEN, parseDeployContext } from "./config/site";
 import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
@@ -284,6 +284,54 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(config.responseOverrides["404"].rewrite).toBe("/404.html");
   });
 
+  it("requires Trusted Types for scripts in the policy, and allows no policy to create them", () => {
+    const config = JSON.parse(read(dir, "staticwebapp.config.json"));
+    const csp = config.globalHeaders["Content-Security-Policy"];
+    expect(csp).toContain("require-trusted-types-for 'script'");
+    expect(csp).toContain("trusted-types 'none'");
+  });
+
+  it.each(["index.html", "404.html"])(
+    deployContext === "production"
+      ? "loads Cloudflare's analytics beacon in %s, and the policy lets it"
+      : "loads no analytics beacon in %s, and the policy has no room for one",
+    (page) => {
+      const html = read(dir, page);
+      const csp = JSON.parse(read(dir, "staticwebapp.config.json"))
+        .globalHeaders["Content-Security-Policy"] as string;
+      const beacons = [
+        ...html.matchAll(/<script\b[^>]*cloudflareinsights[^>]*>/g),
+      ];
+      if (deployContext !== "production") {
+        expect(html).not.toContain("cloudflareinsights");
+        expect(html).not.toContain("data-cf-beacon");
+        expect(csp).not.toContain("cloudflareinsights");
+        expect(csp).not.toMatch(/script-src|connect-src/);
+        return;
+      }
+      expect(beacons).toHaveLength(1);
+      const tag = beacons[0]![0];
+      expect(tag).toContain('type="module"');
+      expect(tag).toContain(
+        'src="https://static.cloudflareinsights.com/beacon.min.js"',
+      );
+      // Cloudflare changes the beacon without versioning it, so an integrity hash would break it.
+      expect(tag).not.toContain("integrity");
+      const token = /data-cf-beacon=(["'])(.*?)\1/.exec(tag)?.[2] ?? "";
+      expect(
+        JSON.parse(token.replaceAll("&#34;", '"').replaceAll("&quot;", '"')),
+      ).toEqual({
+        token: ANALYTICS_TOKEN,
+      });
+      expect(csp).toContain(
+        "script-src 'self' https://static.cloudflareinsights.com",
+      );
+      expect(csp).toContain(
+        "connect-src 'self' https://cloudflareinsights.com",
+      );
+    },
+  );
+
   it("puts a noindex meta tag in the pages", () => {
     expect(read(dir, "index.html")).toContain(
       '<meta name="robots" content="noindex">',
@@ -375,7 +423,9 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
       expect(html).toMatch(/<main id="main" tabindex="-1"/);
       expect(html.indexOf("<main")).toBeLessThan(html.indexOf("<footer"));
-      expect(html).toContain("no cookies, no tracking");
+      expect(html).toContain(
+        "no cookies · anonymous visit and load-time stats",
+      );
       expect(html).toContain("source on GitHub");
     },
   );
@@ -391,7 +441,8 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   it("serves every script as a file, not inline, and none of them reads the address", () => {
     for (const page of ["index.html", "404.html"]) {
       const html = read(dir, page);
-      const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
+      // The site's own scripts: files on the site, so not Cloudflare's beacon, which has its own test.
+      const scripts = [...html.matchAll(/<script[^>]*\ssrc="(\/[^"]+)"/g)].map(
         (match) => match[1]!,
       );
       expect(scripts.length, page).toBeGreaterThan(1);
@@ -592,7 +643,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
 
   it("serves the trace's script as a file that reads the timings and the host, and only on the home page", () => {
     const scriptsOf = (page: string) =>
-      [...read(dir, page).matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(
+      [...read(dir, page).matchAll(/<script[^>]*\ssrc="(\/[^"]+)"/g)].map(
         (match) => read(dir, match[1]!.replace(/^\//, "")),
       );
     const trace = scriptsOf("index.html").filter((code) =>

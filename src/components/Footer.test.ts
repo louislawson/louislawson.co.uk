@@ -31,9 +31,9 @@ describe("<Footer>", () => {
     );
   });
 
-  it("says there are no cookies and no tracking", async () => {
+  it("says there are no cookies and only anonymous visit and load-time stats", async () => {
     const html = await render();
-    expect(html).toContain("no cookies, no tracking");
+    expect(html).toContain("no cookies · anonymous visit and load-time stats");
   });
 
   it("holds the keyboard-shortcut switch", async () => {

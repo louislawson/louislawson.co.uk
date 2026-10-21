@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test as base, type TestInfo } from "@playwright/test";
+import type { TestInfo } from "@playwright/test";
+import { expect, test as base } from "./test.ts";
 
 // What every accessibility scan shares: the rule sets, the one place a rule could be switched off,
 // and how a failure is reported. A spec asks for `makeAxeBuilder` and never builds an AxeBuilder
