@@ -5,14 +5,14 @@ on:
   # and deploys production, so a build input added later can never leave production on an old
   # build. Only what cannot change the built site is excluded (docs, infrastructure, tooling
   # folders, the scripts, the e2e tests, code only the scripts and tests use, tests, the test,
-  # lint and format configs, editor and ignore files, the licence, Markdown outside src/, and the
-  # workflows other than this one and the local actions; .gitattributes is deliberately not
-  # excluded, since it controls line endings in the checkout), because each production deploy
-  # fetches the deployment token and runs Microsoft's client. The code only the scripts and
-  # tests use is src/metadata/ (the metadata check), src/content/list-placeholders.ts (the
-  # placeholder listing) and src/e2e/ (the e2e server's rules); nothing the build reads imports
-  # any of them, which src/deploy-path-filters.test.ts checks. Negations need a positive pattern
-  # first, and a later pattern overrides an earlier one.
+  # lint, format and link-check configs, editor and ignore files, the licence, Markdown outside
+  # src/, and the workflows other than this one and the local actions; .gitattributes is
+  # deliberately not excluded, since it controls line endings in the checkout), because each
+  # production deploy fetches the deployment token and runs Microsoft's client. The code only
+  # the scripts and tests use is src/metadata/ (the metadata check),
+  # src/content/list-placeholders.ts (the placeholder listing) and src/e2e/ (the e2e server's
+  # rules); nothing the build reads imports any of them, which src/deploy-path-filters.test.ts
+  # checks. Negations need a positive pattern first, and a later pattern overrides an earlier one.
   push:
     branches: [main]
     paths:
@@ -29,6 +29,8 @@ on:
       - "!src/**/__fixtures__/**"
       - "!vitest.config.ts"
       - "!playwright.config.ts"
+      - "!lychee.toml"
+      - "!.htmlvalidate.json"
       - "!eslint.config.mjs"
       - "!.prettierrc.json"
       - "!.prettierignore"

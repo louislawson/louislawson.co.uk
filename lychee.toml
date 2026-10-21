@@ -1,0 +1,9 @@
+# Shared settings for lychee: the pull-request gate (ci.yml) and the weekly external-link report
+# (links.yml). The gate adds --offline, --include-fragments and an absolute --root-dir per build on
+# its command line, because a root directory is a path on the machine that runs it.
+
+no_progress = true
+verbose = "info"
+
+# A link to a folder must find that folder's index.html, as Static Web Apps serves it.
+index_files = ["index.html"]

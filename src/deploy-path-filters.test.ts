@@ -91,6 +91,10 @@ describe("a push to main", () => {
     "e2e/smoke.spec.ts",
     "e2e/serve.ts",
     "playwright.config.ts",
+    // The settings of the HTML and link checks, which read the built site and are not part of it.
+    "lychee.toml",
+    ".htmlvalidate.json",
+    ".github/workflows/links.yml",
     // The server's rules, which only the e2e server and its tests use.
     "src/e2e/rules.ts",
     "src/e2e/rules.test.ts",
@@ -145,6 +149,9 @@ describe("a pull request", () => {
     "src/e2e/rules.ts",
     "e2e/smoke.spec.ts",
     "playwright.config.ts",
+    "lychee.toml",
+    ".htmlvalidate.json",
+    ".github/workflows/links.yml",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",
   ])("does not get a preview for a change to %s", (path) => {
@@ -234,6 +241,8 @@ describe("the README's Deploying table", () => {
     expect(push).toContain("`src/metadata/`");
     expect(push).toContain("`src/content/list-placeholders.ts`");
     expect(push).toContain("`src/e2e/`");
+    expect(push).toContain("`lychee.toml`");
+    expect(push).toContain("`.htmlvalidate.json`");
   });
 
   it("says a pull request gets no preview for them either", () => {
@@ -243,5 +252,7 @@ describe("the README's Deploying table", () => {
     expect(pullRequest).toContain("`src/content/list-placeholders.ts`");
     expect(pullRequest).toContain("`src/e2e/`");
     expect(pullRequest).toContain("`e2e/`");
+    expect(pullRequest).toContain("`lychee.toml`");
+    expect(pullRequest).toContain("`.htmlvalidate.json`");
   });
 });

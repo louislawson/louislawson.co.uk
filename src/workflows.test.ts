@@ -301,3 +301,149 @@ describe("the E2E job in ci.yml", () => {
     expect(job).not.toMatch(/continue-on-error|\|\| true/);
   });
 });
+
+// Louis adds this job's name to the required checks, so a rename would leave main unprotected
+// without any check going red: the required check would simply never report.
+describe("the Static checks job in ci.yml", () => {
+  const ci = read(new URL(".github/workflows/ci.yml", root));
+  const job = ci.match(/^ {2}static:\n(?:(?! {2}\S).*\n?)*/m)?.[0] ?? "";
+  /** The lychee steps, one per build. */
+  const lychee = job
+    .split(/^ {6}- /m)
+    .filter((step) => step.includes("lycheeverse/lychee-action"));
+
+  it("exists", () => {
+    expect(job).not.toBe("");
+  });
+
+  it('is named exactly "Static checks"', () => {
+    expect(job).toMatch(/^ {4}name: Static checks$/m);
+  });
+
+  it("runs on every pull request and every push to main", () => {
+    expect(job).not.toMatch(/^ {4}if:/m);
+  });
+
+  it("only reads the repository", () => {
+    expect(job).toMatch(/permissions:\n\s+contents: read/);
+    expect(job).toMatch(/persist-credentials: false/);
+  });
+
+  it("builds both contexts, then validates the HTML, then checks the links", () => {
+    const at = (text: string) => job.indexOf(text);
+    expect(at("npm run build:e2e")).toBeGreaterThan(at("npm ci"));
+    expect(at("npm run validate:html")).toBeGreaterThan(
+      at("npm run build:e2e"),
+    );
+    expect(at("lycheeverse/lychee-action")).toBeGreaterThan(
+      at("npm run validate:html"),
+    );
+  });
+
+  it("pins lychee-action to a full commit SHA and sets the lychee version", () => {
+    expect(lychee).toHaveLength(2);
+    for (const step of lychee) {
+      expect(step).toMatch(
+        /uses: lycheeverse\/lychee-action@[0-9a-f]{40} # v\d+\.\d+\.\d+/,
+      );
+      expect(step).toMatch(/lycheeVersion: v\d+\.\d+\.\d+/);
+    }
+  });
+
+  it("checks each build offline, with fragments, against its own absolute root", () => {
+    for (const [index, name] of ["preview", "production"].entries()) {
+      const step = lychee[index] ?? "";
+      expect(step).toContain("--offline");
+      expect(step).toContain("--include-fragments");
+      // The action's shell expands the variable, so the root is an absolute path.
+      expect(step).toContain(`--root-dir "$GITHUB_WORKSPACE/dist-e2e/${name}"`);
+      expect(step).toContain(`'dist-e2e/${name}/**/*.html'`);
+    }
+  });
+
+  it("is not allowed to fail quietly", () => {
+    expect(job).not.toMatch(/continue-on-error|\|\| true/);
+    for (const step of lychee) expect(step).not.toMatch(/fail: false/);
+  });
+});
+
+// The weekly report of links to other sites. It is not a gate: LinkedIn answers bots with status
+// 999 and GitHub rate-limits, and a remote site can be down for a day.
+describe("the external links workflow", () => {
+  const links = read(new URL(".github/workflows/links.yml", root));
+
+  it("runs on a weekly schedule, and on demand", () => {
+    expect(links).toMatch(
+      /^ {2}schedule:\n(?: {4}#.*\n)* {4}- cron: ["']\d+ \d+ \* \* \d["']$/m,
+    );
+    expect(links).toMatch(/^ {2}workflow_dispatch:/m);
+  });
+
+  it("is not part of pull requests or pushes, so it can never block a merge", () => {
+    expect(links).not.toMatch(/^ {2}(pull_request|push):/m);
+  });
+
+  it("only reads the repository", () => {
+    expect(links).toMatch(/^permissions: \{\}$/m);
+    expect(links).toMatch(/permissions:\n\s+contents: read/);
+    expect(links).toMatch(/persist-credentials: false/);
+  });
+
+  it("checks the production build's external links", () => {
+    expect(links).toMatch(/DEPLOY_CONTEXT: production/);
+    expect(links).toContain("'dist/**/*.html'");
+    expect(links).toContain("--scheme https --scheme http");
+    // Online: unlike the gate, it is meant to reach other sites.
+    expect(links).not.toContain("--offline");
+  });
+
+  it("does not fail on LinkedIn's status 999 or on a rate limit", () => {
+    const accept = links.match(/--accept '([^']+)'/)?.[1] ?? "";
+    expect(accept.split(",")).toEqual(
+      expect.arrayContaining(["200..=299", "429", "999"]),
+    );
+  });
+
+  it("pins lychee-action to a full commit SHA and sets the lychee version", () => {
+    expect(links).toMatch(
+      /uses: lycheeverse\/lychee-action@[0-9a-f]{40} # v\d+\.\d+\.\d+/,
+    );
+    expect(links).toMatch(/lycheeVersion: v\d+\.\d+\.\d+/);
+  });
+
+  it("uses the same lychee version as the gate", () => {
+    const version = (text: string) =>
+      text.match(/lycheeVersion: (v[\d.]+)/)?.[1];
+    expect(version(links)).toBeDefined();
+    expect(version(links)).toBe(
+      version(read(new URL(".github/workflows/ci.yml", root))),
+    );
+  });
+});
+
+// html-validate reads JSON with JSON.parse, so the config cannot hold a comment. The README's
+// "HTML validation" table gives the reason for each relaxed rule instead, and this keeps the two
+// from drifting apart: a rule turned off or loosened without a reason fails here.
+describe("the HTML validation config", () => {
+  const config = JSON.parse(read(new URL(".htmlvalidate.json", root))) as {
+    extends: string[];
+    rules?: Record<string, unknown>;
+  };
+  const readme = read(new URL("README.md", root));
+  const documented = [...readme.matchAll(/^\| `([\w-]+)` +\| (.+?) +\|$/gm)]
+    .filter(([, rule]) => rule !== "Rule")
+    .map(([, rule, reason]) => ({ rule, reason }));
+
+  it("starts from the recommended preset", () => {
+    expect(config.extends).toEqual(["html-validate:recommended"]);
+  });
+
+  it("gives every relaxed rule a reason in the README, and documents no other", () => {
+    expect(documented.map(({ rule }) => rule).sort()).toEqual(
+      Object.keys(config.rules ?? {}).sort(),
+    );
+    for (const { reason } of documented) {
+      expect(reason?.length).toBeGreaterThan(30);
+    }
+  });
+});
