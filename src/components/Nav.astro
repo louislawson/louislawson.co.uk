@@ -68,14 +68,24 @@ const home = Astro.url.pathname === "/";
     border-bottom: 1px solid var(--line);
   }
 
+  /* The bar is one row at its set height. It wraps to a second row only when its contents cannot
+     fit, which is when a visitor's own text spacing (WCAG 1.4.12) makes them wider than the window;
+     a bar that kept one row would run past the edge and make the whole page scroll sideways. */
   .nav__inner {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 18px;
-    height: var(--nav-height);
+    gap: 4px 18px;
+    min-height: var(--nav-height);
+    padding-block: 4px;
   }
 
+  /* The brand is one line of text; the box around it is a comfortable thumb target, and the bar's
+     height does not change. */
   .nav__home {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     margin-right: auto;
     flex: none;
     font-weight: 700;
@@ -177,7 +187,7 @@ const home = Astro.url.pathname === "/";
     }
 
     .nav__inner {
-      gap: 10px;
+      gap: 4px 10px;
     }
 
     /* Without script the links stay in the bar and scroll sideways, so the bar is the same height
@@ -205,7 +215,7 @@ const home = Astro.url.pathname === "/";
        bar, now with the inspect button too, would run out of width on a narrow phone. */
     .nav[data-collapsible] .nav__nav {
       position: absolute;
-      top: 0;
+      top: 100%;
       right: 0;
       left: 0;
       height: 0;
@@ -219,7 +229,7 @@ const home = Astro.url.pathname === "/";
     .nav[data-collapsible] .nav__links {
       display: none;
       position: absolute;
-      top: var(--nav-height);
+      top: 0;
       right: 0;
       left: 0;
       flex-direction: column;

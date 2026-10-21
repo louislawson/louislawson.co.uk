@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Page, Response } from "@playwright/test";
 import { expect, test, type Analytics } from "./test.ts";
 import { CONTEXTS, folderOf, originOf, pagesOf } from "./contexts.ts";
+import { horizontalExtent } from "./layout.ts";
 
 // The smoke checks: every page of both builds loads cleanly under the site's real headers, and a
 // path that does not exist answers with the 404 page. They run on the desktop and the phone.
@@ -133,13 +134,9 @@ for (const context of CONTEXTS) {
           await page.goto(`${origin}${path}`);
           await page.waitForLoadState("networkidle");
 
-          const { content, visible } = await page.evaluate(() => ({
-            content: Math.max(
-              document.documentElement.scrollWidth,
-              document.body.scrollWidth,
-            ),
-            visible: document.documentElement.clientWidth,
-          }));
+          // The same measure as the reflow checks (reflow.spec.ts), which run it at every width on
+          // the desktop; this runs it at the narrowest on the phone's engine as well.
+          const { content, visible } = await horizontalExtent(page);
           expect(content).toBeLessThanOrEqual(visible);
         });
       });

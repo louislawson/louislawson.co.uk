@@ -33,6 +33,31 @@ describe("the e2e specs", () => {
   });
 });
 
+// bypassCSP switches the site's policy off for a browser context. The text-spacing checks need it,
+// because a test cannot inject a stylesheet under the policy, and nothing else may have it: every
+// other check should see the page under the policy a visitor gets.
+describe("bypassCSP", () => {
+  const using = specs.filter((name) => /\bbypassCSP\b/.test(read(name)));
+
+  it("is set in the text-spacing checks and nowhere else", () => {
+    expect(using).toEqual(["reflow.spec.ts"]);
+    expect(read("reflow.spec.ts").match(/bypassCSP: true/g)).toHaveLength(1);
+  });
+
+  it("is not set in the shared fixture, the config or a helper", () => {
+    for (const name of readdirSync(folder).filter(
+      (name) => name.endsWith(".ts") && !name.endsWith(".spec.ts"),
+    )) {
+      expect(read(name), name).not.toMatch(/bypassCSP/);
+    }
+    const config = readFileSync(
+      new URL("../../playwright.config.ts", import.meta.url),
+      "utf-8",
+    );
+    expect(config).not.toMatch(/bypassCSP/);
+  });
+});
+
 describe("the shared fixture", () => {
   const fixture = read("test.ts");
 

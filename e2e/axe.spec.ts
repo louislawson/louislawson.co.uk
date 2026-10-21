@@ -2,75 +2,11 @@ import type { Page, TestInfo } from "@playwright/test";
 import type AxeBuilder from "@axe-core/playwright";
 import { expect, expectNoViolations, test } from "./axe.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
+import { animationsEnd, settle } from "./settle.ts";
 
 // An axe scan of every page of both builds, and of the home page again with inspect mode on. The
 // markup is covered by the Container API tests; axe needs the page as a visitor sees it, with its
 // styles applied and its scripts run, because contrast and visibility are decided by the browser.
-
-/**
- * Waits for the animations and transitions that end (the trace's replay, a fade, a colour change)
- * to finish, so a scan does not read a half-faded line at the wrong contrast. The caret's blink
- * never ends and holds no text, so it is left running. Two frames first, so that a transition set
- * off a moment ago has started and can be seen.
- */
-async function animationsEnd(page: Page) {
-  await page.evaluate(async () => {
-    const frame = () =>
-      new Promise((resolve) => requestAnimationFrame(resolve));
-    await frame();
-    await frame();
-    // Animations that start others end in a few rounds; a page that never stops starting them is
-    // a finding, named here, not a timeout.
-    for (let round = 0; ; round++) {
-      const running = document
-        .getAnimations()
-        .filter(
-          (animation) =>
-            animation.effect?.getComputedTiming().iterations !== Infinity &&
-            (animation.playState === "running" || animation.pending),
-        );
-      if (running.length === 0) return;
-      if (round >= 10) {
-        throw new Error(
-          `animations still starting after ${round} rounds: ${running
-            .map((animation) => animation.id || animation.constructor.name)
-            .join(", ")}`,
-        );
-      }
-      // One that is cancelled (restarted, or its element removed) ends too: that is not an error.
-      await Promise.allSettled(running.map((animation) => animation.finished));
-    }
-  });
-}
-
-/**
- * Waits until nothing on the page is still arriving or moving, so axe sees the finished page: a
- * panel not yet built would not be scanned at all. The home page must show its trace panel, so a
- * page that never builds it fails here and is not scanned empty.
- */
-async function settle(page: Page, path: string) {
-  await page.waitForLoadState("networkidle");
-  await page.evaluate(() => document.fonts.ready);
-  // The trace panel fills in after the load event, from the browser's own timings.
-  if (path === "/") {
-    await expect(page.locator("[data-trace-total]")).not.toHaveText("");
-  }
-  // Content made by scripts as parts come into view is made on the way down, so go down and back.
-  // Two frames a step: an IntersectionObserver's callback runs after the frame it was seen in.
-  await page.evaluate(async () => {
-    const frame = () =>
-      new Promise((resolve) => requestAnimationFrame(resolve));
-    const step = Math.max(1, innerHeight - 100);
-    for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
-      scrollTo({ top: y, behavior: "instant" });
-      await frame();
-      await frame();
-    }
-    scrollTo({ top: 0, behavior: "instant" });
-  });
-  await page.waitForLoadState("networkidle");
-  await animationsEnd(page);
-}
 
 /**
  * Scans the page twice. The first scan is the page as it is: every rule, in the tags of axe.ts.
