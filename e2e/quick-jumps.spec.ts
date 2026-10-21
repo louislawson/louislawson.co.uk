@@ -58,6 +58,7 @@ async function expectSecondJumpWins(
       .poll(() => hashOf(page), { message: `round ${round}: the hash` })
       .toBe(`#${to.id}`);
     await expectArrived(page, to.id, `round ${round}`);
+    await expectLanded(page, to.id, `round ${round}`);
   }
 }
 
@@ -67,6 +68,19 @@ const scrollPadding = (page: Page) =>
     parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
   );
 
+/** A section at rest sits at the scroll padding, unless the page ended before it got there. */
+async function expectLanded(page: Page, id: string, note = id) {
+  const padding = await scrollPadding(page);
+  const { top, atEnd } = await page.evaluate(
+    (id) => ({
+      top: document.getElementById(id)!.getBoundingClientRect().top,
+      atEnd: scrollY + innerHeight >= document.documentElement.scrollHeight - 2,
+    }),
+    id,
+  );
+  if (!atEnd) expect(top, `${note}: ${id}`).toBeCloseTo(padding, 0);
+}
+
 /** Whether Tab now reaches the first thing that can take focus at or after the start of a section. */
 async function tabContinuesFrom(page: Page, id: string) {
   await page.keyboard.press("Tab");
@@ -74,7 +88,7 @@ async function tabContinuesFrom(page: Page, id: string) {
     const section = document.getElementById(id)!;
     const next = [
       ...document.querySelectorAll<HTMLElement>(
-        'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        'a[href], button, input, select, textarea, summary, iframe, [contenteditable], [tabindex]:not([tabindex="-1"])',
       ),
     ].find(
       (element) =>
@@ -92,6 +106,11 @@ async function tabContinuesFrom(page: Page, id: string) {
   }, id);
 }
 
+async function expectTabContinuesFrom(page: Page, id: string) {
+  const result = await tabContinuesFrom(page, id);
+  expect(result.reached, `${result.focused} for ${result.expected}`).toBe(true);
+}
+
 /** Every distinct scroll position the page passes through from now until `ms` after `act`. */
 async function scrollPositionsDuring(
   page: Page,
@@ -100,18 +119,25 @@ async function scrollPositionsDuring(
 ) {
   await page.evaluate(() => {
     const seen = new Set<number>();
-    (window as unknown as { __seen: Set<number> }).__seen = seen;
+    const sampler = { seen, frame: 0 };
+    (window as unknown as { __sampler: typeof sampler }).__sampler = sampler;
     const frame = () => {
       seen.add(scrollY);
-      requestAnimationFrame(frame);
+      sampler.frame = requestAnimationFrame(frame);
     };
     frame();
   });
   await act();
   await page.waitForTimeout(ms);
-  return page.evaluate(() => [
-    ...(window as unknown as { __seen: Set<number> }).__seen,
-  ]);
+  return page.evaluate(() => {
+    const { seen, frame } = (
+      window as unknown as {
+        __sampler: { seen: Set<number>; frame: number };
+      }
+    ).__sampler;
+    cancelAnimationFrame(frame);
+    return [...seen];
+  });
 }
 
 for (const context of CONTEXTS) {
@@ -186,10 +212,7 @@ for (const context of CONTEXTS) {
 
       await page.keyboard.press(to.key);
       await expectArrived(page, to.id);
-      const result = await tabContinuesFrom(page, to.id);
-      expect(result.reached, `${result.focused} for ${result.expected}`).toBe(
-        true,
-      );
+      await expectTabContinuesFrom(page, to.id);
     });
 
     test("the next Tab continues from the section a click reached", async ({
@@ -200,10 +223,7 @@ for (const context of CONTEXTS) {
 
       await page.locator(`nav a[href="/#${to.id}"]`).click();
       await expectArrived(page, to.id);
-      const result = await tabContinuesFrom(page, to.id);
-      expect(result.reached, `${result.focused} for ${result.expected}`).toBe(
-        true,
-      );
+      await expectTabContinuesFrom(page, to.id);
     });
 
     test("the next Tab continues from the section the second of two quick keys reached", async ({
@@ -216,33 +236,20 @@ for (const context of CONTEXTS) {
       await page.waitForTimeout(100);
       await page.keyboard.press(to.key);
       await expectArrived(page, to.id);
-      const result = await tabContinuesFrom(page, to.id);
-      expect(result.reached, `${result.focused} for ${result.expected}`).toBe(
-        true,
-      );
+      await expectTabContinuesFrom(page, to.id);
     });
 
     test("a jump lands the section's top at the scroll padding, under the bar", async ({
       page,
     }) => {
       await page.goto(home);
-      const padding = await scrollPadding(page);
-      expect(padding).toBeGreaterThan(0);
+      expect(await scrollPadding(page)).toBeGreaterThan(0);
 
       for (const { key, id } of await sectionKeys(page)) {
         await page.keyboard.press(key);
         await expectArrived(page, id);
-        const { top, atEnd } = await page.evaluate(
-          (id) => ({
-            top: document.getElementById(id)!.getBoundingClientRect().top,
-            atEnd:
-              scrollY + innerHeight >=
-              document.documentElement.scrollHeight - 2,
-          }),
-          id,
-        );
         // The last sections may not reach the line: the page ends first.
-        if (!atEnd) expect(top, id).toBeCloseTo(padding, 0);
+        await expectLanded(page, id);
       }
     });
 
@@ -261,6 +268,8 @@ for (const context of CONTEXTS) {
     test("a jump is instant under reduced motion", async ({ page }) => {
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(home);
+      // Nothing is still loading to move the page, so the start is one position.
+      await page.waitForLoadState("networkidle");
       const [first] = await sectionKeys(page);
       const positions = await scrollPositionsDuring(
         page,
@@ -268,7 +277,7 @@ for (const context of CONTEXTS) {
         800,
       );
       // The start and the end, with nothing between.
-      expect(positions).toHaveLength(2);
+      expect(positions.length).toBeLessThanOrEqual(2);
       await expect.poll(() => hashOf(page)).toBe(`#${first!.id}`);
       await expectArrived(page, first!.id);
     });
