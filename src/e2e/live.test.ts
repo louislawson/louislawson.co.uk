@@ -228,6 +228,22 @@ describe("checkLive", () => {
     );
   });
 
+  it("gives every request a time limit and never follows a redirect, so a hung edge cannot stall a retry", async () => {
+    const inits: unknown[] = [];
+    const fetch: LiveFetch = async (_url, init) => {
+      inits.push(init);
+      return { status: 200, headers: new Headers() };
+    };
+    await checkLive({ url, expectation: EXPECTED, fetch });
+    expect(inits).toHaveLength(2);
+    for (const init of inits) {
+      const { redirect, signal } = init as RequestInit;
+      expect(redirect).toBe("manual");
+      expect(signal).toBeInstanceOf(AbortSignal);
+      expect(signal?.aborted).toBe(false);
+    }
+  });
+
   it("reports a request that fails as a failure, not an exception", async () => {
     const fetch: LiveFetch = async () => {
       throw new Error("getaddrinfo ENOTFOUND");

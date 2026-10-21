@@ -460,8 +460,14 @@ describe("the live check in deploy.yml", () => {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    // The version file setup-node reads, the script, and the rules it imports: nothing else.
-    expect(patterns).toEqual(["/.nvmrc", "/scripts/", "/src/e2e/"]);
+    // The version file setup-node reads, package.json (whose "type": "module" Node reads to run
+    // the TypeScript as modules, as it does locally), the script and the rules it imports.
+    expect(patterns).toEqual([
+      "/.nvmrc",
+      "/package.json",
+      "/scripts/",
+      "/src/e2e/",
+    ]);
     expect(job).toContain("node-version-file: .nvmrc");
     expect(job).toContain("sparse-checkout-cone-mode: false");
     expect(job).not.toMatch(/npm ci|npm install|cache: npm/);

@@ -149,6 +149,53 @@ describe("buildStaticWebAppConfig: the content security policy", () => {
     ).toHaveLength(1);
   });
 
+  it("adds Cloudflare to a script-src or connect-src the baseline already has, keeping its sources", () => {
+    const withSources = {
+      globalHeaders: {
+        "Content-Security-Policy": `${CSP}; script-src self wasm-unsafe-eval; connect-src self https://api.example.test`,
+      },
+    };
+    const csp = policy(
+      buildStaticWebAppConfig(withSources, { noindex: true, beacon: true }),
+    );
+    expect(csp.get("script-src")).toEqual([
+      "self",
+      "wasm-unsafe-eval",
+      "https://static.cloudflareinsights.com",
+    ]);
+    expect(csp.get("connect-src")).toEqual([
+      "self",
+      "https://api.example.test",
+      "https://cloudflareinsights.com",
+    ]);
+  });
+
+  it("recognises a baseline directive whatever its case, and never repeats one", () => {
+    const shouting = {
+      globalHeaders: {
+        "Content-Security-Policy": `${CSP}; Script-Src self; TRUSTED-TYPES none`,
+      },
+    };
+    const header =
+      buildStaticWebAppConfig(shouting, { noindex: true, beacon: true })
+        .globalHeaders?.["Content-Security-Policy"] ?? "";
+    expect(header.match(/script-src/gi)).toHaveLength(1);
+    expect(header.match(/trusted-types /gi)).toHaveLength(1);
+    expect(header).toContain("https://static.cloudflareinsights.com");
+  });
+
+  it("does not add the origin twice when the baseline already allows it", () => {
+    const already = {
+      globalHeaders: {
+        "Content-Security-Policy": `${CSP}; script-src self https://static.cloudflareinsights.com`,
+      },
+    };
+    const header =
+      buildStaticWebAppConfig(already, { noindex: true, beacon: true })
+        .globalHeaders?.["Content-Security-Policy"] ?? "";
+    expect(header.match(/static.cloudflareinsights.com/g)).toHaveLength(1);
+  });
+
   it("allows no inline or eval script, and no wildcard source, with the beacon in", () => {
     const header =
       buildStaticWebAppConfig(base, { noindex: true, beacon: true })

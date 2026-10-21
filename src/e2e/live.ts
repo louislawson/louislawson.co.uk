@@ -29,7 +29,7 @@ export interface LiveResponse {
 /** `fetch`, as far as the check uses it: a redirect is a result, never followed. */
 export type LiveFetch = (
   url: string,
-  init?: { redirect: "manual" },
+  init?: { redirect: "manual"; signal: AbortSignal },
 ) => Promise<LiveResponse>;
 
 function headerOf(
@@ -95,12 +95,18 @@ function madeUpPath(): string {
   return `/no-such-page-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Long enough for a slow edge, short enough that a stalled connection leaves time to try again. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function request(
   fetch: LiveFetch,
   url: string,
 ): Promise<LiveResponse | string> {
   try {
-    return await fetch(url, { redirect: "manual" });
+    return await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     const reason =
       error instanceof Error

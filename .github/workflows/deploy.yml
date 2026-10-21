@@ -278,6 +278,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             /.nvmrc
+            /package.json
             /scripts/
             /src/e2e/
           sparse-checkout-cone-mode: false # cone mode would also check out every root-level file

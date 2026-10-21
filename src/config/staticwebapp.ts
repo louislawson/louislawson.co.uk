@@ -13,23 +13,42 @@ const CSP_HEADER = "content-security-policy";
 export const BEACON_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";
 export const BEACON_REPORT_ORIGIN = "https://cloudflareinsights.com";
 
-/**
- * Sets directives in a policy, replacing a directive of the same name, so a baseline that already
- * has one does not end up with it twice (a browser ignores the second, which would hide a mistake).
- */
-function withDirectives(
-  policy: string,
-  directives: [string, string][],
-): string {
-  const names = new Set(directives.map(([name]) => name));
-  const kept = policy
+/** A policy as its directives, each a name and its sources; names compare without case. */
+function parsePolicy(policy: string): [string, string[]][] {
+  return policy
     .split(";")
-    .map((directive) => directive.trim())
-    .filter((directive) => directive && !names.has(directive.split(/\s+/)[0]!));
-  return [
-    ...kept,
-    ...directives.map(([name, value]) => `${name} ${value}`),
-  ].join("; ");
+    .map((directive) => directive.trim().split(/\s+/))
+    .filter(([name]) => name)
+    .map(([name, ...sources]) => [name!, sources]);
+}
+
+const writePolicy = (directives: [string, string[]][]) =>
+  directives.map(([name, sources]) => [name, ...sources].join(" ")).join("; ");
+
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * Sets a directive, replacing one of the same name, so a baseline that already has it does not end
+ * up with it twice (a browser ignores the second, which would hide a mistake).
+ */
+function setDirective(policy: string, name: string, value: string): string {
+  const kept = parsePolicy(policy).filter(([other]) => !sameName(other, name));
+  return writePolicy([...kept, [name, value.split(" ")]]);
+}
+
+/**
+ * Allows one more source in a directive, keeping the sources the baseline gives it. A directive
+ * the baseline does not have starts at 'self', so it allows no more than default-src did plus
+ * the one source.
+ */
+function allowSource(policy: string, name: string, source: string): string {
+  const directives = parsePolicy(policy);
+  const existing = directives.find(([other]) => sameName(other, name));
+  if (existing === undefined) {
+    return writePolicy([...directives, [name, ["'self'", source]]]);
+  }
+  if (!existing[1].includes(source)) existing[1].push(source);
+  return writePolicy(directives);
 }
 
 /**
@@ -62,18 +81,14 @@ export function buildStaticWebAppConfig(
       "the baseline staticwebapp.config.json has no Content-Security-Policy header",
     );
   }
-  const additions: [string, string][] = [];
+  let csp = headers[cspName]!;
   if (opts.beacon) {
-    additions.push(
-      ["script-src", `'self' ${BEACON_SCRIPT_ORIGIN}`],
-      ["connect-src", `'self' ${BEACON_REPORT_ORIGIN}`],
-    );
+    csp = allowSource(csp, "script-src", BEACON_SCRIPT_ORIGIN);
+    csp = allowSource(csp, "connect-src", BEACON_REPORT_ORIGIN);
   }
-  additions.push(
-    ["require-trusted-types-for", "'script'"],
-    ["trusted-types", "'none'"],
-  );
-  headers[cspName] = withDirectives(headers[cspName]!, additions);
+  csp = setDirective(csp, "require-trusted-types-for", "'script'");
+  csp = setDirective(csp, "trusted-types", "'none'");
+  headers[cspName] = csp;
 
   return { ...baseline, globalHeaders: headers };
 }
