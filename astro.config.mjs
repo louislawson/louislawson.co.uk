@@ -20,7 +20,10 @@ export default defineConfig({
   // the policy blocks. A write-up's code is plain monospace on the panel colour instead.
   markdown: { syntaxHighlight: false },
   integrations: [
-    staticWebAppConfig({ noindex: site.noindex }),
+    staticWebAppConfig({
+      noindex: site.noindex,
+      beacon: site.beaconToken !== undefined,
+    }),
     // Only a build that may be indexed has a sitemap; robots.txt (src/pages/robots.txt.ts) follows
     // the same rule. The integration leaves out the 404 page on its own.
     ...(site.noindex ? [] : [sitemap()]),

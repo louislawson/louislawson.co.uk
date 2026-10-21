@@ -1,3 +1,5 @@
+import { isPlaceholder } from "../content/todo";
+
 export type DeployContext = "local" | "preview" | "production";
 
 const DEPLOY_CONTEXTS: readonly string[] = ["preview", "production"];
@@ -10,6 +12,13 @@ const DEFAULT_SITE_URL = "https://louislawson.co.uk";
 /** The public repository, which the footer links to. */
 export const REPOSITORY_URL =
   "https://github.com/louislawson/louislawson.co.uk";
+
+/**
+ * The token of the Cloudflare Web Analytics site for louislawson.co.uk. It is public: it ships in
+ * every production page, so it is not a secret and lives here, not in PRIVATE-NOTES.md. While it is
+ * a "TODO:" placeholder the beacon is left out.
+ */
+export const ANALYTICS_TOKEN = "5a3dff7ef1dd4aeeb0e9723ff20467fc";
 
 function parseSiteUrl(value: string | undefined): string {
   const raw = value === undefined || value === "" ? DEFAULT_SITE_URL : value;
@@ -52,11 +61,32 @@ export function parseDeployContext(value: string | undefined): DeployContext {
   );
 }
 
+/**
+ * The token to put in the analytics beacon, or undefined when the page gets no beacon: only the
+ * production build counts visits, and not while the token is still a placeholder. A token that is
+ * neither is a mistake and fails the build in every context, because it is written into a page.
+ */
+export function beaconToken(opts: {
+  deployContext: DeployContext;
+  token: string;
+}): string | undefined {
+  const { deployContext, token } = opts;
+  if (isPlaceholder(token)) return undefined;
+  if (!/^[0-9a-f]{32}$/.test(token)) {
+    throw new Error(
+      `ANALYTICS_TOKEN must be 32 lower-case hex digits (or a "TODO:" placeholder), got "${token}"`,
+    );
+  }
+  return deployContext === "production" ? token : undefined;
+}
+
 export interface Site {
   launch: boolean;
   url: string;
   deployContext: DeployContext;
   noindex: boolean;
+  /** The analytics token for the beacon; undefined when this build has no beacon. */
+  beaconToken: string | undefined;
 }
 
 /** Resolves the site configuration from the build environment. */
@@ -67,6 +97,7 @@ export function resolveSite(env: Record<string, string | undefined>): Site {
     url: parseSiteUrl(env.SITE_URL),
     deployContext,
     noindex: shouldNoindex({ launch: LAUNCH, deployContext }),
+    beaconToken: beaconToken({ deployContext, token: ANALYTICS_TOKEN }),
   };
 }
 

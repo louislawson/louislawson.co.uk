@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseDeployContext, resolveSite, shouldNoindex } from "./site";
+import {
+  ANALYTICS_TOKEN,
+  beaconToken,
+  parseDeployContext,
+  resolveSite,
+  shouldNoindex,
+} from "./site";
 
 describe("parseDeployContext", () => {
   it("treats a build with no DEPLOY_CONTEXT as local", () => {
@@ -91,5 +97,64 @@ describe("resolveSite", () => {
 
   it("fails the build on a bad DEPLOY_CONTEXT", () => {
     expect(() => resolveSite({ DEPLOY_CONTEXT: "staging" })).toThrow(/staging/);
+  });
+});
+
+// A made-up token: the real one is public, but a test has no business depending on it.
+const TEST_TOKEN = "0123456789abcdef0123456789abcdef";
+
+describe("beaconToken", () => {
+  it("gives a production build its token", () => {
+    expect(
+      beaconToken({ deployContext: "production", token: TEST_TOKEN }),
+    ).toBe(TEST_TOKEN);
+  });
+
+  it("leaves the beacon out of previews and local builds, however real the token", () => {
+    expect(beaconToken({ deployContext: "preview", token: TEST_TOKEN })).toBe(
+      undefined,
+    );
+    expect(beaconToken({ deployContext: "local", token: TEST_TOKEN })).toBe(
+      undefined,
+    );
+  });
+
+  it("leaves the beacon out while the token is a placeholder", () => {
+    expect(
+      beaconToken({ deployContext: "production", token: "TODO: token" }),
+    ).toBe(undefined);
+  });
+
+  it("fails the build on a token that is neither a placeholder nor 32 hex digits", () => {
+    for (const token of [
+      "",
+      "abc",
+      TEST_TOKEN.toUpperCase(),
+      TEST_TOKEN + "0",
+      '"}<script>',
+    ]) {
+      expect(() => beaconToken({ deployContext: "production", token })).toThrow(
+        /ANALYTICS_TOKEN/,
+      );
+    }
+  });
+
+  it("checks the token in every context, so a mistake shows in a preview first", () => {
+    expect(() =>
+      beaconToken({ deployContext: "preview", token: "abc" }),
+    ).toThrow(/ANALYTICS_TOKEN/);
+  });
+});
+
+describe("resolveSite and the analytics beacon", () => {
+  it("is the real token that production gets, and no other build", () => {
+    expect(ANALYTICS_TOKEN).toMatch(/^[0-9a-f]{32}$/);
+    expect(resolveSite({ DEPLOY_CONTEXT: "production" }).beaconToken).toBe(
+      ANALYTICS_TOKEN,
+    );
+    expect(resolveSite({ DEPLOY_CONTEXT: "preview" }).beaconToken).toBe(
+      undefined,
+    );
+    expect(resolveSite({}).beaconToken).toBe(undefined);
   });
 });

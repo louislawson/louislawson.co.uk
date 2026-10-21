@@ -66,6 +66,14 @@ const tags = meta
       crossorigin
     />
     <title>{title}</title>
+    {site.beaconToken && (
+      <script
+        is:inline
+        type="module"
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: site.beaconToken })}
+      />
+    )}
   </head>
   <body>
     <a class="vh skip" href="#main">Skip to content</a>
