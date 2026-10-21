@@ -270,7 +270,7 @@ Reviewed with Louis on 2026-10-17, against the Astro 7 source and the reference 
 - **Footer:**
   - **Updated date:** the last commit's date from `git log -1 --format=%cs` at build, shown as written (`2026-10-17`). If git isn't available, leave it out.
   - **Built with:** the stack, plus a link to the repository.
-  - **Privacy line:** "no cookies, no tracking". PR 6.5 changes it when analytics arrives.
+  - **Privacy line:** "no cookies, no tracking" at first. PR 6.5 replaced it with the cookieless analytics note, whose wording is in `src/components/Footer.astro`.
   - **Keyboard-shortcut switch:**
     - A button that reads "keyboard shortcuts: on", with `aria-pressed`. Turning it off disables `1`–`5` and `i` together and hides the number hints in the nav.
     - The choice is remembered in `localStorage`, with every read and write in a try/catch; if storage is blocked, it falls back to on.
@@ -727,7 +727,7 @@ Only what needs a real browser. The markup is already covered by the Container A
   - A post-deploy step in `deploy.yml` runs `scripts/check-live.ts`, which is unit-tested, against the URL the deploy step reports, for both previews and production.
   - It asserts that the CSP is exactly what the build generated, HSTS is present, `X-Robots-Tag` matches the context, and a made-up path returns 404.
 - **Footer:**
-  - "no cookies, no tracking" becomes "no cookies · anonymous visit counts", the same in every build.
+  - "no cookies, no tracking" becomes a cookieless analytics note, the same in every build. Louis chose its wording at review, once the beacon was found to send page-load timings as well as visits; it lives in `src/components/Footer.astro`, and is not quoted here because the copied-text test would then flag the page.
   - The contact label's "no cookies" stays.
 - **Acceptance:**
   - tests cover the beacon and CSP for each context, with a real and a placeholder token
