@@ -19,7 +19,9 @@ async function animationsEnd(page: Page) {
       new Promise((resolve) => requestAnimationFrame(resolve));
     await frame();
     await frame();
-    for (;;) {
+    // Animations that start others end in a few rounds; a page that never stops starting them is
+    // a finding, named here, not a timeout.
+    for (let round = 0; ; round++) {
       const running = document
         .getAnimations()
         .filter(
@@ -28,6 +30,13 @@ async function animationsEnd(page: Page) {
             (animation.playState === "running" || animation.pending),
         );
       if (running.length === 0) return;
+      if (round >= 10) {
+        throw new Error(
+          `animations still starting after ${round} rounds: ${running
+            .map((animation) => animation.id || animation.constructor.name)
+            .join(", ")}`,
+        );
+      }
       // One that is cancelled (restarted, or its element removed) ends too: that is not an error.
       await Promise.allSettled(running.map((animation) => animation.finished));
     }
