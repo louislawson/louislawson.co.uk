@@ -139,6 +139,7 @@ function page(
       number,
       attributes,
       clicks: 0,
+      scrolls: 0,
       element: {
         setAttribute: (name: string, value: string) =>
           void (attributes[name] = value),
@@ -156,6 +157,7 @@ function page(
         ? null
         : {
             getBoundingClientRect: () => ({ top: state.tops[number - 1] ?? 0 }),
+            scrollIntoView: () => void self.scrolls++,
           },
     };
     return self;
@@ -300,11 +302,75 @@ describe("the number keys", () => {
     expect(link(3).clicks).toBe(1);
   });
 
+  it("scroll the section into view as well, because a link that a script follows can lose its scroll in the browser", () => {
+    const { link, press } = page({ shortcuts: "on" });
+    press("2");
+    expect([link(1).scrolls, link(2).scrolls, link(3).scrolls]).toEqual([
+      0, 1, 0,
+    ]);
+  });
+
+  it("do both for each of several keys pressed in quick succession, with nothing waiting for the first scroll to end", () => {
+    const { link, press } = page({ shortcuts: "on" });
+    press("1");
+    press("3");
+    press("2");
+    expect([1, 2, 3].map((n) => [link(n).clicks, link(n).scrolls])).toEqual([
+      [1, 1],
+      [1, 1],
+      [1, 1],
+    ]);
+  });
+
+  it("scroll after following the link, so that the address is already the section's when the scroll starts", () => {
+    const order: string[] = [];
+    const { link, press } = page({ shortcuts: "on" });
+    const { element, section } = link(1);
+    const click = element.click;
+    element.click = () => {
+      order.push("click");
+      click();
+    };
+    section!.scrollIntoView = () => void order.push("scroll");
+    press("1");
+    expect(order).toEqual(["click", "scroll"]);
+  });
+
+  it("close the menu, as following a link does", () => {
+    const { nav, menuAttributes, clickMenu, press } = page({ shortcuts: "on" });
+    clickMenu();
+    press("2");
+    expect(nav.dataset.open).toBeUndefined();
+    expect(menuAttributes["aria-expanded"]).toBe("false");
+  });
+
+  it("only follow the link on a page that has not got the section, which is a visit to the home page", () => {
+    const { link, press } = page({
+      shortcuts: "on",
+      home: false,
+      missing: [1, 2, 3],
+    });
+    press("2");
+    expect(link(2).clicks).toBe(1);
+    expect(link(2).scrolls).toBe(0);
+  });
+
+  it("only follow the link on another page even where an element has the section's id", () => {
+    // A project page can hold an element with an id such as "contact"; the key still means the
+    // home page's section.
+    const { link, press } = page({ shortcuts: "on", home: false });
+    press("2");
+    expect(link(2).clicks).toBe(1);
+    expect(link(2).scrolls).toBe(0);
+  });
+
   it("do nothing for a number there is no link for, because that section is hidden", () => {
     const { link, press } = page({ shortcuts: "on" });
     press("4");
     press("9");
-    expect([link(1).clicks, link(2).clicks, link(3).clicks]).toEqual([0, 0, 0]);
+    expect([1, 2, 3].map((n) => link(n).clicks + link(n).scrolls)).toEqual([
+      0, 0, 0,
+    ]);
   });
 
   it("work on a page the switch has not run on, which counts as on", () => {
@@ -326,7 +392,7 @@ describe("the number keys", () => {
     const { link, press } = page({ shortcuts: "on" });
     press("1", { ctrlKey: true });
     press("1", { metaKey: true });
-    expect(link(1).clicks).toBe(0);
+    expect([link(1).clicks, link(1).scrolls]).toEqual([0, 0]);
   });
 });
 
@@ -385,6 +451,7 @@ describe("the current section", () => {
         },
         section: {
           getBoundingClientRect: () => ({ top: index === 0 ? -600 : 100 }),
+          scrollIntoView: () => undefined,
         },
       };
     });

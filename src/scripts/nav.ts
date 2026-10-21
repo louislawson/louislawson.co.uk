@@ -44,7 +44,10 @@ export interface NavLink {
     click(): void;
   };
   /** The section on this page, or null where there is none (every page but the home page). */
-  section: { getBoundingClientRect(): { top: number } } | null;
+  section: {
+    getBoundingClientRect(): { top: number };
+    scrollIntoView(): void;
+  } | null;
 }
 
 export interface NavPage {
@@ -121,9 +124,16 @@ export function initNav(page: NavPage): void {
     if (!shortcutsEnabled(root)) return;
     const number = shortcutNumber(event, event.target);
     if (number === undefined) return;
+    const link = links.find((link) => link.number === number);
+    if (!link) return;
     // Following the link is what a click does: a scroll on the home page, a visit to it from any
     // other page.
-    links.find((link) => link.number === number)?.element.click();
+    link.element.click();
+    // Chromium can drop the scroll of a link that a script follows when a smooth scroll is still
+    // running (the hash and the history entry change all the same), and the page then stays at the
+    // earlier section. The scroll is asked for again, to the same place under the same
+    // scroll-padding, and it makes no difference where the browser did it.
+    if (page.home) link.section?.scrollIntoView();
   });
 
   // The current section is shown on the home page only: that is where the sections are.
