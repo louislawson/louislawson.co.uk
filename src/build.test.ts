@@ -423,7 +423,9 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
       expect(html).toMatch(/<main id="main" tabindex="-1"/);
       expect(html.indexOf("<main")).toBeLessThan(html.indexOf("<footer"));
-      expect(html).toContain("no cookies · anonymous visit counts");
+      expect(html).toContain(
+        "no cookies · anonymous visit and load-time stats",
+      );
       expect(html).toContain("source on GitHub");
     },
   );

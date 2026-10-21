@@ -405,7 +405,7 @@ const facts: {
   },
   {
     label: "trace",
-    phrase: "nothing sent anywhere",
+    phrase: "the trace sends nothing",
     holds: () => {
       // Neither the panel's script nor its functions make a request, beacon, socket or image.
       const scripts = [

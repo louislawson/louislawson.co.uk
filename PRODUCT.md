@@ -38,7 +38,7 @@ The site is grounded in real, verifiable work rather than buzzword lists. What i
 - Static site with no backend. Contact is the email alias <hello@louislawson.co.uk>, LinkedIn, GitHub, and a downloadable CV.
 - All content lives in one editable data layer plus one Markdown file per project, so it can be maintained without touching layout code.
 - No employer is named anywhere. Career context is given as years and sectors; work projects are anonymised with a descriptor (e.g. "a UK financial-services organisation") and rounded or relative figures. Personal and open-source projects may be named.
-- Analytics: cookieless, anonymous visit counts only; no cookies, no consent banner.
+- Analytics: cookieless and anonymous: visit counts and page-load timings only; no cookies, no consent banner.
 
 ## Evidence on Hand
 

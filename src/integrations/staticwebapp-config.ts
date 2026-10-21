@@ -8,8 +8,8 @@ import {
 /**
  * Writes the final dist/staticwebapp.config.json: the committed baseline from public/ plus the
  * build-dependent X-Robots-Tag header and the content security policy's Trusted Types rules and,
- * for a build with the analytics beacon, its Cloudflare sources. Wiring only; the decision lives in config/site.ts and the
- * header logic in config/staticwebapp.ts, both unit-tested.
+ * for a build with the analytics beacon, its Cloudflare sources. Wiring only; the decision lives
+ * in config/site.ts and the header logic in config/staticwebapp.ts, both unit-tested.
  */
 export function staticWebAppConfig(opts: {
   noindex: boolean;
