@@ -1052,10 +1052,13 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     }
   });
 
-  it("sizes the bar and places its dropdown from the one --nav-height token", () => {
+  it("sizes the bar from the one --nav-height token and hangs its dropdown from the bar's own bottom", () => {
     const css = stylesheetText(dir);
-    expect(css).toMatch(/height:var\(--nav-height\)/);
-    expect(css).toMatch(/top:var\(--nav-height\)/);
+    // A minimum, not a fixed height: the bar takes a second row when a visitor's own text spacing
+    // makes its contents wider than the window, and the dropdown follows its real bottom.
+    expect(css).toMatch(/min-height:var\(--nav-height\)/);
+    expect(css).not.toMatch(/(?<![-\w])height:var\(--nav-height\)/);
+    expect(css).toMatch(/\.nav__nav[^{]*\{[^}]*top:100%/);
     // Not the token's own definition, `--nav-height:58px`, but a property set to the bare number.
     expect(css).not.toMatch(/(?<![-\w])(?:top|height):58px/);
   });

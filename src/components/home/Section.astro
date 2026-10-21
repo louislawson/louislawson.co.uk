@@ -53,6 +53,9 @@ const { id, title, intro, inspect, count } = Astro.props;
     font-stretch: 100%;
     font-weight: 750;
     letter-spacing: -0.04em;
+    /* A long section name ("certifications") breaks rather than push the page sideways when a
+       visitor's own letter spacing makes it wider than a phone. */
+    overflow-wrap: anywhere;
   }
 
   .shead h2 .n {

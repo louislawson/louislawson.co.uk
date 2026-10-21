@@ -33,6 +33,31 @@ describe("the e2e specs", () => {
   });
 });
 
+// bypassCSP switches the site's policy off for a browser context. No test may use it: every check,
+// the text-spacing ones included (they add a constructed stylesheet, which the policy allows), sees
+// the page under the CSP and Trusted Types a visitor gets.
+describe("bypassCSP", () => {
+  const files = readdirSync(folder).filter((name) => name.endsWith(".ts"));
+
+  it("finds the specs and helpers it is meant to check", () => {
+    expect(files).toEqual(
+      expect.arrayContaining(["reflow.spec.ts", "test.ts"]),
+    );
+  });
+
+  it.each(files)("%s does not use it", (name) => {
+    expect(read(name)).not.toMatch(/bypassCSP/);
+  });
+
+  it("is not set in the Playwright config", () => {
+    const config = readFileSync(
+      new URL("../../playwright.config.ts", import.meta.url),
+      "utf-8",
+    );
+    expect(config).not.toMatch(/bypassCSP/);
+  });
+});
+
 describe("the shared fixture", () => {
   const fixture = read("test.ts");
 

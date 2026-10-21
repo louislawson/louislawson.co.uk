@@ -137,14 +137,30 @@ describe("<Trace>", () => {
     expect(rule).toContain("overflow-wrap: anywhere");
   });
 
-  it("keeps the total on one line, so on a phone it is the caption that wraps", () => {
+  it("keeps the total on one line while it fits, so on a phone it is the caption that wraps", () => {
     const source = readFileSync(
       new URL("./Trace.astro", import.meta.url),
       "utf-8",
     );
-    const rule = /\.trace__total\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
-    expect(rule).toContain("white-space: nowrap");
-    expect(rule).toContain("flex: none");
+    const total = /\.trace__total\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    // It never shrinks, so it keeps the width of its own text, and the caption takes what is left.
+    expect(total).toContain("flex: none");
+    expect(total).not.toContain("flex-shrink");
+    expect(total).not.toContain("white-space: nowrap");
+    const caption = /\.trace__title\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    expect(caption).toContain("flex: 1 1 0");
+  });
+
+  it("breaks the total, and moves it to its own row, rather than run out of the panel at twice the text size", () => {
+    const source = readFileSync(
+      new URL("./Trace.astro", import.meta.url),
+      "utf-8",
+    );
+    const total = /\.trace__total\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    expect(total).toContain("max-width: 100%");
+    expect(total).toContain("overflow-wrap: anywhere");
+    const head = /\.trace__head\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    expect(head).toContain("flex-wrap: wrap");
   });
 
   it("holds the panel still under reduced motion, which the script reads", () => {
