@@ -1,0 +1,55 @@
+name: External links
+
+# A weekly report, not a gate: a remote site can be down for a day, LinkedIn answers bots with
+# status 999 and GitHub rate-limits. ci.yml's "Static checks" job is the gate for internal links.
+# This checks the links in the production build that point at other sites, and writes the result to
+# the job summary. A link that is really broken fails the run, so GitHub emails the failure.
+on:
+  schedule:
+    # Mondays, at an odd minute away from the top of the hour.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  external:
+    name: External links
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build production
+        run: npm run build
+        env:
+          DEPLOY_CONTEXT: production
+      # Accepted: 2xx; 429 for a rate limit (GitHub), 999 for LinkedIn's refusal of bots. The
+      # site's own domain is left out: it is the site being checked, and until the domain is
+      # connected it would only report itself. --root-dir stops the local absolute links from
+      # being flagged, though --scheme leaves them unchecked here. The action gives lychee the
+      # job's read-only token, which lifts GitHub's rate limit for github.com links.
+      - name: Check external links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          # A site with no external link is allowed.
+          failIfEmpty: false
+          args: >-
+            --accept '200..=299,429,999'
+            --exclude '^https://louislawson\.co\.uk(/|$)'
+            --scheme https --scheme http
+            --root-dir "$GITHUB_WORKSPACE/dist"
+            'dist/**/*.html'

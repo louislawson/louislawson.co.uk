@@ -127,6 +127,48 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Validates the HTML of both builds and checks their internal links, #fragment anchors and assets
+  # offline: html-validate, then lychee once per build, because a build's absolute links
+  # (/projects/..., /_astro/...) resolve against its own folder. External links are not checked
+  # here; links.yml reports them weekly. Louis adds this job's name to the required checks after
+  # its first run.
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build:e2e
+      - run: npm run validate:html
+      # lychee reads lychee.toml. $GITHUB_WORKSPACE is expanded by the action's own shell, so each
+      # --root-dir is an absolute path. The lychee version is set here, not left to the action's
+      # default, and is bumped by hand (Dependabot does not track it).
+      - name: Check the preview build's links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          args: >-
+            --offline --include-fragments
+            --root-dir "$GITHUB_WORKSPACE/dist-e2e/preview"
+            'dist-e2e/preview/**/*.html'
+      - name: Check the production build's links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          args: >-
+            --offline --include-fragments
+            --root-dir "$GITHUB_WORKSPACE/dist-e2e/production"
+            'dist-e2e/production/**/*.html'
+
   # A warning, not a gate: one annotation with the count and the full list in the job summary
   # (GitHub shows at most 10 annotations per step). The script reads only the repository, so
   # nothing is installed. The launch gate in the build is what blocks production.
