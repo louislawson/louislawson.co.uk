@@ -187,11 +187,17 @@ describe("the browser surfaces", () => {
     }
   });
 
-  it("has the navigation bar's height as one token, which the bar, its dropdown and the scroll offset share", () => {
+  it("has the navigation bar's height as one token, which the bar and its dropdown share", () => {
     expect(token("nav-height")).toBe("58px");
-    // A link to a section lands below the sticky bar, with the 38px the mock leaves under it.
+  });
+
+  it("offsets the scroll by the bar's real height, which starts at that token", () => {
+    // The bar takes a second row when a visitor's text spacing needs it, and the script keeps
+    // --nav-bar at its real height; without script it is the token. A link to a section, or a
+    // control the focus scrolls to, lands below the bar with the 38px the mock leaves under it.
+    expect(token("nav-bar")).toBe("var(--nav-height)");
     expect(rule("html")).toContain(
-      "scroll-padding-top: calc(var(--nav-height) + 38px)",
+      "scroll-padding-top: calc(var(--nav-bar) + 38px)",
     );
   });
 

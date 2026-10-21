@@ -262,10 +262,16 @@ const home = Astro.url.pathname === "/";
 </style>
 
 <script>
-  import { onKeydown, onShortcutsChange } from "../scripts/dom";
+  import { onHeightChange, onKeydown, onShortcutsChange } from "../scripts/dom";
   import { initNav } from "../scripts/nav";
 
   const header = document.querySelector<HTMLElement>("[data-nav]");
+  // The page scrolls to a link or a focused control with room for the bar as it is drawn.
+  if (header) {
+    onHeightChange(header, (height) =>
+      document.documentElement.style.setProperty("--nav-bar", `${height}px`),
+    );
+  }
   const menu = header?.querySelector<HTMLButtonElement>("[data-nav-menu]");
   if (header && menu) {
     const links = [

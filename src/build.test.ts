@@ -675,7 +675,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     const section = /<section[^>]*\sid="projects"[\s\S]*?<\/section>/.exec(
       read(dir, "index.html"),
     )![0];
-    const entries = section.split("<article").slice(1);
+    const entries = section.split("<li ").slice(1);
     const links = [...section.matchAll(/<a\b([^>]*)>(.*?)<\/a>/g)];
     // One link per entry, and nothing else in the section is a link.
     expect(links).toHaveLength(entries.length);
@@ -744,7 +744,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(section).toContain(">(04)<");
       // Only R01 is featured, so the tag is on its row alone.
       expect(section.match(/class="tag"/g)).toHaveLength(1);
-      expect(section.split("<article")[1]).toContain('class="tag"');
+      expect(section.split("<li ")[1]).toContain('class="tag"');
     });
   } else {
     it("shows R04 alone on production, as a strip, with no placeholder and no featured tag", () => {
@@ -754,7 +754,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       )![0];
       expect(section).toContain("runs--strip");
       expect(section).not.toContain("runs--row");
-      expect(section.match(/<article\b/g)).toHaveLength(1);
+      expect(section.match(/<li\b/g)).toHaveLength(1);
       expect(
         [...section.matchAll(/class="run__code"[^>]*>(R\d\d)</g)].map(
           (m) => m[1],

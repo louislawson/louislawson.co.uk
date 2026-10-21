@@ -27,3 +27,13 @@ export function onShortcutsChange(listener: () => void): void {
     attributeFilter: ["data-shortcuts"],
   });
 }
+
+/** Calls `listener` with the element's height now and each time it changes. */
+export function onHeightChange(
+  element: HTMLElement,
+  listener: (height: number) => void,
+): void {
+  new ResizeObserver(() =>
+    listener(Math.ceil(element.getBoundingClientRect().height)),
+  ).observe(element);
+}

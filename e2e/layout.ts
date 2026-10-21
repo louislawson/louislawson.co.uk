@@ -174,3 +174,30 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
     return facts;
   });
 }
+
+/** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
+export const TEXT_SPACING = `
+  *, *::before, *::after {
+    line-height: 1.5 !important;
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+  }
+  p { margin-block-end: 2em !important; }
+`;
+
+/**
+ * Adds a visitor's stylesheet to a settled page. The page runs under its own policy, as it does for
+ * a visitor: the styles go in as a constructed stylesheet, which the policy does not block (an
+ * inline <style> it would). Resolves once the page has laid them out.
+ */
+export async function addStyles(page: Page, css: string) {
+  await page.evaluate(async (css) => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    const frame = () =>
+      new Promise((resolve) => requestAnimationFrame(resolve));
+    await frame();
+    await frame();
+  }, css);
+}

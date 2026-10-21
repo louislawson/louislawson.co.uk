@@ -1,7 +1,13 @@
 import type { Page } from "@playwright/test";
 import { targetProblem } from "../src/e2e/target-size.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
-import { clippedText, horizontalExtent, targetsOf } from "./layout.ts";
+import {
+  addStyles,
+  clippedText,
+  horizontalExtent,
+  targetsOf,
+  TEXT_SPACING,
+} from "./layout.ts";
 import { settle } from "./settle.ts";
 import { expect, test } from "./test.ts";
 
@@ -18,16 +24,6 @@ const HEIGHT = 800;
 // 30 s, and a timeout would read as a flaky test instead of a finding.
 test.describe.configure({ timeout: 90_000 });
 
-/** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
-const TEXT_SPACING = `
-  *, *::before, *::after {
-    line-height: 1.5 !important;
-    letter-spacing: 0.12em !important;
-    word-spacing: 0.16em !important;
-  }
-  p { margin-block-end: 2em !important; }
-`;
-
 /** A visitor who sets the browser's text size to twice the default (WCAG 1.4.4 asks for 200 %). */
 const TEXT_200 = "html { font-size: 200% !important; }";
 
@@ -35,23 +31,6 @@ async function open(page: Page, url: string, path: string, width: number) {
   await page.setViewportSize({ width, height: HEIGHT });
   await page.goto(url);
   await settle(page, path);
-}
-
-/**
- * Adds a visitor's stylesheet to a settled page. The page runs under its own policy, as it does for
- * a visitor: the styles go in as a constructed stylesheet, which the policy does not block (an
- * inline <style> it would). Resolves once the page has laid them out.
- */
-async function addStyles(page: Page, css: string) {
-  await page.evaluate(async (css) => {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    const frame = () =>
-      new Promise((resolve) => requestAnimationFrame(resolve));
-    await frame();
-    await frame();
-  }, css);
 }
 
 /** What does not fit at this width: a sideways scroll, or text cut off where it is hidden. */
