@@ -1,63 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import { CONTEXTS, originOf } from "./contexts.ts";
+import { expectArrived, hashOf, sectionKeys } from "./sections.ts";
 
 // The number keys and the footer switch that turns them off: what needs a real browser, which is
 // the keys reaching the page, the focus they must not steal, and the choice surviving a reload.
-// The markup is covered by the Container API tests and the key rules by Vitest.
-
-const hashOf = (page: Page) => page.evaluate(() => location.hash);
-
-/** The sections the navigation lists, in order: the key that goes to each and its id. */
-function sectionKeys(page: Page) {
-  return page.locator("a[data-number]").evaluateAll((links) =>
-    links.map((link) => ({
-      key: link.getAttribute("data-number") ?? "",
-      id: new URL((link as HTMLAnchorElement).href).hash.slice(1),
-    })),
-  );
-}
-
-/**
- * Waits for the page to arrive at a section. The scroll is smooth, so it takes a moment, and the
- * next key must wait for it to end: a second jump pressed in the middle of one can be lost, in the
- * browser itself.
- */
-async function expectArrived(page: Page, id: string) {
-  await expect
-    .poll(() =>
-      page.evaluate((id) => {
-        const { top, bottom } = document
-          .getElementById(id)!
-          .getBoundingClientRect();
-        return top < innerHeight && bottom > 0;
-      }, id),
-    )
-    .toBe(true);
-  // Several frames with no movement.
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        let last = -1;
-        let still = 0;
-        const frame = () => {
-          still = scrollY === last ? still + 1 : 0;
-          last = scrollY;
-          if (still >= 5) resolve();
-          else requestAnimationFrame(frame);
-        };
-        frame();
-      }),
-  );
-  // At rest, the section sits under the bar, or the page ended before it could get that far.
-  const { top, atEnd } = await page.evaluate(
-    (id) => ({
-      top: document.getElementById(id)!.getBoundingClientRect().top,
-      atEnd: scrollY + innerHeight >= document.documentElement.scrollHeight - 2,
-    }),
-    id,
-  );
-  expect(atEnd || top < 200, `${id} at ${top}`).toBe(true);
-}
+// The markup is covered by the Container API tests and the key rules by Vitest. Jumps pressed in
+// quick succession are in quick-jumps.spec.ts.
 
 const switchOf = (page: Page) =>
   page.getByRole("button", { name: "keyboard shortcuts:" });
