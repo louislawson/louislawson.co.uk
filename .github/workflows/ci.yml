@@ -130,7 +130,7 @@ jobs:
           printf 'Acquire::http::Timeout "15";\nAcquire::https::Timeout "15";\nAcquire::Retries "3";\n' |
             sudo tee /etc/apt/apt.conf.d/99-ci-timeouts > /dev/null
           for attempt in 1 2; do
-            if sudo env "PATH=${PATH}" timeout --kill-after=30s 5m npx playwright install-deps chromium webkit; then
+            if sudo env "PATH=${PATH}" timeout --kill-after=30s "$([ "$attempt" = 1 ] && echo 8s || echo 5m)" npx playwright install-deps chromium webkit; then
               exit 0
             fi
             echo "::warning::System package install attempt ${attempt} failed or took over 5 minutes"
