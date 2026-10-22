@@ -287,6 +287,16 @@ describe("the E2E job in ci.yml", () => {
     expect(job).not.toMatch(/playwright@|npm install/);
   });
 
+  // A slow Ubuntu mirror once held the install for the job's whole 20 minutes. Each attempt is now
+  // cut off at 5, a failed or cut-off attempt runs once more, and the step as a whole is bounded too.
+  it("gives each browser install 5 minutes and tries a failed one once more", () => {
+    expect(job).toMatch(/for attempt in 1 2; do/);
+    expect(job).toContain(
+      "timeout --kill-after=30s 5m npx playwright install --with-deps chromium webkit",
+    );
+    expect(job).toMatch(/name: Install the browsers\n\s+timeout-minutes: 11\n/);
+  });
+
   it("builds both contexts and runs the tests through the script", () => {
     expect(job).toContain("npm run test:e2e");
   });

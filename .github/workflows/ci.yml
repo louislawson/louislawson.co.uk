@@ -116,8 +116,21 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # npx runs the Playwright in package-lock.json, so the browsers match the tests' version.
-      - run: npx playwright install --with-deps chromium webkit
+      # npx runs the Playwright in package-lock.json, so the browsers match the tests' version. The
+      # install fetches system packages from Ubuntu's mirror and the browsers from Playwright's CDN,
+      # and a slow mirror once held it for the job's whole 20 minutes. So each attempt is cut off
+      # after 5 minutes (timeout signals the whole process group, which sudo passes on to apt-get),
+      # and a failed or cut-off attempt runs once more.
+      - name: Install the browsers
+        timeout-minutes: 11
+        run: |
+          for attempt in 1 2; do
+            if timeout --kill-after=30s 5m npx playwright install --with-deps chromium webkit; then
+              exit 0
+            fi
+            echo "::warning::Browser install attempt ${attempt} failed or took over 5 minutes"
+          done
+          exit 1
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
