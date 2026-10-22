@@ -54,6 +54,17 @@ const { updated } = Astro.props;
     white-space: nowrap;
   }
 
+  /* On a touch screen the link to the repository is a 44 px target: block padding above and below the
+     words, which an inline link adds to its hit area and not to the line. It stays on one line, so
+     its hit area is one box. Where the box meets the control on the next line the control, which
+     comes after it, is on top. */
+  @media (pointer: coarse) {
+    .foot__row a {
+      padding-block: 15px;
+      white-space: nowrap;
+    }
+  }
+
   .foot__row {
     display: flex;
     flex-wrap: wrap;

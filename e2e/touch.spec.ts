@@ -1,14 +1,15 @@
 import type { Page } from "@playwright/test";
 import { touchProblem } from "../src/e2e/target-size.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
-import { navBarRow } from "./layout.ts";
+import { horizontalExtent, navBarRow } from "./layout.ts";
 import { settle } from "./settle.ts";
 import { expect, test } from "./test.ts";
 
 // On a touch screen, the controls a phone's visitor reaches for are 44 × 44 px or more: the menu and
-// the inspect button in the bar, the keyboard-shortcuts switch and the trace's replay. The context is a phone's (a touch screen, so `pointer: coarse`
-// holds), and the rule is the one in src/e2e/target-size.ts, where Vitest tests it. With a mouse
-// none of this changes, and reflow.spec.ts holds the page to the 24 px of WCAG 2.5.8 there.
+// the inspect button in the bar, the keyboard-shortcuts switch, the trace's replay and the footer's
+// link to the repository. The context is a phone's (a touch screen, so `pointer: coarse` holds),
+// and the rule is the one in src/e2e/target-size.ts, where Vitest tests it. With a mouse none of
+// this changes, and reflow.spec.ts holds the page to the 24 px of WCAG 2.5.8 there.
 
 test.use({ hasTouch: true, isMobile: true });
 
@@ -23,6 +24,7 @@ test.describe.configure({ timeout: 90_000 });
 const CONTROLS = [
   { name: "inspect button", selector: "[data-inspect-toggle]", on: "all" },
   { name: "shortcuts switch", selector: "[data-shortcuts-switch]", on: "all" },
+  { name: "footer repository link", selector: "footer a[href]", on: "all" },
   { name: "menu button", selector: "[data-nav-menu]", on: "folded" },
   { name: "trace replay", selector: "[data-trace-replay]", on: "/" },
 ] as const;
@@ -66,6 +68,12 @@ for (const context of CONTEXTS) {
                 target,
                 `${width} px: ${control.name}`,
               ).toBeVisible();
+              // A link that wraps is drawn in two boxes, and the box around both would pass for
+              // either: it stays on one line.
+              expect(
+                await target.evaluate((link) => link.getClientRects().length),
+                `${width} px: ${control.name} on one line`,
+              ).toBe(1);
               const box = (await target.boundingBox())!;
               const problem = touchProblem({
                 name: control.name,
@@ -76,6 +84,19 @@ for (const context of CONTEXTS) {
             }
           }
           expect(problems).toEqual([]);
+        });
+
+        test("the page still fits the window, with no sideways scroll", async ({
+          page,
+        }) => {
+          for (const width of WIDTHS) {
+            await open(page, `${origin}${path}`, path, width);
+            const { content, visible } = await horizontalExtent(page);
+            expect(
+              content,
+              `${width} px: the page's width`,
+            ).toBeLessThanOrEqual(visible);
+          }
         });
 
         // 320 px is also a 1280 px window at 400 % zoom. The bigger controls must still fit the row
