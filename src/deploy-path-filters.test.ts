@@ -99,6 +99,9 @@ describe("a push to main", () => {
     ".github/workflows/links.yml",
     // Scorecard reads the repository's settings and publishes a score; it builds nothing.
     ".github/workflows/scorecard.yml",
+    // CodeQL reads the source and its own config; it builds nothing.
+    ".github/workflows/codeql.yml",
+    ".github/codeql/codeql-config.yml",
     // Markdown outside src/ is documentation, not content.
     "SECURITY.md",
     // The server's rules, which only the e2e server and its tests use.
@@ -164,6 +167,8 @@ describe("a pull request", () => {
     ".gitleaks.toml",
     ".github/workflows/links.yml",
     ".github/workflows/scorecard.yml",
+    ".github/workflows/codeql.yml",
+    ".github/codeql/codeql-config.yml",
     "SECURITY.md",
     "scripts/check-metadata.ts",
     "docs/BUILD-PLAN.md",
@@ -257,6 +262,7 @@ describe("the README's Deploying table", () => {
     expect(push).toContain("`lychee.toml`");
     expect(push).toContain("`.htmlvalidate.mjs`");
     expect(push).toContain("`scorecard.yml`");
+    expect(push).toContain("`codeql.yml`");
   });
 
   it("says a pull request gets no preview for them either", () => {
@@ -269,5 +275,6 @@ describe("the README's Deploying table", () => {
     expect(pullRequest).toContain("`lychee.toml`");
     expect(pullRequest).toContain("`.htmlvalidate.mjs`");
     expect(pullRequest).toContain("`scorecard.yml`");
+    expect(pullRequest).toContain("`codeql.yml`");
   });
 });

@@ -518,6 +518,130 @@ describe("the Scorecard workflow", () => {
   });
 });
 
+// CodeQL's advanced setup: a workflow of its own, so that test code can be left out of the
+// analysis. GitHub refuses its results while the repository's default setup is on.
+describe("the CodeQL workflow", () => {
+  const codeql = read(new URL(".github/workflows/codeql.yml", root));
+  /** The text with comment lines removed, so a comment can name what the rules forbid. */
+  const code = codeql.replace(/^[ \t]*#.*\n/gm, "");
+  const uses = [...code.matchAll(/uses: (\S+)@(\S+) # (\S+)/g)];
+  const configPath = ".github/codeql/codeql-config.yml";
+
+  it("runs on pull requests, pushes to main and weekly, and on nothing else", () => {
+    const on = code.match(/^on:\n((?: {2}.*\n)+)/m)?.[1] ?? "";
+    expect(on).toMatch(/^ {2}pull_request:\n {4}branches: \[main\]$/m);
+    expect(on).toMatch(/^ {2}push:\n {4}branches: \[main\]$/m);
+    expect(on).toMatch(/^ {2}schedule:\n {4}- cron: "\d+ \d+ \* \* \d"$/m);
+    expect(on.match(/^ {2}\w+:/gm)).toHaveLength(3);
+  });
+
+  it("has a schedule of its own, apart from every other workflow's", () => {
+    const crons = (text: string) =>
+      [...text.matchAll(/cron: ["']([^"']+)["']/g)].map(([, cron]) => cron);
+    const mine = crons(code);
+    expect(mine).toHaveLength(1);
+    for (const url of yamlFiles) {
+      if (url.pathname.endsWith("/codeql.yml")) continue;
+      expect(crons(read(url))).not.toContain(mine[0]);
+    }
+  });
+
+  it("never runs with the base repository's rights on a pull request's code", () => {
+    expect(code).not.toMatch(/pull_request_target|workflow_run/);
+  });
+
+  it("replaces an older analysis only on a pull request, never on main or the schedule", () => {
+    expect(code).toMatch(
+      /^ {2}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == 'pull_request' && github\.ref \|\| github\.sha \}\}$/m,
+    );
+    expect(code).toMatch(
+      /^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m,
+    );
+  });
+
+  it("grants nothing at the top and read and upload rights to its one job", () => {
+    expect(code).toMatch(/^permissions: \{\}$/m);
+    expect(code.match(/^ {2}\w+:\n {4}name:/gm)).toHaveLength(1);
+    const permissions = code.match(
+      /^ {4}permissions:\n((?: {6}\S.*\n)+)/m,
+    )?.[1];
+    expect(
+      permissions
+        ?.trim()
+        .split("\n")
+        .map((line) => line.trim()),
+    ).toEqual(["contents: read", "security-events: write"]);
+  });
+
+  it("analyses JavaScript and TypeScript and the Actions workflows, without a build", () => {
+    expect(code).toMatch(
+      /- language: javascript-typescript\n\s+build-mode: none/,
+    );
+    expect(code).toMatch(/- language: actions\n\s+build-mode: none/);
+    expect(code.match(/- language:/g)).toHaveLength(2);
+    expect(code).toMatch(/languages: \$\{\{ matrix\.language \}\}/);
+    expect(code).toMatch(/build-mode: \$\{\{ matrix\.build-mode \}\}/);
+    expect(code).toMatch(/fail-fast: false/);
+  });
+
+  it("uses only checkout and CodeQL's init and analyze", () => {
+    expect(uses.map(([, name]) => name)).toEqual([
+      "actions/checkout",
+      "github/codeql-action/init",
+      "github/codeql-action/analyze",
+    ]);
+    expect(code.match(/^\s*(- )?uses:/gm)).toHaveLength(uses.length);
+  });
+
+  it("pins each action to a full commit SHA with a version comment", () => {
+    for (const [, , ref, version] of uses) {
+      expect(ref).toMatch(/^[0-9a-f]{40}$/);
+      expect(version).toMatch(/^v\d+\.\d+\.\d+$/);
+    }
+  });
+
+  it("pins CodeQL to the commit Scorecard's upload already uses", () => {
+    const codeqlAction = (text: string) =>
+      [
+        ...text.matchAll(
+          /github\/codeql-action\/[\w-]+@([0-9a-f]{40}) # (v\d+\.\d+\.\d+)/g,
+        ),
+      ].map(([, sha, version]) => `${sha} ${version}`);
+    const scorecard = codeqlAction(
+      read(new URL(".github/workflows/scorecard.yml", root)),
+    );
+    expect(scorecard).toHaveLength(1);
+    expect(new Set(codeqlAction(code))).toEqual(new Set(scorecard));
+  });
+
+  it("checks out without keeping the token", () => {
+    expect(code).toMatch(
+      /uses: actions\/checkout@\S+ # \S+\n\s+with:\n\s+persist-credentials: false/,
+    );
+  });
+
+  it("reads its config from .github/codeql/", () => {
+    expect(code).toContain(`config-file: ./${configPath}`);
+    expect(() => read(new URL(configPath, root))).not.toThrow();
+  });
+
+  it("keeps test code out of the analysis", () => {
+    const config = read(new URL(configPath, root));
+    const ignored = config
+      .match(/^paths-ignore:\n((?: {2}- .*\n)+)/m)?.[1]
+      .trim()
+      .split("\n")
+      .map((line) => line.replace(/^\s*- /, "").replace(/^["']|["']$/g, ""));
+    expect(ignored).toEqual(["**/*.test.ts", "e2e/**", "src/__tests__/**"]);
+    // Narrowing the analysis any other way (queries, packs) would be a decision of its own.
+    expect(config).not.toMatch(/^(queries|packs|disable-default-queries):/m);
+  });
+
+  it("does not hide a failure", () => {
+    expect(code).not.toMatch(/continue-on-error|\|\| true/);
+  });
+});
+
 describe("the HTML validation config", () => {
   it("starts from the recommended preset", async () => {
     const { default: config } = await import("../.htmlvalidate.mjs");
