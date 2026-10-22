@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { REPOSITORY_URL } from "../config/site";
@@ -33,7 +34,25 @@ describe("<Footer>", () => {
 
   it("says there are no cookies and only anonymous visit and load-time stats", async () => {
     const html = await render();
-    expect(html).toContain("no cookies · anonymous visit and load-time stats");
+    // "load-time" is kept whole by a span, so the words are read with the tags taken out.
+    expect(html.replace(/<[^>]+>/g, "")).toContain(
+      "no cookies · anonymous visit and load-time stats",
+    );
+  });
+
+  it("keeps load-time on one line: its hyphen is not a place to break", async () => {
+    const html = await render();
+    expect(html).toMatch(/visit and <span[^>]*>load-time<\/span> stats/);
+    const source = readFileSync(
+      new URL("./Footer.astro", import.meta.url),
+      "utf-8",
+    );
+    const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+    const className = /<span class="(\w+)">load-time<\/span>/.exec(source)?.[1];
+    expect(className, "the span's class").toBeDefined();
+    expect(style).toMatch(
+      new RegExp(`\\.${className}\\s*\\{[^}]*white-space:\\s*nowrap`),
+    );
   });
 
   it("holds the keyboard-shortcut switch", async () => {

@@ -19,7 +19,10 @@ const { updated } = Astro.props;
       >built with Astro, hosted on Azure Static Web Apps ·
       <a href={REPOSITORY_URL}>source on GitHub</a></span
     >
-    <span>no cookies · anonymous visit and load-time stats</span>
+    <span
+      >no cookies · anonymous visit and <span class="nowrap">load-time</span>
+      stats</span
+    >
     <ShortcutSwitch />
   </div>
 </footer>
@@ -43,6 +46,12 @@ const { updated } = Astro.props;
     white-space: nowrap;
     overflow: hidden;
     user-select: none;
+  }
+
+  /* A hyphen is a place to break a line, and "load-time" at the end of a row on a phone read as
+     "load-" and "time stats". The wording is Louis's; only where it may break is set here. */
+  .nowrap {
+    white-space: nowrap;
   }
 
   .foot__row {

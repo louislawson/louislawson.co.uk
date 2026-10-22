@@ -188,6 +188,23 @@ for (const context of CONTEXTS) {
       });
     });
 
+    // A hyphen is a place to break a line, and a phrase such as "load-time" left at the end of a row
+    // reads badly. The words of the footer's row stay whole at every width.
+    test.describe("the footer", () => {
+      for (const path of pages) {
+        test(`${path} never breaks a word of its row`, async ({ page }) => {
+          const problems: string[] = [];
+          for (const width of WIDTHS) {
+            await open(page, `${origin}${path}`, path, width);
+            for (const word of await splitWords(page, ".foot__row")) {
+              problems.push(`${width} px: “${word}” is split`);
+            }
+          }
+          expect(problems).toEqual([]);
+        });
+      }
+    });
+
     test.describe("with the text spacing of 1.4.12", () => {
       for (const path of pages) {
         test(`${path} fits every width without losing content`, async ({

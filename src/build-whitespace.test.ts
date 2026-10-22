@@ -95,7 +95,9 @@ describe("a built page with prose wrapped across lines", () => {
   // The copy has no .git, as a build from a source archive has none, so git cannot give a date.
   it("builds, with a footer that leaves out the updated date, where there is no git history", () => {
     expect(html).toContain("<footer");
-    expect(html).toContain("no cookies · anonymous visit and load-time stats");
+    expect(html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ")).toContain(
+      "no cookies · anonymous visit and load-time stats",
+    );
     expect(html).not.toContain("updated ");
   });
 });
