@@ -1,5 +1,5 @@
-/* The design tokens and base styles for every page. The colours and the font are the direction
-   contract's OWN-WORLD block; the spacing and easing come from the reference mock. */
+/* The design tokens and base styles for every page. DESIGN.md records the system they make; the
+   direction contract's OWN-WORLD block is where the colours and the font were decided. */
 @import "@fontsource-variable/martian-mono/wdth.css";
 
 :root {

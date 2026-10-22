@@ -58,13 +58,13 @@ const home = Astro.url.pathname === "/";
 </header>
 
 <style>
+  /* The bar sits on the solid ground, divided from the page by its line. A see-through bar that
+     frosts what scrolls under it would be glass, which this flat world does not use. */
   .nav {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: color-mix(in srgb, var(--bg) 94%, transparent);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    background: var(--bg);
     border-bottom: 1px solid var(--line);
   }
 

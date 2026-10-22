@@ -1064,6 +1064,16 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(css).not.toMatch(/(?<![-\w])(?:top|height):58px/);
   });
 
+  // DESIGN.md: square, flat, 1px lines, depth from the panel against the ground. A see-through bar
+  // that frosts the page behind it is glass, which the world does not use.
+  it("draws the bar on the solid ground, and uses no glass anywhere", () => {
+    const css = stylesheetText(dir);
+    expect(css).not.toMatch(/backdrop-filter/);
+    const bar = /\.nav\[[^\]]*\]\{([^}]*)\}|\.nav\{([^}]*)\}/.exec(css);
+    expect(bar, "the .nav rule").not.toBeNull();
+    expect(bar![1] ?? bar![2]).toMatch(/background:var\(--bg\)(;|$)/);
+  });
+
   it("shows the number hints only while data-shortcuts is on, so they never show without script", () => {
     const css = stylesheetText(dir);
     expect(css).toMatch(/\[data-shortcuts=["']?on["']?\][^{]*\.hint/);
