@@ -1,0 +1,57 @@
+name: CodeQL
+
+# CodeQL's advanced setup: the site's TypeScript and JavaScript, and the workflows themselves, are
+# analysed on every pull request and push to main and once a week, and the results go to code
+# scanning. It is a workflow of its own, rather than GitHub's default setup, so that
+# .github/codeql/codeql-config.yml can leave test code out. GitHub refuses the results of an
+# advanced setup while the default setup is on, so the default setup has to be switched off
+# (Settings, Advanced Security) before this workflow's first upload can succeed.
+#
+# Neither language needs a build, so nothing here installs or runs the project's code. The workflow
+# is not on deploy.yml's pull-request allow-list, because the site's build does not read it.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Wednesdays, at an odd minute away from the top of the hour and from the other workflows.
+    - cron: "37 6 * * 3"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A newer push replaces the analysis of an older commit on a pull request; a run on main or on
+  # the schedule is always finished.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Upload the results to code scanning.
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
