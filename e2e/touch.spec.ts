@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { touchProblem } from "../src/e2e/target-size.ts";
 import { CONTEXTS, originOf, pagesOf } from "./contexts.ts";
-import { horizontalExtent, navBarRow } from "./layout.ts";
+import { horizontalExtent, navBarRow, splitWords } from "./layout.ts";
 import { settle } from "./settle.ts";
 import { expect, test } from "./test.ts";
 
@@ -37,7 +37,7 @@ const CONTROLS: { name: string; selector: string; where: Where }[] = [
   },
   {
     name: "footer repository link",
-    selector: "footer a[href]",
+    selector: ".foot__source",
     where: () => true,
   },
   {
@@ -138,67 +138,85 @@ for (const context of CONTEXTS) {
     // The replay link's larger hit area is padding that a negative margin takes back, so the panel
     // looks and measures the same as it did, and the area lies inside the panel and over no other
     // control: nothing clips it and nothing is covered by it.
-    test("the replay link's extra hit area moves nothing and covers nothing", async ({
-      page,
-    }) => {
-      await open(page, `${origin}/`, "/", 390);
-      const area = await page.evaluate(() => {
-        const link = document.querySelector("[data-trace-replay]")!;
-        const box = link.getBoundingClientRect();
-        const inside = (outer: DOMRect) =>
-          box.left >= outer.left &&
-          box.right <= outer.right &&
-          box.top >= outer.top &&
-          box.bottom <= outer.bottom;
-        // An ancestor that clips cuts the area at its padding box.
-        const clippedBy = [];
-        for (let a = link.parentElement; a; a = a.parentElement) {
-          const { overflowX, overflowY } = getComputedStyle(a);
-          if (overflowX !== "visible" || overflowY !== "visible") {
-            if (!inside(a.getBoundingClientRect())) clippedBy.push(a.className);
+    for (const width of [320, 390]) {
+      test(`the replay link's extra hit area moves nothing and covers nothing at ${width} px`, async ({
+        page,
+      }) => {
+        await open(page, `${origin}/`, "/", width);
+        const area = await page.evaluate(() => {
+          const link = document.querySelector("[data-trace-replay]")!;
+          const box = link.getBoundingClientRect();
+          const inside = (outer: DOMRect) =>
+            box.left >= outer.left &&
+            box.right <= outer.right &&
+            box.top >= outer.top &&
+            box.bottom <= outer.bottom;
+          // An ancestor that clips cuts the area at its padding box.
+          const clippedBy = [];
+          for (let a = link.parentElement; a; a = a.parentElement) {
+            const { overflowX, overflowY } = getComputedStyle(a);
+            if (overflowX !== "visible" || overflowY !== "visible") {
+              if (!inside(a.getBoundingClientRect()))
+                clippedBy.push(a.className);
+            }
           }
-        }
-        const covered = [
-          ...document.querySelectorAll('a[href], button, [role="button"]'),
-        ]
-          .filter(
-            (other) =>
-              other !== link && other.getBoundingClientRect().width > 0,
-          )
-          .filter((other) => {
-            const o = other.getBoundingClientRect();
-            return (
-              o.left < box.right &&
-              o.right > box.left &&
-              o.top < box.bottom &&
-              o.bottom > box.top
-            );
-          })
-          .map((other) => other.className || other.tagName);
-        return {
-          insidePanel: inside(
-            document.querySelector(".trace")!.getBoundingClientRect(),
-          ),
-          clippedBy,
-          covered,
-        };
-      });
-      expect(area).toEqual({ insidePanel: true, clippedBy: [], covered: [] });
-      const sums = await page
-        .locator("[data-trace-replay]")
-        .evaluate((link) => {
-          const style = getComputedStyle(link);
-          const sum = (padding: string, margin: string) =>
-            parseFloat(style.getPropertyValue(padding)) +
-            parseFloat(style.getPropertyValue(margin));
+          const covered = [
+            ...document.querySelectorAll('a[href], button, [role="button"]'),
+          ]
+            .filter(
+              (other) =>
+                other !== link && other.getBoundingClientRect().width > 0,
+            )
+            .filter((other) => {
+              const o = other.getBoundingClientRect();
+              return (
+                o.left < box.right &&
+                o.right > box.left &&
+                o.top < box.bottom &&
+                o.bottom > box.top
+              );
+            })
+            .map((other) => other.className || other.tagName);
           return {
-            top: sum("padding-top", "margin-top"),
-            bottom: sum("padding-bottom", "margin-bottom"),
-            left: sum("padding-left", "margin-left"),
-            right: sum("padding-right", "margin-right"),
+            insidePanel: inside(
+              document.querySelector(".trace")!.getBoundingClientRect(),
+            ),
+            clippedBy,
+            covered,
           };
         });
-      expect(sums).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+        expect(area).toEqual({ insidePanel: true, clippedBy: [], covered: [] });
+        const sums = await page
+          .locator("[data-trace-replay]")
+          .evaluate((link) => {
+            const style = getComputedStyle(link);
+            const sum = (padding: string, margin: string) =>
+              parseFloat(style.getPropertyValue(padding)) +
+              parseFloat(style.getPropertyValue(margin));
+            return {
+              top: sum("padding-top", "margin-top"),
+              bottom: sum("padding-bottom", "margin-bottom"),
+              left: sum("padding-left", "margin-left"),
+              right: sum("padding-right", "margin-right"),
+            };
+          });
+        expect(sums).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+      });
+    }
+
+    // The footer's rules for a touch screen (its link kept on one line, with padding above and
+    // below) must not break a word of its row or push the page wider than the window.
+    test("the footer's row keeps its words whole under touch", async ({
+      page,
+    }) => {
+      const problems: string[] = [];
+      for (const width of WIDTHS) {
+        await open(page, `${origin}/`, "/", width);
+        for (const word of await splitWords(page, ".foot__row")) {
+          problems.push(`${width} px: “${word}” is split`);
+        }
+      }
+      expect(problems).toEqual([]);
     });
   });
 }

@@ -15,8 +15,15 @@ test.use({ hasTouch: true, isMobile: true });
 const LANDSCAPE = { width: 844, height: 390 };
 const PORTRAIT = { width: 390, height: 844 };
 
-/** The room above a section that the page keeps clear: 38 px, which the bar adds its height to. */
-const BREATHING = 38;
+/** The room above a section that the page keeps clear (--nav-clear), which the bar adds its height to. */
+const breathing = (page: Page) =>
+  page.evaluate(() =>
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--nav-clear",
+      ),
+    ),
+  );
 
 const scrollPadding = (page: Page) =>
   page.evaluate(() =>
@@ -58,7 +65,7 @@ for (const context of CONTEXTS) {
     }) => {
       await open(page, origin, LANDSCAPE);
       expect(await navPosition(page)).not.toBe("sticky");
-      expect(await scrollPadding(page)).toBe(BREATHING);
+      expect(await scrollPadding(page)).toBe(await breathing(page));
       await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
       const barTop = await page.evaluate(
         () =>
@@ -75,7 +82,7 @@ for (const context of CONTEXTS) {
     }) => {
       await open(page, origin, PORTRAIT);
       expect(await navPosition(page)).toBe("sticky");
-      expect(await scrollPadding(page)).toBeGreaterThan(BREATHING);
+      expect(await scrollPadding(page)).toBeGreaterThan(await breathing(page));
       await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
       const barTop = await page.evaluate(
         () => document.querySelector("[data-nav]")!.getBoundingClientRect().top,
