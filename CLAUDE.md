@@ -25,7 +25,7 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 - New logic arrived test-first (`mattpocock-skills:tdd`, Vitest); end-to-end coverage is Playwright from phase 6.
 - Snyk scans of what it touches (code, dependencies, IaC) are clean: scan, fix, rescan.
 - `/code-review` has run on the diff and every finding is fixed or answered in the PR.
-- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL (a draft pull request gets no preview until it is marked ready, and a change the build does not read gets none at all, so say so instead); visual PRs add desktop and mobile screenshots and name the mock section they match.
+- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL (a draft pull request gets no preview until it is marked ready, and a change the build does not read gets none at all, so say so instead); visual PRs add desktop and mobile screenshots and name the DESIGN.md section they follow.
 
 ## Conventions
 

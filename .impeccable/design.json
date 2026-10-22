@@ -137,6 +137,7 @@
       "Don't add shadows, rounded corners or a second accent color.",
       "Don't use green for anything that is not live or in service.",
       "Don't use a second typeface or a decorative display face.",
+      "Don't use equal-size card grids for projects or skills; the garage's photo cards are the one exception.",
       "Don't add typing effects, fake commands, skill bars or scroll entrances.",
       "Don't fill a surface with hi-vis beyond the single primary action, the pressed inspect toggle, the caret, text selection and the skip link."
     ]
