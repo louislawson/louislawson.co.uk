@@ -169,6 +169,20 @@ for (const context of CONTEXTS) {
         for (const word of await splitWords(page, ".hero__name")) {
           problems.push(`320 px at 200 %: “${word}” is split`);
         }
+        // The caret belongs to the name's last word: it sits on that word's line, not alone below.
+        const caretBesideName = await page.evaluate(() => {
+          const name = document.querySelector(".hero__name")!;
+          const mark = name.querySelector(".caret")!;
+          const caret = mark.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(mark.previousSibling!);
+          const word = range.getBoundingClientRect();
+          const middle = (caret.top + caret.bottom) / 2;
+          return middle >= word.top && middle <= word.bottom;
+        });
+        if (!caretBesideName) {
+          problems.push("320 px at 200 %: the caret is not beside the name");
+        }
         expect(problems).toEqual([]);
       });
 

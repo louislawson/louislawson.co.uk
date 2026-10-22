@@ -197,7 +197,7 @@ describe("the browser surfaces", () => {
     // control the focus scrolls to, lands below the bar with the 38px the mock leaves under it.
     expect(token("nav-bar")).toBe("var(--nav-height)");
     expect(rule("html")).toContain(
-      "scroll-padding-top: calc(var(--nav-bar) + 38px)",
+      "scroll-padding-top: calc(var(--nav-bar) + var(--nav-clear))",
     );
   });
 
@@ -370,5 +370,33 @@ describe("the stylesheet and the content security policy", () => {
     );
     expect(css).not.toMatch(/https?:\/\//);
     expect(css).not.toMatch(/url\(\s*["']?data:/);
+  });
+});
+
+describe("the sticky bar and the scroll offset", () => {
+  const nav = readFileSync(
+    new URL("../components/Nav.astro", import.meta.url),
+    "utf-8",
+  );
+  const shortWindow =
+    /@media \(max-height:\s*500px\)\s*\{([^}]*\{[^}]*\}[^}]*)\}/;
+
+  it("stop at the same window height: the bar scrolls away where the offset drops its height", () => {
+    // A media query cannot read a token, so the height is written in both places, and here.
+    expect(nav).toMatch(shortWindow);
+    expect(css).toMatch(shortWindow);
+    expect(shortWindow.exec(nav)![1]).toMatch(
+      /\.nav\s*\{[^}]*position:\s*relative/,
+    );
+    expect(shortWindow.exec(css)![1]).toMatch(
+      /scroll-padding-top:\s*var\(--nav-clear\)/,
+    );
+  });
+
+  it("keep the same room above a section, with the bar's height added only where it stays", () => {
+    expect(token("nav-clear")).toBe("38px");
+    expect(rule("html")).toMatch(
+      /scroll-padding-top:\s*calc\(var\(--nav-bar\)\s*\+\s*var\(--nav-clear\)\)/,
+    );
   });
 });

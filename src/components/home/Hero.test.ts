@@ -229,7 +229,7 @@ describe("<Hero>", () => {
     );
     const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
     expect(style).toMatch(
-      /\.hero__name\s*\{[^}]*font-size:\s*min\(\s*clamp\([^)]*\),\s*20vw\s*\)/,
+      /\.hero__name\s*\{[^}]*font-size:\s*min\(\s*clamp\([^)]*\),\s*18vw\s*\)/,
     );
   });
 

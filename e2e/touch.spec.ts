@@ -20,14 +20,37 @@ const HEIGHT = 800;
 
 test.describe.configure({ timeout: 90_000 });
 
+/** Where a control is: on every page, only where the links fold into a menu, or on the home page. */
+type Where = (page: { folded: boolean; path: string }) => boolean;
+
 /** The controls this spec holds to 44 px, by the page's own hooks, and where each must be. */
-const CONTROLS = [
-  { name: "inspect button", selector: "[data-inspect-toggle]", on: "all" },
-  { name: "shortcuts switch", selector: "[data-shortcuts-switch]", on: "all" },
-  { name: "footer repository link", selector: "footer a[href]", on: "all" },
-  { name: "menu button", selector: "[data-nav-menu]", on: "folded" },
-  { name: "trace replay", selector: "[data-trace-replay]", on: "/" },
-] as const;
+const CONTROLS: { name: string; selector: string; where: Where }[] = [
+  {
+    name: "inspect button",
+    selector: "[data-inspect-toggle]",
+    where: () => true,
+  },
+  {
+    name: "shortcuts switch",
+    selector: "[data-shortcuts-switch]",
+    where: () => true,
+  },
+  {
+    name: "footer repository link",
+    selector: "footer a[href]",
+    where: () => true,
+  },
+  {
+    name: "menu button",
+    selector: "[data-nav-menu]",
+    where: ({ folded }) => folded,
+  },
+  {
+    name: "trace replay",
+    selector: "[data-trace-replay]",
+    where: ({ path }) => path === "/",
+  },
+];
 
 async function open(page: Page, url: string, path: string, width: number) {
   await page.setViewportSize({ width, height: HEIGHT });
@@ -55,14 +78,10 @@ for (const context of CONTEXTS) {
           const problems: string[] = [];
           for (const width of WIDTHS) {
             await open(page, `${origin}${path}`, path, width);
+            const folded = await page.locator("[data-nav-menu]").isVisible();
             for (const control of CONTROLS) {
               const target = page.locator(control.selector);
-              const folded = await page.locator("[data-nav-menu]").isVisible();
-              const expected =
-                control.on === "all" ||
-                (control.on === "folded" && folded) ||
-                control.on === path;
-              if (!expected) continue;
+              if (!control.where({ folded, path })) continue;
               // A control that vanished must fail here, not pass for having no box.
               await expect(
                 target,
@@ -117,9 +136,54 @@ for (const context of CONTEXTS) {
     }
 
     // The replay link's larger hit area is padding that a negative margin takes back, so the panel
-    // looks and measures the same as it did.
-    test("the replay link's extra hit area moves nothing", async ({ page }) => {
+    // looks and measures the same as it did, and the area lies inside the panel and over no other
+    // control: nothing clips it and nothing is covered by it.
+    test("the replay link's extra hit area moves nothing and covers nothing", async ({
+      page,
+    }) => {
       await open(page, `${origin}/`, "/", 390);
+      const area = await page.evaluate(() => {
+        const link = document.querySelector("[data-trace-replay]")!;
+        const box = link.getBoundingClientRect();
+        const inside = (outer: DOMRect) =>
+          box.left >= outer.left &&
+          box.right <= outer.right &&
+          box.top >= outer.top &&
+          box.bottom <= outer.bottom;
+        // An ancestor that clips cuts the area at its padding box.
+        const clippedBy = [];
+        for (let a = link.parentElement; a; a = a.parentElement) {
+          const { overflowX, overflowY } = getComputedStyle(a);
+          if (overflowX !== "visible" || overflowY !== "visible") {
+            if (!inside(a.getBoundingClientRect())) clippedBy.push(a.className);
+          }
+        }
+        const covered = [
+          ...document.querySelectorAll('a[href], button, [role="button"]'),
+        ]
+          .filter(
+            (other) =>
+              other !== link && other.getBoundingClientRect().width > 0,
+          )
+          .filter((other) => {
+            const o = other.getBoundingClientRect();
+            return (
+              o.left < box.right &&
+              o.right > box.left &&
+              o.top < box.bottom &&
+              o.bottom > box.top
+            );
+          })
+          .map((other) => other.className || other.tagName);
+        return {
+          insidePanel: inside(
+            document.querySelector(".trace")!.getBoundingClientRect(),
+          ),
+          clippedBy,
+          covered,
+        };
+      });
+      expect(area).toEqual({ insidePanel: true, clippedBy: [], covered: [] });
       const sums = await page
         .locator("[data-trace-replay]")
         .evaluate((link) => {

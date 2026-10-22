@@ -45,26 +45,37 @@ export function isInlineInSentence(
   return target.display === "inline" && words.length >= SENTENCE_WORDS;
 }
 
+/** A box with neither a width nor a height is hidden (display: none): a visitor cannot aim at it. */
+const hasNoBox = (target: Pick<TargetFacts, "width" | "height">) =>
+  target.width === 0 && target.height === 0;
+
+/** The words that say a target is under a size, and by how much. */
+const tooSmall = (
+  target: Pick<TargetFacts, "name" | "width" | "height">,
+  min: number,
+) =>
+  `${target.name} is ${target.width} × ${target.height} px, under ${min} × ${min}`;
+
 /** What is wrong with a target's size, or undefined when it passes or is not on the page. */
 export function targetProblem(target: TargetFacts): string | undefined {
-  // A target with no box is hidden (display: none): a visitor cannot aim at it.
-  if (target.width === 0 && target.height === 0) return undefined;
+  if (hasNoBox(target)) return undefined;
   if (target.width >= MIN_TARGET && target.height >= MIN_TARGET)
     return undefined;
   if (isInlineInSentence(target)) return undefined;
-  return `${target.name} is ${target.width} × ${target.height} px, under ${MIN_TARGET} × ${MIN_TARGET}`;
+  return tooSmall(target, MIN_TARGET);
 }
 
 /**
  * What is wrong with a control's size for a finger, or undefined when it passes or is not on the
  * page. Unlike targetProblem it has no exemption for a link in a sentence: it is asked of the
- * controls named in the spec, which are never in a sentence.
+ * controls named in the spec, which are never in a sentence. A spec that names a control checks it
+ * is on the page first, because a control with no box passes here, as it does there.
  */
 export function touchProblem(
   target: Pick<TargetFacts, "name" | "width" | "height">,
 ): string | undefined {
-  if (target.width === 0 && target.height === 0) return undefined;
+  if (hasNoBox(target)) return undefined;
   if (target.width >= MIN_TOUCH_TARGET && target.height >= MIN_TOUCH_TARGET)
     return undefined;
-  return `${target.name} is ${target.width} × ${target.height} px, under ${MIN_TOUCH_TARGET} × ${MIN_TOUCH_TARGET}`;
+  return tooSmall(target, MIN_TOUCH_TARGET);
 }

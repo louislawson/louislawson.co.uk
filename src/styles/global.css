@@ -22,6 +22,9 @@
      spacing needs one, so the script in Nav.astro keeps this at what the bar measures; without
      script it is the set height. */
   --nav-bar: var(--nav-height);
+  /* The room kept above a section that a link or a key scrolls to, with the bar's height added
+     where the bar stays. */
+  --nav-clear: 38px;
   /* The page's widest width: .wrap's, and the grid inspect mode draws over it. */
   --wrap-max: 1520px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -38,7 +41,7 @@ html {
   scroll-behavior: smooth;
   /* Room for the sticky navigation, so neither a link to a section nor the control the focus
      scrolls to lands under it. */
-  scroll-padding-top: calc(var(--nav-bar) + 38px);
+  scroll-padding-top: calc(var(--nav-bar) + var(--nav-clear));
   scrollbar-color: var(--line-strong) var(--bg);
   -webkit-text-size-adjust: 100%;
 }
@@ -47,7 +50,7 @@ html {
    kept. The height is the same as in Nav.astro, which makes the bar scroll; the two change together. */
 @media (max-height: 500px) {
   html {
-    scroll-padding-top: 38px;
+    scroll-padding-top: var(--nav-clear);
   }
 }
 
