@@ -176,6 +176,32 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
 }
 
 /**
+ * The words of an element that break across two lines: a word whose text is drawn in more than one
+ * box has been split mid-word, which a line break at a space or a hyphen never does. `overflow-wrap`
+ * lets a word that does not fit break anywhere, and that is the last resort this finds.
+ */
+export function splitWords(page: Page, selector: string) {
+  return page.evaluate((selector) => {
+    const split: string[] = [];
+    const element = document.querySelector(selector)!;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      for (const word of (node.textContent ?? "").matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(node, word.index);
+        range.setEnd(node, word.index + word[0].length);
+        // Boxes on one line are one: a rect per line, merged by their top edge.
+        const lines = new Set(
+          [...range.getClientRects()].map((box) => Math.round(box.top)),
+        );
+        if (lines.size > 1) split.push(word[0]);
+      }
+    }
+    return split;
+  }, selector);
+}
+
+/**
  * What the navigation bar's row looks like: its height against the set one, and where the middle of
  * each control in it sits (the same in one row). A platform that draws the text wider shows in the
  * widths against the room, so a failure says by how much.

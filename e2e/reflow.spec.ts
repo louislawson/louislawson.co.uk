@@ -6,6 +6,7 @@ import {
   clippedText,
   horizontalExtent,
   navBarRow,
+  splitWords,
   targetsOf,
   TEXT_SPACING,
 } from "./layout.ts";
@@ -146,6 +147,45 @@ for (const context of CONTEXTS) {
           expect(await reflowProblems(page, 320, ["x", "y"])).toEqual([]);
         });
       }
+    });
+
+    // The name is the page's one display line, and a word of it is never broken in two. The size
+    // is capped against the window's width as well as the text's size, so that twice the text on
+    // the narrowest window gives the name a size that fits, and the sizes a visitor with the
+    // default text sees are not the cap's to change.
+    test.describe("the hero name", () => {
+      test("is never split mid-word, at any width or with text at 200 %", async ({
+        page,
+      }) => {
+        const problems: string[] = [];
+        for (const width of WIDTHS) {
+          await open(page, `${origin}/`, "/", width);
+          for (const word of await splitWords(page, ".hero__name")) {
+            problems.push(`${width} px: “${word}” is split`);
+          }
+        }
+        await open(page, `${origin}/`, "/", 320);
+        await addStyles(page, TEXT_200);
+        for (const word of await splitWords(page, ".hero__name")) {
+          problems.push(`320 px at 200 %: “${word}” is split`);
+        }
+        expect(problems).toEqual([]);
+      });
+
+      test("is the size the clamp gives where the cap is not needed", async ({
+        page,
+      }) => {
+        // clamp(2.9rem, 1rem + 7vw, 7.4rem) at the browser's default 16 px, for text at 100 %.
+        const clamp = (width: number) =>
+          Math.min(Math.max(2.9 * 16, 16 + 0.07 * width), 7.4 * 16);
+        for (const width of WIDTHS) {
+          await open(page, `${origin}/`, "/", width);
+          const size = await page
+            .locator(".hero__name")
+            .evaluate((name) => parseFloat(getComputedStyle(name).fontSize));
+          expect(size, `${width} px`).toBeCloseTo(clamp(width), 1);
+        }
+      });
     });
 
     test.describe("with the text spacing of 1.4.12", () => {
