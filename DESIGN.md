@@ -94,7 +94,7 @@ components:
 
 The site is an engineer's console that shows its own workings. The hero traces the real path the page took to reach the visitor, inspect mode labels how each part is built, and number keys move between sections. Everything is dark, square and set in one monospaced face, so structure comes from lines and prompts (`$`, `>`, `#`) rather than boxes, color or ornament. The one loud color, hi-vis orange, is reserved for things that can be acted on or that mark where you are.
 
-Density is calm: wide section spacing, long runs of dim secondary text, and a 12-column grid that inspect mode can draw over the page. The console is real, not costume. There are no fake commands, no typing effects, and nothing that slows reading. Motion is short and functional (trace replay, a blinking caret, the garage wheel) and all of it stands still under reduced motion.
+Density is calm: wide section spacing, long runs of dim secondary text, and a 12-column grid that inspect mode can draw over the page. The console is real, not costume. There are no fake commands, no typing effects, and nothing that slows reading. Motion is short and functional (trace replay, a blinking caret, the garage wheel) and under reduced motion the caret stops and every other animation jumps to its end state.
 
 **Key Characteristics:**
 
@@ -106,7 +106,7 @@ Density is calm: wide section spacing, long runs of dim secondary text, and a 12
 
 ## Colors
 
-A near-black, slightly green-warm ground with bone-white text, and a single hi-vis orange. Green appears only for something live.
+A near-black, slightly green-warm ground with bone-white text, and a single hi-vis orange. Green appears only for something live. The tokens are CSS custom properties of the same names, except `ground` is `--bg` and `in-service` is `--ok`.
 
 ### Primary
 
@@ -155,7 +155,7 @@ A near-black, slightly green-warm ground with bone-white text, and a single hi-v
 
 A 12-column grid inside a centred wrapper (max 1520px) with fluid side gutters (`gutter`) and column gaps (`col-gap`). The hero puts the name and copy on columns 1 to 7 and the trace panel on 8 to 12; section heads put the title on 1 to 7 and a one-line intro on 8 to 12; project-page sections put the heading on 1 to 3 and content on 4 to 12. Sections are separated by one large fluid step (`section`, 4.5rem to 9rem) with no boxes between them. Inside components the rhythm is small: 10 to 18px for control gaps, 1 to 2rem for content blocks.
 
-Responsive behavior collapses to a single column at 960px (hero), 900px (nav links fold into a menu, garage stacks) and 860px or 760px (section heads, run sheets, rows). The sticky nav bar scrolls away on windows 500px tall or less. Every action and control is at least 40px tall (44px on coarse pointers), and primary actions 48px.
+Responsive behavior collapses to a single column at 960px (hero), 900px (nav links fold into a menu, garage stacks) and 860px or 760px (section heads, run sheets, rows). Single components add their own steps: 560px (measurements), 520px (contact), and 400px and 359px (a tighter nav bar so it stays one row at 320px). The sticky nav bar scrolls away on windows 500px tall or less. Every action and control is at least 40px tall (44px on coarse pointers), and primary actions 48px.
 
 ## Elevation & Depth
 
@@ -218,10 +218,10 @@ Toggled with `i`. Outlines each labelled part with a 1px dashed hi-vis line, add
 
 - **Do** use only the eight palette tokens; hi-vis for actions and structure, green for live state.
 - **Do** build with 0 radius, 1px lines and `panel` against `ground`.
-- **Do** set everything in Martian Mono at the widths already used: 92% body, 100% headings, 75% ASCII.
+- **Do** set everything in Martian Mono at the widths already used: 92% body, 100% headings, 75% ASCII; the footer wordmark alone is set wider, at 112.5%.
 - **Do** make every action at least 48px tall (controls in the bar at least 40px, and 44px on coarse pointers) and keep the global hi-vis focus ring.
 - **Do** mark an unsupplied value with the hatch and dashed outline, and give status a square marker plus the word.
-- **Do** keep motion short and tied to function, and let it stand still under `prefers-reduced-motion`.
+- **Do** keep motion short and tied to function, and cut it short under `prefers-reduced-motion` (the caret stops).
 
 ### Don't
 
@@ -229,4 +229,4 @@ Toggled with `i`. Outlines each labelled part with a 1px dashed hi-vis line, add
 - **Don't** use green for anything that is not live or in service.
 - **Don't** use a second typeface or a decorative display face.
 - **Don't** add typing effects, fake commands, skill bars or scroll entrances.
-- **Don't** fill a surface with hi-vis beyond the single primary action and the pressed inspect toggle.
+- **Don't** fill a surface with hi-vis beyond the single primary action, the pressed inspect toggle, the caret, text selection and the skip link.
