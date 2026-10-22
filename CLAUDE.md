@@ -6,7 +6,7 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 
 - **Your task:** `docs/BUILD-PLAN.md`. Read your phase and PR before starting; its acceptance criteria are the bar.
 - **Product rules** (audience, content honesty, privacy): `PRODUCT.md`.
-- **Design authority:** the direction contract in `.impeccable/surfaces/src-pages-index-astro.md`. Visual reference: `docs/design/mock/`, viewed over HTTP (`python -m http.server --directory docs/design/mock`). Where the mock and the contract differ, the contract wins.
+- **Design authority:** `DESIGN.md` records the visual system. The direction contract in `.impeccable/surfaces/src-pages-index-astro.md` still decides direction. The mock in `docs/design/mock/` is history.
 - **Environment facts:** `PRIVATE-NOTES.md`, local and gitignored. Read it for facts; keep its contents out of everything committed.
 
 ## Guardrails
@@ -25,7 +25,7 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 - New logic arrived test-first (`mattpocock-skills:tdd`, Vitest); end-to-end coverage is Playwright from phase 6.
 - Snyk scans of what it touches (code, dependencies, IaC) are clean: scan, fix, rescan.
 - `/code-review` has run on the diff and every finding is fixed or answered in the PR.
-- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL (a draft pull request gets no preview until it is marked ready, and a change the build does not read gets none at all, so say so instead); visual PRs add desktop and mobile screenshots and name the mock section they match.
+- The PR body (`mattpocock-skills:pr`) gives what and why, ticked acceptance criteria and the preview URL (a draft pull request gets no preview until it is marked ready, and a change the build does not read gets none at all, so say so instead); visual PRs add desktop and mobile screenshots and name the DESIGN.md section they follow.
 
 ## Conventions
 
@@ -34,7 +34,7 @@ Louis Lawson's personal site: a static Astro site on Azure Static Web Apps, infr
 - **Adding a file or folder the build reads** (a root config, a content directory, a script the build calls)? Add it to the `pull_request.paths` allow-list in `deploy.yml`, or its previews are silently skipped.
 - **The npm release-age gate is deliberate.** `.npmrc` sets `min-release-age=7`, so installs resolve only versions published over a week ago (supply-chain defence). When an urgent security fix is newer than that, add just that package to `min-release-age-exclude` in `.npmrc` and say why in the PR; the gate itself stays.
 - **Current docs first:** check context7 or the Astro docs MCP before using an API from Astro, Playwright, Vitest, Terraform providers or GitHub Actions.
-- **The mock is a spec.** Rebuild layout and components as Astro components on the design tokens; harvest only the trace maths, the ASCII wheel renderer and the photo dither, each behind unit tests.
+- **The mock is retired.** Match `DESIGN.md` and the built site, not `docs/design/mock/`.
 - **GitHub Actions:** third-party actions pinned to full commit SHAs with a version comment; least-privilege `permissions` per job.
 - **Terraform:** `required_version = ">= 1.15, < 2.0"` (Dependabot's Terraform support ends at 1.15.x), azurerm `~> 5.10`, lock file for `windows_amd64` and `linux_amd64`; `fmt`, `validate` and `tflint` clean before pushing. Backend blocks hold only placement (`storage_account_name`, `container_name`, `key`) and `use_azuread_auth = true`; credentials and the auth method come from `ARM_*` environment variables (`ARM_USE_OIDC` in CI, `ARM_USE_CLI` locally). The one exception is the bootstrap backend, which only ever runs locally and may also set `use_cli = true`.
 - **Azure access from CI** is OIDC through two managed identities: _plan_ (read, plus deploys) and _apply_ (write, `production` environment only). Their IDs live in GitHub Actions secrets and same-named Dependabot secrets (not repository variables, which would print in public logs); reference them as `secrets.*` only.

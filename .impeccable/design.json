@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-22T21:24:00Z",
+  "title": "Design System: louislawson.co.uk",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Console Ground", "canonical": "#0d0e0c", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "panel": { "role": "neutral", "displayName": "Panel", "canonical": "#151713", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#2b2e28", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "line-strong": { "role": "neutral", "displayName": "Strong Line", "canonical": "#4a4e45", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "bone": { "role": "neutral", "displayName": "Bone", "canonical": "#e9e7e0", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "dim": { "role": "neutral", "displayName": "Dim", "canonical": "#a3a59b", "tonalRamp": ["#0d0e0c", "#151713", "#2b2e28", "#4a4e45", "#6f7268", "#a3a59b", "#d0cfc8", "#e9e7e0"] },
+      "hivis": { "role": "primary", "displayName": "Hi-Vis Orange", "canonical": "#ff6b1a", "tonalRamp": ["#3d1a06", "#662a0a", "#8f3c0e", "#b84f12", "#e06116", "#ff6b1a", "#ff9a5c", "#ffc9a3"] },
+      "in-service": { "role": "secondary", "displayName": "In-Service Green", "canonical": "#9bdc6e", "tonalRamp": ["#1d2f12", "#2f4a1c", "#426628", "#568335", "#6ca044", "#9bdc6e", "#bde99d", "#dff4cd"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The name in the hero only." },
+      "headline": { "displayName": "Headline", "purpose": "Lowercase section names with a small hi-vis count." },
+      "title": { "displayName": "Title", "purpose": "A project's title in a run-sheet strip or row." },
+      "body": { "displayName": "Body", "purpose": "All running text, width 92%, tabular numerals." },
+      "label": { "displayName": "Label", "purpose": "Trace captions, tags, footers and meta lines." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Every state transition and the trace replay." },
+      { "name": "caret-blink", "value": "1.1s steps(1) infinite", "purpose": "The block caret after the name; it stops under reduced motion." },
+      { "name": "hop-stagger", "value": "170ms", "purpose": "Delay between trace hops on replay." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "760px" },
+      { "name": "stack", "value": "860px" },
+      { "name": "nav-fold", "value": "900px" },
+      { "name": "hero-stack", "value": "960px" },
+      { "name": "measured", "value": "560px" },
+      { "name": "contact", "value": "520px" },
+      { "name": "nav-tight", "value": "400px" },
+      { "name": "nav-one-row", "value": "359px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one hi-vis action on a screen.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">see projects</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 18px; color: var(--bg, #0d0e0c); font-weight: 700; text-decoration: none; background: var(--hivis, #ff6b1a); border: 1px solid var(--hivis, #ff6b1a); cursor: pointer; transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: color-mix(in srgb, var(--hivis, #ff6b1a) 80%, white); } .ds-btn-primary:focus-visible { outline: 2px solid var(--hivis, #ff6b1a); outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A quiet action with a strong-line border.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">get in touch</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; color: var(--bone, #e9e7e0); text-decoration: none; border: 1px solid var(--line-strong, #4a4e45); cursor: pointer; transition: border-color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { border-color: var(--bone, #e9e7e0); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--hivis, #ff6b1a); outline-offset: 3px; }"
+    },
+    {
+      "name": "Unavailable Action",
+      "kind": "button",
+      "refersTo": "button-unavailable",
+      "description": "An action that is not there yet: dim, dashed in hi-vis, not a link.",
+      "html": "<span class=\"ds-btn-unavailable\" aria-disabled=\"true\">download cv</span>",
+      "css": ".ds-btn-unavailable { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; color: var(--dim, #a3a59b); border: 1px dashed var(--hivis, #ff6b1a); cursor: not-allowed; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Marks the featured project.",
+      "html": "<span class=\"ds-tag\">featured</span>",
+      "css": ".ds-tag { padding: 0 7px; color: var(--hivis, #ff6b1a); font-size: 0.82rem; border: 1px solid var(--hivis, #ff6b1a); }"
+    },
+    {
+      "name": "Status",
+      "kind": "custom",
+      "description": "A square marker plus the word; green is for in service only.",
+      "html": "<span class=\"ds-status ds-status-live\">in service</span> <span class=\"ds-status ds-status-archived\">archived</span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; gap: 7px; } .ds-status::before { content: ''; width: 8px; height: 8px; box-sizing: border-box; } .ds-status-live { color: var(--ok, #9bdc6e); } .ds-status-live::before { background: var(--ok, #9bdc6e); border: 2px solid var(--ok, #9bdc6e); } .ds-status-archived { color: var(--dim, #a3a59b); } .ds-status-archived::before { border: 2px solid var(--dim, #a3a59b); }"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Sticky bar: brand, section links, inspect toggle.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-nav-home\" href=\"#\">louis<span>.</span>lawson</a><nav class=\"ds-nav-links\"><a href=\"#\" aria-current=\"location\">projects</a><a href=\"#\">skills</a></nav><button class=\"ds-nav-inspect\" type=\"button\">inspect</button></header>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 18px; min-height: 58px; padding: 4px 16px; background: var(--bg, #0d0e0c); border-bottom: 1px solid var(--line, #2b2e28); } .ds-nav-home { margin-right: auto; font-weight: 700; color: inherit; text-decoration: none; } .ds-nav-home span { color: var(--hivis, #ff6b1a); } .ds-nav-links { display: flex; gap: 4px; } .ds-nav-links a { padding: 6px 10px; color: var(--dim, #a3a59b); text-decoration: none; border: 1px solid transparent; } .ds-nav-links a:hover, .ds-nav-links a[aria-current] { color: var(--bone, #e9e7e0); border-color: var(--line-strong, #4a4e45); } .ds-nav-links a:focus-visible, .ds-nav-inspect:focus-visible { outline: 2px solid var(--hivis, #ff6b1a); outline-offset: -2px; } .ds-nav-inspect { min-height: 40px; padding: 6px 12px; color: var(--bone, #e9e7e0); font: inherit; background: transparent; border: 1px solid var(--line-strong, #4a4e45); cursor: pointer; } .ds-nav-inspect:hover { border-color: var(--bone, #e9e7e0); }"
+    },
+    {
+      "name": "Trace Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The signature panel: the real path the page took, hop by hop with proportional bars.",
+      "html": "<figure class=\"ds-trace\"><figcaption class=\"ds-trace-head\"><b>how this page reached you</b><span>412 ms</span></figcaption><div class=\"ds-hop\"><span class=\"ds-hop-name\">edge</span><span>38 ms</span><span class=\"ds-hop-bar\"><i style=\"width:20%\"></i></span></div></figure>",
+      "css": ".ds-trace { margin: 0; background: var(--panel, #151713); border: 1px solid var(--line, #2b2e28); } .ds-trace-head { display: flex; justify-content: space-between; padding: 12px 16px; color: var(--dim, #a3a59b); font-size: 0.8rem; border-bottom: 1px solid var(--line, #2b2e28); } .ds-trace-head b { color: var(--bone, #e9e7e0); font-weight: 600; } .ds-trace-head span { color: var(--hivis, #ff6b1a); } .ds-hop { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 18px 16px; } .ds-hop-name { font-weight: 700; } .ds-hop-bar { grid-column: 1 / -1; position: relative; height: 3px; background: var(--line, #2b2e28); } .ds-hop-bar i { position: absolute; inset: 0 auto 0 0; background: var(--bone, #e9e7e0); }"
+    },
+    {
+      "name": "Run Sheet Strip",
+      "kind": "custom",
+      "description": "A project as setup, change and result columns, with prompts in hi-vis.",
+      "html": "<article class=\"ds-run\"><div class=\"ds-run-line\"><span class=\"ds-run-code\">R01</span><h3>project title</h3></div><div class=\"ds-run-sheet\"><div><h4>setup</h4><p>text</p></div><div><h4>change</h4><p>text</p></div><div class=\"ds-res\"><h4>result</h4><p>text</p></div></div></article>",
+      "css": ".ds-run { padding-block: 2rem; border-bottom: 1px solid var(--line, #2b2e28); } .ds-run-line { display: flex; align-items: baseline; gap: 12px; } .ds-run-code { color: var(--hivis, #ff6b1a); } .ds-run h3 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; } .ds-run:hover h3 { color: var(--hivis, #ff6b1a); } .ds-run-sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 1.4rem; } .ds-run-sheet h4 { margin: 0 0 0.35rem; color: var(--dim, #a3a59b); font-weight: 500; } .ds-run-sheet h4::before { content: '$ '; color: var(--hivis, #ff6b1a); } .ds-res h4::before { content: '> '; } .ds-res p { color: var(--bone, #e9e7e0); font-weight: 700; } .ds-run p { margin: 0; }"
+    },
+    {
+      "name": "Placeholder",
+      "kind": "custom",
+      "description": "The world's own marker for a value not supplied yet: orange hatch with a dashed outline.",
+      "html": "<span class=\"ds-ph\">role line to come</span>",
+      "css": ".ds-ph { padding-inline: 0.2em; background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--hivis, #ff6b1a) 16%, transparent) 0 5px, transparent 5px 10px); outline: 1px dashed var(--hivis, #ff6b1a); outline-offset: 1px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Working Console",
+    "overview": "The site is an engineer's console that shows its own workings. The hero traces the real path the page took to reach the visitor, inspect mode labels how each part is built, and number keys move between sections. Everything is dark, square and set in one monospaced face, so structure comes from lines and prompts rather than boxes, color or ornament. The one loud color, hi-vis orange, is reserved for things that can be acted on or that mark where you are.",
+    "keyCharacteristics": [
+      "Dark only. Ground, panel and two line weights carry all depth.",
+      "One typeface, Martian Mono Variable, with width as a second axis (92% body, 100% headings, 75% ASCII art).",
+      "One accent. Hi-vis orange for actions, codes, focus, the caret and the placeholder device.",
+      "Square everything: 1px lines, no radius, no shadows.",
+      "Prompts and square status markers as structure; authored 24px icons at 1.6 stroke."
+    ],
+    "rules": [
+      { "name": "The One Hi-Vis Rule", "body": "Hi-vis orange marks an action, a code, a prompt, focus or the placeholder device. One hi-vis action fill per screen. It is never a background wash or decoration.", "section": "colors" },
+      { "name": "The Live Green Rule", "body": "Green means live or in service. It is never a brand color, a success flourish or a decorative accent.", "section": "colors" },
+      { "name": "The Prompt Is Structure Rule", "body": "Prompts ($ setup, > result, # heading) are drawn in hi-vis by CSS and are decoration for the eye; they get an empty alt text so screen readers read the word alone.", "section": "typography" },
+      { "name": "The Lowercase Voice Rule", "body": "Section names, nav labels, action labels and garage names are lowercase. The case is applied by the style or the copy, never by capitalizing in code.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "Surfaces never lift. Use panel against ground and a 1px line or line-strong border.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use only the eight palette tokens; hi-vis for actions and structure, green for live state.",
+      "Do build with 0 radius, 1px lines and panel against ground.",
+      "Do set everything in Martian Mono at the widths already used: 92% body, 100% headings, 75% ASCII; the footer wordmark alone is set wider, at 112.5%.",
+      "Do make every action at least 48px tall (controls in the bar at least 40px, and 44px on coarse pointers) and keep the global hi-vis focus ring.",
+      "Do mark an unsupplied value with the hatch and dashed outline, and give status a square marker plus the word.",
+      "Do keep motion short and tied to function, and cut it short under prefers-reduced-motion (the caret stops)."
+    ],
+    "donts": [
+      "Don't add shadows, rounded corners or a second accent color.",
+      "Don't use green for anything that is not live or in service.",
+      "Don't use a second typeface or a decorative display face.",
+      "Don't use equal-size card grids for projects or skills; the garage's photo cards are the one exception.",
+      "Don't add typing effects, fake commands, skill bars or scroll entrances.",
+      "Don't fill a surface with hi-vis beyond the single primary action, the pressed inspect toggle, the caret, text selection and the skip link."
+    ]
+  }
+}
