@@ -137,6 +137,11 @@ jobs:
             if ! sudo dpkg --configure -a; then
               echo "::warning::dpkg --configure -a failed after attempt ${attempt}"
             fi
+            # The runner's mirror list puts Azure's Ubuntu mirror first, and that mirror is what
+            # stalls or trickles, so the retry leaves it out and apt uses archive.ubuntu.com.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+            fi
           done
           exit 1
       - name: Install the browsers

@@ -301,6 +301,10 @@ describe("the E2E job in ci.yml", () => {
     // A stalled mirror connection is given up on quickly (actions/runner-images#14594).
     expect(job).toContain('Acquire::http::Timeout "15"');
     expect(job).toContain("/etc/apt/apt.conf.d/99-ci-timeouts");
+    // A retry against the same trickling mirror cannot win, so it leaves Azure's mirror out.
+    expect(job).toContain(
+      "sudo sed -i '/azure\\.archive\\.ubuntu\\.com/d' /etc/apt/apt-mirrors.txt",
+    );
     expect(job).toMatch(
       /name: Install the browsers' system packages\n\s+timeout-minutes: 12\n/,
     );
