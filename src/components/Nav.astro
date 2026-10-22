@@ -68,6 +68,16 @@ const home = Astro.url.pathname === "/";
     border-bottom: 1px solid var(--line);
   }
 
+  /* A phone held sideways is about 390 px tall, and a bar that stays takes 58 px of it on every
+     screen. At 500 px or less the bar scrolls away with the page. It is relative, not static: its
+     dropdown hangs from it, and a static bar would give the dropdown nothing to hang from. The
+     scroll offset in global.css changes at the same height. */
+  @media (max-height: 500px) {
+    .nav {
+      position: relative;
+    }
+  }
+
   /* The bar is one row at its set height. It wraps to a second row only when its contents cannot
      fit, which is when a visitor's own text spacing (WCAG 1.4.12) makes them wider than the window;
      a bar that kept one row would run past the edge and make the whole page scroll sideways. */

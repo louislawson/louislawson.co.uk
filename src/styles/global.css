@@ -43,6 +43,14 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* A short window (a phone held sideways) scrolls the bar away, so only the room above a section is
+   kept. The height is the same as in Nav.astro, which makes the bar scroll; the two change together. */
+@media (max-height: 500px) {
+  html {
+    scroll-padding-top: 38px;
+  }
+}
+
 body {
   /* A page shorter than the screen still ends with the footer at the bottom. */
   display: flex;
