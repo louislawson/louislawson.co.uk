@@ -21,9 +21,10 @@ on:
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # A newer push replaces the analysis of an older commit on a pull request; a run on main or on
-  # the schedule is always finished.
+  # A newer push replaces the analysis of an older commit on a pull request. A run on main or on the
+  # schedule gets a group of its own (its commit), because a run waiting in a shared group is
+  # replaced by a newer one, and every commit on main should be analysed.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -550,6 +550,15 @@ describe("the CodeQL workflow", () => {
     expect(code).not.toMatch(/pull_request_target|workflow_run/);
   });
 
+  it("replaces an older analysis only on a pull request, never on main or the schedule", () => {
+    expect(code).toMatch(
+      /^ {2}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == 'pull_request' && github\.ref \|\| github\.sha \}\}$/m,
+    );
+    expect(code).toMatch(
+      /^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m,
+    );
+  });
+
   it("grants nothing at the top and read and upload rights to its one job", () => {
     expect(code).toMatch(/^permissions: \{\}$/m);
     expect(code.match(/^ {2}\w+:\n {4}name:/gm)).toHaveLength(1);

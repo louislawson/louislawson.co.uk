@@ -2,7 +2,8 @@ name: CodeQL configuration
 
 # Test code is not part of the site, and it fills code scanning with alerts that cannot matter:
 # regular expressions that strip tags from the site's own HTML, and a local server for the end-to-end
-# tests. Everything else, the scripts and the helpers the tests share included, is analysed.
+# tests. Everything else, the scripts and the code under src/e2e/ included, is analysed. The
+# helper the build tests share lives in src/__tests__/, so it is left out with them.
 paths-ignore:
   - "**/*.test.ts"
   - "e2e/**"
