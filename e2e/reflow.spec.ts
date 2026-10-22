@@ -5,6 +5,7 @@ import {
   addStyles,
   clippedText,
   horizontalExtent,
+  navBarRow,
   targetsOf,
   TEXT_SPACING,
 } from "./layout.ts";
@@ -113,38 +114,7 @@ for (const context of CONTEXTS) {
           page,
         }) => {
           await open(page, `${origin}${path}`, path, 320);
-          const bar = await page.evaluate(() => {
-            const inner = document.querySelector(".nav__inner")!;
-            const root = getComputedStyle(document.documentElement);
-            const style = getComputedStyle(inner);
-            // Each control the bar shows. Not the dropdown's own strip, which hangs below the bar and
-            // takes no room in it.
-            const shown = [...inner.children].filter(
-              (child) =>
-                child.getBoundingClientRect().width > 0 &&
-                getComputedStyle(child).position !== "absolute",
-            );
-            return {
-              height: inner.getBoundingClientRect().height,
-              set: parseFloat(root.getPropertyValue("--nav-height")),
-              // The room the controls have, and what they take: a platform that draws the text wider
-              // shows here, so a failure says by how much.
-              room:
-                inner.clientWidth -
-                parseFloat(style.paddingLeft) -
-                parseFloat(style.paddingRight),
-              widths: shown.map(
-                (child) =>
-                  Math.round(child.getBoundingClientRect().width * 10) / 10,
-              ),
-              gap: style.columnGap,
-              // Where each one's middle sits, which is the same in one row.
-              middles: shown.map((child) => {
-                const box = child.getBoundingClientRect();
-                return Math.round(box.top + box.height / 2);
-              }),
-            };
-          });
+          const bar = await navBarRow(page);
           expect(bar.set, "the set height").toBe(58);
           expect(bar.middles.length, "controls in the bar").toBeGreaterThan(1);
           expect(

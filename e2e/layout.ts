@@ -175,6 +175,44 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
   });
 }
 
+/**
+ * What the navigation bar's row looks like: its height against the set one, and where the middle of
+ * each control in it sits (the same in one row). A platform that draws the text wider shows in the
+ * widths against the room, so a failure says by how much.
+ */
+export function navBarRow(page: Page) {
+  return page.evaluate(() => {
+    const inner = document.querySelector(".nav__inner")!;
+    const root = getComputedStyle(document.documentElement);
+    const style = getComputedStyle(inner);
+    // Each control the bar shows. Not the dropdown's own strip, which hangs below the bar and
+    // takes no room in it.
+    const shown = [...inner.children].filter(
+      (child) =>
+        child.getBoundingClientRect().width > 0 &&
+        getComputedStyle(child).position !== "absolute",
+    );
+    return {
+      height: inner.getBoundingClientRect().height,
+      set: parseFloat(root.getPropertyValue("--nav-height")),
+      // The room the controls have, and what they take.
+      room:
+        inner.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+      widths: shown.map(
+        (child) => Math.round(child.getBoundingClientRect().width * 10) / 10,
+      ),
+      gap: style.columnGap,
+      // Where each one's middle sits, which is the same in one row.
+      middles: shown.map((child) => {
+        const box = child.getBoundingClientRect();
+        return Math.round(box.top + box.height / 2);
+      }),
+    };
+  });
+}
+
 /** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
 export const TEXT_SPACING = `
   *, *::before, *::after {

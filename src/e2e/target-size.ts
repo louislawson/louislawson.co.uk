@@ -6,6 +6,13 @@
 export const MIN_TARGET = 24;
 
 /**
+ * What a finger needs: the controls a phone's visitor reaches for are at least 44 by 44 CSS pixels.
+ * This is the platforms' guidance (and WCAG 2.5.5, AAA), not the AA criterion above, so it is
+ * checked for named controls on a touch screen and not for every link on the page.
+ */
+export const MIN_TOUCH_TARGET = 44;
+
+/**
  * How many words must sit in a link's block, outside every link and button, for the link to be in a
  * sentence. A label ("Email:"), a year, or a lone word beside a row of links is not one.
  */
@@ -46,4 +53,18 @@ export function targetProblem(target: TargetFacts): string | undefined {
     return undefined;
   if (isInlineInSentence(target)) return undefined;
   return `${target.name} is ${target.width} × ${target.height} px, under ${MIN_TARGET} × ${MIN_TARGET}`;
+}
+
+/**
+ * What is wrong with a control's size for a finger, or undefined when it passes or is not on the
+ * page. Unlike targetProblem it has no exemption for a link in a sentence: it is asked of the
+ * controls named in the spec, which are never in a sentence.
+ */
+export function touchProblem(
+  target: Pick<TargetFacts, "name" | "width" | "height">,
+): string | undefined {
+  if (target.width === 0 && target.height === 0) return undefined;
+  if (target.width >= MIN_TOUCH_TARGET && target.height >= MIN_TOUCH_TARGET)
+    return undefined;
+  return `${target.name} is ${target.width} × ${target.height} px, under ${MIN_TOUCH_TARGET} × ${MIN_TOUCH_TARGET}`;
 }

@@ -251,6 +251,15 @@ const home = Astro.url.pathname === "/";
     }
   }
 
+  /* On a touch screen the menu and the inspect button are 44 px tall, a thumb's target; the bar's set
+     height has room for them, so it does not change. With a mouse they stay at 40 px. */
+  @media (pointer: coarse) {
+    .nav__menu,
+    .inspect-btn {
+      min-height: 44px;
+    }
+  }
+
   /* On a narrow phone the brand, the menu and the inspect button fill the bar, and the button's
      name matters more than its key. Only here does the i hint go; the key itself still works and
      the button still says so to a screen reader (aria-keyshortcuts). */
