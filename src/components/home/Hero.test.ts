@@ -222,6 +222,17 @@ describe("<Hero>", () => {
     expect(source).not.toMatch(/<script/);
   });
 
+  it("caps the name's size against the window's width, so larger text never splits a word", () => {
+    const source = readFileSync(
+      new URL("./Hero.astro", import.meta.url),
+      "utf-8",
+    );
+    const style = /<style>([\s\S]*)<\/style>/.exec(source)?.[1] ?? "";
+    expect(style).toMatch(
+      /\.hero__name\s*\{[^}]*font-size:\s*min\(\s*clamp\([^)]*\),\s*18vw\s*\)/,
+    );
+  });
+
   it("holds the caret still under reduced motion, not just cut short", () => {
     const source = readFileSync(
       new URL("./Hero.astro", import.meta.url),

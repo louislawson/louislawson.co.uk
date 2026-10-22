@@ -172,6 +172,20 @@ const cards: Card[] = shown
     gap: var(--col-gap);
   }
 
+  /* Three cards fill the row. One or two do not stretch to a third each and leave the rest empty:
+     a card is at most 35 rem wide, the width the phone layout stops at, and the cards that there
+     are sit together from the left, so they read as a set and not as a card in a row of gaps. (The
+     columns cannot be counted by auto-fit: it counts them with the largest a column may be.) */
+  @media (min-width: 901px) {
+    .garage:has(> .gcard:nth-child(2):last-child) {
+      grid-template-columns: repeat(2, minmax(0, 35rem));
+    }
+
+    .garage:has(> .gcard:only-child) {
+      grid-template-columns: minmax(0, 35rem);
+    }
+  }
+
   .gcard {
     margin: 0;
     border: 1px solid var(--line);

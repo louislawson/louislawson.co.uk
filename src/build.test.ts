@@ -423,7 +423,8 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
       expect(html).toMatch(/<main id="main" tabindex="-1"/);
       expect(html.indexOf("<main")).toBeLessThan(html.indexOf("<footer"));
-      expect(html).toContain(
+      // "load-time" is kept whole by a span, so the words are read with the tags taken out.
+      expect(html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ")).toContain(
         "no cookies · anonymous visit and load-time stats",
       );
       expect(html).toContain("source on GitHub");

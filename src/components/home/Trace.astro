@@ -223,6 +223,17 @@ const { build } = Astro.props;
     color: var(--hivis);
     text-decoration-color: var(--hivis);
   }
+
+  /* On a touch screen the link is a 44 px target, with the extra room around the word and nothing
+     drawn there: the padding is taken back by the negative margin, so the panel's layout does not
+     move. The link is last in the panel's foot, so what the margin overlaps is not a control. */
+  @media (pointer: coarse) {
+    .replay {
+      min-height: 44px;
+      padding: 10px 8px;
+      margin: -10px -8px;
+    }
+  }
 </style>
 
 <script>

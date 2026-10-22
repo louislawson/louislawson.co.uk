@@ -78,8 +78,14 @@ const getInTouch = hasSection("contact");
     grid-column: 8 / span 5;
   }
 
+  /* The size follows the text size (rem) and the width (vw), and is capped at 18vw: "Lawson" with
+     its caret is about 4.1 em wide, so at 18vw it fits the narrowest window with room for a
+     platform that draws the face wider, and the caret stays beside the word. Twice the text size
+     on a 320 px window would otherwise make it wider than the window and break the word in two.
+     The cap is above the size the clamp gives at the default text size at every width, so only
+     larger text meets it. */
   .hero__name {
-    font-size: clamp(2.9rem, 1rem + 7vw, 7.4rem);
+    font-size: min(clamp(2.9rem, 1rem + 7vw, 7.4rem), 18vw);
     font-stretch: 100%;
     font-weight: 800;
     letter-spacing: -0.04em;

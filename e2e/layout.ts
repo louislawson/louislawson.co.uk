@@ -175,6 +175,70 @@ export function targetsOf(page: Page): Promise<TargetFacts[]> {
   });
 }
 
+/**
+ * The words of an element that break across two lines: a word whose text is drawn in more than one
+ * box has been split mid-word, which a line break at a space or a hyphen never does. `overflow-wrap`
+ * lets a word that does not fit break anywhere, and that is the last resort this finds.
+ */
+export function splitWords(page: Page, selector: string) {
+  return page.evaluate((selector) => {
+    const split: string[] = [];
+    const element = document.querySelector(selector)!;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      for (const word of (node.textContent ?? "").matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(node, word.index);
+        range.setEnd(node, word.index + word[0].length);
+        // Boxes on one line are one: a rect per line, merged by their top edge.
+        const lines = new Set(
+          [...range.getClientRects()].map((box) => Math.round(box.top)),
+        );
+        if (lines.size > 1) split.push(word[0]);
+      }
+    }
+    return split;
+  }, selector);
+}
+
+/**
+ * What the navigation bar's row looks like: its height against the set one, and where the middle of
+ * each control in it sits (the same in one row). A platform that draws the text wider shows in the
+ * widths against the room, so a failure says by how much.
+ */
+export function navBarRow(page: Page) {
+  return page.evaluate(() => {
+    const inner = document.querySelector(".nav__inner")!;
+    const root = getComputedStyle(document.documentElement);
+    const style = getComputedStyle(inner);
+    // Each control the bar shows. Not the dropdown's own strip, which hangs below the bar and
+    // takes no room in it.
+    const shown = [...inner.children].filter(
+      (child) =>
+        child.getBoundingClientRect().width > 0 &&
+        getComputedStyle(child).position !== "absolute",
+    );
+    return {
+      height: inner.getBoundingClientRect().height,
+      set: parseFloat(root.getPropertyValue("--nav-height")),
+      // The room the controls have, and what they take.
+      room:
+        inner.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+      widths: shown.map(
+        (child) => Math.round(child.getBoundingClientRect().width * 10) / 10,
+      ),
+      gap: style.columnGap,
+      // Where each one's middle sits, which is the same in one row.
+      middles: shown.map((child) => {
+        const box = child.getBoundingClientRect();
+        return Math.round(box.top + box.height / 2);
+      }),
+    };
+  });
+}
+
 /** What a visitor's stylesheet may set under 1.4.12, in its own words: the four values and no more. */
 export const TEXT_SPACING = `
   *, *::before, *::after {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_TARGET,
+  MIN_TOUCH_TARGET,
   SENTENCE_WORDS,
   isInlineInSentence,
   targetProblem,
+  touchProblem,
   type TargetFacts,
 } from "./target-size.ts";
 
@@ -132,5 +134,42 @@ describe("a target that is too small", () => {
 
   it("ignores a target with no box: it is not on the page", () => {
     expect(targetProblem(target({ width: 0, height: 0 }))).toBeUndefined();
+  });
+});
+
+describe("a control that is too small for a finger", () => {
+  it("passes at exactly the minimum on both sides", () => {
+    expect(MIN_TOUCH_TARGET).toBe(44);
+    expect(touchProblem(target({ width: 44, height: 44 }))).toBeUndefined();
+  });
+
+  it("fails when either side is short, and says which", () => {
+    expect(touchProblem(target({ width: 60, height: 40 }))).toMatch(/60 × 40/);
+    expect(touchProblem(target({ width: 43.5, height: 44 }))).toMatch(
+      /43\.5 × 44/,
+    );
+  });
+
+  it("names the control so the failure can be found", () => {
+    expect(
+      touchProblem(target({ name: "button.replay", width: 50, height: 24 })),
+    ).toMatch(/button\.replay/);
+  });
+
+  it("has no sentence exemption: a control is judged by its box alone", () => {
+    expect(
+      touchProblem(
+        target({
+          display: "inline",
+          surroundingText: "Read the run sheet for this",
+          width: 60,
+          height: 18,
+        }),
+      ),
+    ).toMatch(/60 × 18/);
+  });
+
+  it("ignores a control with no box: it is not on the page", () => {
+    expect(touchProblem(target({ width: 0, height: 0 }))).toBeUndefined();
   });
 });

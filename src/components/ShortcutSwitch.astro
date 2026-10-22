@@ -31,6 +31,13 @@
     transition: border-color 160ms var(--ease);
   }
 
+  /* A thumb's target on a touch screen: 44 px tall. */
+  @media (pointer: coarse) {
+    .switch {
+      min-height: 44px;
+    }
+  }
+
   .switch:hover {
     border-color: var(--bone);
   }

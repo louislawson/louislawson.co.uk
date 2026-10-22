@@ -40,13 +40,24 @@ describe("the placeholders of the contact section in profile.ts", () => {
   });
 });
 
-describe("the placeholder garage entry in profile.ts", () => {
-  it("is short in every part, so a hatched one fits its card instead of filling it", () => {
-    const entry = profile.garage[0]!;
-    // A card is a third of the page wide, and the photo slot a frame in it.
-    expect(placeholderHint(entry.name).length).toBeLessThanOrEqual(24);
-    expect(placeholderHint(entry.note).length).toBeLessThanOrEqual(24);
-    expect(placeholderHint(entry.caption).length).toBeLessThanOrEqual(24);
-    expect(placeholderHint(String(entry.photo)).length).toBeLessThanOrEqual(12);
+describe("the placeholder garage entries in profile.ts", () => {
+  it("are one each for cars, trucks and tractors, as the surface brief says", () => {
+    expect(profile.garage.map((entry) => placeholderHint(entry.name))).toEqual([
+      "cars",
+      "trucks",
+      "tractors",
+    ]);
+  });
+
+  it("are short in every part, so a hatched one fits its card instead of filling it", () => {
+    for (const entry of profile.garage) {
+      // A card is a third of the page wide, and the photo slot a frame in it.
+      expect(placeholderHint(entry.name).length).toBeLessThanOrEqual(24);
+      expect(placeholderHint(entry.note).length).toBeLessThanOrEqual(24);
+      expect(placeholderHint(entry.caption).length).toBeLessThanOrEqual(24);
+      expect(placeholderHint(String(entry.photo)).length).toBeLessThanOrEqual(
+        12,
+      );
+    }
   });
 });

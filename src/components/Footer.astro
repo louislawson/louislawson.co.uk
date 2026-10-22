@@ -17,9 +17,12 @@ const { updated } = Astro.props;
     {updated && <span>updated {updated}</span>}
     <span
       >built with Astro, hosted on Azure Static Web Apps ·
-      <a href={REPOSITORY_URL}>source on GitHub</a></span
+      <a href={REPOSITORY_URL} class="foot__source">source on GitHub</a></span
     >
-    <span>no cookies · anonymous visit and load-time stats</span>
+    <span
+      >no cookies · anonymous visit and <span class="nowrap">load-time</span>
+      stats</span
+    >
     <ShortcutSwitch />
   </div>
 </footer>
@@ -43,6 +46,24 @@ const { updated } = Astro.props;
     white-space: nowrap;
     overflow: hidden;
     user-select: none;
+  }
+
+  /* A hyphen is a place to break a line, and "load-time" at the end of a row on a phone read as
+     "load-" and "time stats". The wording is Louis's; only where it may break is set here. */
+  .nowrap {
+    white-space: nowrap;
+  }
+
+  /* On a touch screen the link to the repository is a 44 px target: block padding above and below the
+     words (the words' own box is about 16 px tall, so 16 px each side leaves room to spare), which
+     an inline link adds to its hit area and not to the line. It stays on one line, so its hit area
+     is one box. Where the box meets the control on the next line the control, which comes after
+     it, is on top. */
+  @media (pointer: coarse) {
+    .foot__source {
+      padding-block: 16px;
+      white-space: nowrap;
+    }
   }
 
   .foot__row {

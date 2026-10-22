@@ -68,6 +68,16 @@ const home = Astro.url.pathname === "/";
     border-bottom: 1px solid var(--line);
   }
 
+  /* A phone held sideways is about 390 px tall, and a bar that stays takes 58 px of it on every
+     screen. At 500 px or less the bar scrolls away with the page. It is relative, not static: its
+     dropdown hangs from it, and a static bar would give the dropdown nothing to hang from. The
+     scroll offset in global.css changes at the same height. */
+  @media (max-height: 500px) {
+    .nav {
+      position: relative;
+    }
+  }
+
   /* The bar is one row at its set height. It wraps to a second row only when its contents cannot
      fit, which is when a visitor's own text spacing (WCAG 1.4.12) makes them wider than the window;
      a bar that kept one row would run past the edge and make the whole page scroll sideways. */
@@ -248,6 +258,15 @@ const home = Astro.url.pathname === "/";
       padding: 12px 0;
       border: 0;
       border-bottom: 1px solid var(--line);
+    }
+  }
+
+  /* On a touch screen the menu and the inspect button are 44 px tall, a thumb's target; the bar's set
+     height has room for them, so it does not change. With a mouse they stay at 40 px. */
+  @media (pointer: coarse) {
+    .nav__menu,
+    .inspect-btn {
+      min-height: 44px;
     }
   }
 

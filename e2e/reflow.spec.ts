@@ -5,6 +5,8 @@ import {
   addStyles,
   clippedText,
   horizontalExtent,
+  navBarRow,
+  splitWords,
   targetsOf,
   TEXT_SPACING,
 } from "./layout.ts";
@@ -113,38 +115,7 @@ for (const context of CONTEXTS) {
           page,
         }) => {
           await open(page, `${origin}${path}`, path, 320);
-          const bar = await page.evaluate(() => {
-            const inner = document.querySelector(".nav__inner")!;
-            const root = getComputedStyle(document.documentElement);
-            const style = getComputedStyle(inner);
-            // Each control the bar shows. Not the dropdown's own strip, which hangs below the bar and
-            // takes no room in it.
-            const shown = [...inner.children].filter(
-              (child) =>
-                child.getBoundingClientRect().width > 0 &&
-                getComputedStyle(child).position !== "absolute",
-            );
-            return {
-              height: inner.getBoundingClientRect().height,
-              set: parseFloat(root.getPropertyValue("--nav-height")),
-              // The room the controls have, and what they take: a platform that draws the text wider
-              // shows here, so a failure says by how much.
-              room:
-                inner.clientWidth -
-                parseFloat(style.paddingLeft) -
-                parseFloat(style.paddingRight),
-              widths: shown.map(
-                (child) =>
-                  Math.round(child.getBoundingClientRect().width * 10) / 10,
-              ),
-              gap: style.columnGap,
-              // Where each one's middle sits, which is the same in one row.
-              middles: shown.map((child) => {
-                const box = child.getBoundingClientRect();
-                return Math.round(box.top + box.height / 2);
-              }),
-            };
-          });
+          const bar = await navBarRow(page);
           expect(bar.set, "the set height").toBe(58);
           expect(bar.middles.length, "controls in the bar").toBeGreaterThan(1);
           expect(
@@ -174,6 +145,76 @@ for (const context of CONTEXTS) {
             ),
           ).toBe(before * 2);
           expect(await reflowProblems(page, 320, ["x", "y"])).toEqual([]);
+        });
+      }
+    });
+
+    // The name is the page's one display line, and a word of it is never broken in two. The size
+    // is capped against the window's width as well as the text's size, so that twice the text on
+    // the narrowest window gives the name a size that fits, and the sizes a visitor with the
+    // default text sees are not the cap's to change.
+    test.describe("the hero name", () => {
+      test("is never split mid-word, at any width or with text at 200 %", async ({
+        page,
+      }) => {
+        const problems: string[] = [];
+        for (const width of WIDTHS) {
+          await open(page, `${origin}/`, "/", width);
+          for (const word of await splitWords(page, ".hero__name")) {
+            problems.push(`${width} px: “${word}” is split`);
+          }
+        }
+        await open(page, `${origin}/`, "/", 320);
+        await addStyles(page, TEXT_200);
+        for (const word of await splitWords(page, ".hero__name")) {
+          problems.push(`320 px at 200 %: “${word}” is split`);
+        }
+        // The caret belongs to the name's last word: it sits on that word's line, not alone below.
+        const caretBesideName = await page.evaluate(() => {
+          const name = document.querySelector(".hero__name")!;
+          const mark = name.querySelector(".caret")!;
+          const caret = mark.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(mark.previousSibling!);
+          const word = range.getBoundingClientRect();
+          const middle = (caret.top + caret.bottom) / 2;
+          return middle >= word.top && middle <= word.bottom;
+        });
+        if (!caretBesideName) {
+          problems.push("320 px at 200 %: the caret is not beside the name");
+        }
+        expect(problems).toEqual([]);
+      });
+
+      test("is the size the clamp gives where the cap is not needed", async ({
+        page,
+      }) => {
+        // clamp(2.9rem, 1rem + 7vw, 7.4rem) at the browser's default 16 px, for text at 100 %.
+        const clamp = (width: number) =>
+          Math.min(Math.max(2.9 * 16, 16 + 0.07 * width), 7.4 * 16);
+        for (const width of WIDTHS) {
+          await open(page, `${origin}/`, "/", width);
+          const size = await page
+            .locator(".hero__name")
+            .evaluate((name) => parseFloat(getComputedStyle(name).fontSize));
+          expect(size, `${width} px`).toBeCloseTo(clamp(width), 1);
+        }
+      });
+    });
+
+    // A hyphen is a place to break a line, and a phrase such as "load-time" left at the end of a row
+    // reads badly. The words of the footer's row stay whole at every width.
+    test.describe("the footer", () => {
+      for (const path of pages) {
+        test(`${path} never breaks a word of its row`, async ({ page }) => {
+          const problems: string[] = [];
+          for (const width of WIDTHS) {
+            await open(page, `${origin}${path}`, path, width);
+            for (const word of await splitWords(page, ".foot__row")) {
+              problems.push(`${width} px: “${word}” is split`);
+            }
+          }
+          expect(problems).toEqual([]);
         });
       }
     });

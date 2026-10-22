@@ -41,8 +41,22 @@ export const profile = parseProfile({
   // the event and the vehicle, never the owner. The placeholders are short so a hatched one fits.
   garage: [
     {
-      name: "TODO: cars, trucks or tractors",
-      note: "TODO: a line on the interest",
+      name: "TODO: cars",
+      note: "TODO: a line on cars",
+      photo: "TODO: photo",
+      alt: "TODO: describe the photo",
+      caption: "TODO: event and vehicle",
+    },
+    {
+      name: "TODO: trucks",
+      note: "TODO: a line on trucks",
+      photo: "TODO: photo",
+      alt: "TODO: describe the photo",
+      caption: "TODO: event and vehicle",
+    },
+    {
+      name: "TODO: tractors",
+      note: "TODO: a line on tractors",
       photo: "TODO: photo",
       alt: "TODO: describe the photo",
       caption: "TODO: event and vehicle",
