@@ -283,8 +283,32 @@ describe("the E2E job in ci.yml", () => {
   it("installs both browsers, at the version in the lockfile", () => {
     expect(job).toContain("npm ci");
     // npx runs the locked Playwright, so the browsers match the tests' version.
-    expect(job).toContain("npx playwright install --with-deps chromium webkit");
+    expect(job).toContain("npx playwright install-deps chromium webkit");
+    expect(job).toContain("npx playwright install chromium webkit");
     expect(job).not.toMatch(/playwright@|npm install/);
+  });
+
+  // A slow Ubuntu mirror once held the install for the job's whole 20 minutes. Each attempt at the
+  // system packages is now cut off at 5, a failed or cut-off attempt runs once more, and each step
+  // is bounded too. timeout runs as root: as the runner user its signal never reached apt-get, which
+  // kept the dpkg lock, so the retry failed on the lock (run 39834668057).
+  it("gives each system package install 5 minutes, as root, and tries a failed one once more", () => {
+    expect(job).toMatch(/for attempt in 1 2; do/);
+    expect(job).toContain(
+      'sudo env "PATH=${PATH}" timeout --kill-after=30s 5m npx playwright install-deps chromium webkit',
+    );
+    expect(job).toContain("if ! sudo dpkg --configure -a; then");
+    // A stalled mirror connection is given up on quickly (actions/runner-images#14594).
+    expect(job).toContain('Acquire::http::Timeout "15"');
+    expect(job).toContain("/etc/apt/apt.conf.d/99-ci-timeouts");
+    // A retry against the same trickling mirror cannot win, so it leaves Azure's mirror out.
+    expect(job).toContain(
+      "sudo sed -i '/azure\\.archive\\.ubuntu\\.com/d' /etc/apt/apt-mirrors.txt",
+    );
+    expect(job).toMatch(
+      /name: Install the browsers' system packages\n\s+timeout-minutes: 12\n/,
+    );
+    expect(job).toMatch(/name: Install the browsers\n\s+timeout-minutes: 5\n/);
   });
 
   it("builds both contexts and runs the tests through the script", () => {

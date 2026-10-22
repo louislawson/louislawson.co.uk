@@ -117,7 +117,36 @@ jobs:
           cache: npm
       - run: npm ci
       # npx runs the Playwright in package-lock.json, so the browsers match the tests' version.
-      - run: npx playwright install --with-deps chromium webkit
+      # The browsers' system packages come from Ubuntu's mirror, which once held this job for its
+      # whole 20 minutes. Each attempt is cut off after 5 minutes, and a failed or cut-off one runs
+      # once more. timeout runs as root so that its signal reaches apt-get and its downloads: run as
+      # the runner user it stopped only npx, apt-get kept the dpkg lock, and the retry failed on it.
+      # dpkg --configure -a finishes an install that was cut off while unpacking. Short network
+      # timeouts make apt give up on a stalled mirror connection quickly instead of waiting on it
+      # (actions/runner-images#14594, a degraded azure.archive.ubuntu.com).
+      - name: Install the browsers' system packages
+        timeout-minutes: 12
+        run: |
+          printf 'Acquire::http::Timeout "15";\nAcquire::https::Timeout "15";\nAcquire::Retries "3";\n' |
+            sudo tee /etc/apt/apt.conf.d/99-ci-timeouts > /dev/null
+          for attempt in 1 2; do
+            if sudo env "PATH=${PATH}" timeout --kill-after=30s 5m npx playwright install-deps chromium webkit; then
+              exit 0
+            fi
+            echo "::warning::System package install attempt ${attempt} failed or took over 5 minutes"
+            if ! sudo dpkg --configure -a; then
+              echo "::warning::dpkg --configure -a failed after attempt ${attempt}"
+            fi
+            # The runner's mirror list puts Azure's Ubuntu mirror first, and that mirror is what
+            # stalls or trickles, so the retry leaves it out and apt uses archive.ubuntu.com.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+            fi
+          done
+          exit 1
+      - name: Install the browsers
+        timeout-minutes: 5
+        run: npx playwright install chromium webkit
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
