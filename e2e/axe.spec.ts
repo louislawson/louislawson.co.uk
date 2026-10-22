@@ -71,5 +71,27 @@ for (const context of CONTEXTS) {
       await animationsEnd(page);
       await scan(page, makeAxeBuilder, testInfo, true);
     });
+
+    // On a phone the section links fold into a menu that hangs over the page. It is hidden until it
+    // is opened, so the scans above never see it: its links, their names and their colours are
+    // scanned here, open, on the pages that have sections (a page of the build with none has no
+    // menu). The rule sets are the same as for every other scan.
+    for (const path of ["/", "/projects/this-website/"]) {
+      test(`${path} has no accessibility violations with the phone menu open`, async ({
+        page,
+        makeAxeBuilder,
+      }, testInfo) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto(`${origin}${path}`);
+        await settle(page, path);
+        const menu = page.locator("[data-nav-menu]");
+        await menu.click();
+        await expect(menu).toHaveAttribute("aria-expanded", "true");
+        // If the links had not appeared, there would be nothing in the menu to scan.
+        await expect(page.locator("#links a").first()).toBeVisible();
+        await animationsEnd(page);
+        await scan(page, makeAxeBuilder, testInfo, path === "/");
+      });
+    }
   });
 }
