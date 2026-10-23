@@ -98,12 +98,15 @@ const shown =
 </Section>}
 
 <style>
+  /* A long word ("infrastructure") breaks rather than push the page sideways when a visitor's own
+     text size makes it wider than a phone's column; the rows and the list below inherit it. */
   .skill {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 0.4rem var(--col-gap);
     padding-block: 1.3rem;
     border-bottom: 1px solid var(--line);
+    overflow-wrap: anywhere;
   }
 
   .skill h3 {
@@ -138,6 +141,15 @@ const shown =
     color: var(--hivis);
   }
 
+  /* A code is a short word, so its link would be under the 24 px target (WCAG 2.5.8). Padding
+     makes the box 24 px tall and the negative margin gives it back, so the line does not move. */
+  .skill .codes a {
+    display: inline-block;
+    min-width: 24px;
+    padding-block: 4px;
+    margin-block: -4px;
+  }
+
   @media (max-width: 860px) {
     .skill h3,
     .skill .ctx,
@@ -154,6 +166,7 @@ const shown =
     margin-top: 2.25rem;
     padding: clamp(14px, 2vw, 22px);
     border: 1px solid var(--line);
+    overflow-wrap: anywhere;
   }
 
   .explore h3 {

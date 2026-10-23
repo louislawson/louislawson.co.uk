@@ -1086,6 +1086,31 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(bar![1] ?? bar![2]).toMatch(/background:var\(--bg\)(;|$)/);
   });
 
+  // Real content brings what placeholders never did: a "seen in" link to a project, and long words
+  // in the skills and the certifications. The browser checks (reflow.spec.ts) measure both once the
+  // content is real; these pin the rules that make them pass.
+  it("gives a skill's 'seen in' link a 24 px target without moving its line", () => {
+    const css = stylesheetText(dir);
+    // Astro scopes each part of the selector: .skill[data-astro-cid-…] .codes[…] a[…].
+    const rule =
+      /(?:^|[}])\.skill\[[^\]]*\] \.codes\[[^\]]*\] a\[[^\]]*\]\{([^}]*)\}/g;
+    const declarations = [...css.matchAll(rule)]
+      .map((match) => match[1])
+      .join(";");
+    expect(declarations).toMatch(/padding-block:4px/);
+    expect(declarations).toMatch(/margin-block:-4px/);
+    expect(declarations).toMatch(/display:inline-block/);
+  });
+
+  it("lets a long word break in the skills and the certifications, rather than push the page sideways", () => {
+    const css = stylesheetText(dir);
+    for (const selector of ["skill", "explore", "cert"]) {
+      expect(css, selector).toMatch(
+        new RegExp(`\\.${selector}\\[[^\\]]*\\]\\{[^}]*overflow-wrap:anywhere`),
+      );
+    }
+  });
+
   it("shows the number hints only while data-shortcuts is on, so they never show without script", () => {
     const css = stylesheetText(dir);
     expect(css).toMatch(/\[data-shortcuts=["']?on["']?\][^{]*\.hint/);
