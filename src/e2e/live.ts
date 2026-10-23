@@ -2,7 +2,8 @@
 // them. The check asks a deployed site for its home page and for a path that does not exist, and
 // compares what comes back with the staticwebapp.config.json the build generated. Nothing the
 // site's build reads imports this, and Node runs the script on this file directly, so it imports
-// nothing. It names no host: the address is the deploy step's output.
+// nothing. It names no host: the address is the deploy step's output, and the site's own origin
+// is read from the build.
 
 export type LiveContext = "preview" | "production";
 
@@ -90,6 +91,28 @@ export function parseLiveUrl(value: string): string {
   return url.origin;
 }
 
+/**
+ * The origin the build was made for, read from its home page's canonical link: the build's own
+ * record of where it is meant to be served, so the check keeps no second copy of the site's
+ * address. A page without one is an error rather than a reason to trust any redirect.
+ */
+export function siteOriginFrom(html: string): string {
+  const link = html.match(/<link\b[^>]*\brel="canonical"[^>]*>/)?.[0];
+  const href = link?.match(/\bhref="([^"]*)"/)?.[1];
+  if (href === undefined) {
+    throw new Error(
+      "the build's home page has no canonical link to read the site's origin from",
+    );
+  }
+  try {
+    return parseLiveUrl(href);
+  } catch {
+    throw new Error(
+      `the build's canonical link must be an https address, got "${href}"`,
+    );
+  }
+}
+
 /** A path nothing is served at, different every time so that no cache can have an answer for it. */
 function madeUpPath(): string {
   return `/no-such-page-${Math.random().toString(36).slice(2, 10)}`;
@@ -118,16 +141,52 @@ async function request(
   }
 }
 
-/** Asks the site for its home page and a made-up path, and lists everything that is not as expected. */
+/** The statuses of a redirect that names where to go next. */
+const REDIRECTS = new Set([301, 302, 303, 307, 308]);
+
+/**
+ * Asks the site for its home page and a made-up path, and lists everything that is not as expected.
+ *
+ * Once the site's domain is the default on the Static Web App, Azure redirects the deploy address
+ * to it, and before then the domain does not resolve at all. So a production check accepts one
+ * redirect from the deploy address, and only to exactly the build's site origin (`siteOrigin`),
+ * and then checks that origin; with no redirect it checks the deploy address as it always did. A
+ * preview has no `siteOrigin` and accepts no redirect: its own address is the one to check.
+ */
 export async function checkLive(opts: {
   url: string;
+  siteOrigin?: string;
   expectation: LiveExpectation;
   fetch: LiveFetch;
 }): Promise<string[]> {
-  const { url, expectation, fetch } = opts;
+  const { expectation, fetch } = opts;
   const failures: string[] = [];
+  let url = opts.url;
 
-  const home = await request(fetch, `${url}/`);
+  let home = await request(fetch, `${url}/`);
+  if (
+    typeof home !== "string" &&
+    REDIRECTS.has(home.status) &&
+    expectation.context === "production" &&
+    opts.siteOrigin !== undefined &&
+    url !== opts.siteOrigin
+  ) {
+    const location = home.headers.get("Location");
+    // The origin compares scheme, host and port whole, so a lookalike host, another scheme or port,
+    // and credentials in front of the host all differ from the site's; a relative address resolves
+    // to the deploy host itself.
+    const target =
+      location === null ? undefined : URL.parse(location, `${url}/`)?.origin;
+    if (target !== opts.siteOrigin) {
+      failures.push(
+        `${url}/ redirected to ${location ?? "no address (no Location header)"}, which is not the site origin ${opts.siteOrigin}`,
+      );
+      return failures;
+    }
+    url = opts.siteOrigin;
+    home = await request(fetch, `${url}/`);
+  }
+
   if (typeof home === "string") {
     failures.push(home);
   } else if (home.status !== 200) {
