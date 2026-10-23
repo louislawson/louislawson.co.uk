@@ -21,8 +21,13 @@ mock_provider "azurerm" {
   }
 }
 
-run "no_domains_by_default" {
+run "no_domains_when_empty" {
   command = apply
+
+  # Stated, not left to the default: the default is what a launch changes, and this case must hold after it.
+  variables {
+    custom_domains = {}
+  }
 
   assert {
     condition     = length(azurerm_static_web_app_custom_domain.site) == 0
