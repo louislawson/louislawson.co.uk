@@ -738,6 +738,17 @@ describe("the live check in deploy.yml", () => {
     expect(job).toContain('--context "${DEPLOY_CONTEXT}"');
   });
 
+  // Once the domain is the default on the Static Web App, the production deploy address redirects
+  // to it, and before then the domain does not resolve. The check follows one redirect, and only to
+  // the build's own site origin, which it reads from the uploaded build rather than from a second
+  // copy of the address (a SITE_URL variable the job does not have, or a default written twice).
+  it("reads the site's origin from the uploaded build's home page, for the redirect it may follow", () => {
+    expect(job).toContain("--index dist/index.html");
+    // Read from the file the option names, and handed to the check, not only mentioned.
+    expect(script).toMatch(/siteOriginFrom\(readFileSync\(values\.index/);
+    expect(script).toMatch(/checkLive\(\{ url, siteOrigin, expectation/);
+  });
+
   it("pins its actions to full commit SHAs", () => {
     const uses = [...job.matchAll(/uses: (\S+)@(\S+) # v/g)];
     expect(uses.length).toBeGreaterThanOrEqual(3);

@@ -295,7 +295,7 @@ jobs:
         env:
           LIVE_URL: ${{ needs.deploy.outputs.url }}
           DEPLOY_CONTEXT: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
-        run: node scripts/check-live.ts --url "${LIVE_URL}" --config dist/staticwebapp.config.json --context "${DEPLOY_CONTEXT}"
+        run: node scripts/check-live.ts --url "${LIVE_URL}" --config dist/staticwebapp.config.json --index dist/index.html --context "${DEPLOY_CONTEXT}"
 
   comment:
     name: Preview comment
