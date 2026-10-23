@@ -1,6 +1,6 @@
 # Build plan: louislawson.co.uk
 
-Status (2026-10-21): **Phases 0 to 6 are built.** Phase 7 has been reviewed with Louis and is **approved for build**. Phase 8 is Louis's own launch; its order was agreed in the same review. Sessions treat any phase not approved for build as context only.
+Status (2026-10-23): **Phases 0 to 7 are built.** Phase 8 is Louis's own launch, following section 7 of [`docs/RUNBOOK.md`](RUNBOOK.md#7-the-launch-checklist). Sessions treat any phase not approved for build as context only.
 
 This plan turns the agreed design and product decisions into phases and pull requests. Each phase is handed to a fresh agent session; Louis reviews and merges every PR and reviews each phase before the next one starts.
 
