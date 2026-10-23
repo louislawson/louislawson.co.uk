@@ -50,3 +50,29 @@ variable "sku_size" {
     error_message = "sku_size must match sku_tier."
   }
 }
+
+variable "custom_domains" {
+  description = <<-EOT
+    Custom domains for the Static Web App, keyed by domain name. Empty by default, so the stack
+    attaches no domain until Louis sets this. An apex must use dns-txt-token (Azure requires it);
+    a subdomain such as www uses cname-delegation, which needs its CNAME record in place before the
+    apply. Free allows 2 domains and Standard 5.
+  EOT
+  type = map(object({
+    validation_type = string
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for domain in values(var.custom_domains) : contains(["cname-delegation", "dns-txt-token"], domain.validation_type)
+    ])
+    error_message = "Each custom domain's validation_type must be cname-delegation or dns-txt-token."
+  }
+
+  validation {
+    # Free allows 2 custom domains and Standard 5 (Azure Static Web Apps hosting plans).
+    condition     = length(var.custom_domains) <= (var.sku_tier == "Free" ? 2 : 5)
+    error_message = "The ${var.sku_tier} plan allows ${var.sku_tier == "Free" ? 2 : 5} custom domains."
+  }
+}

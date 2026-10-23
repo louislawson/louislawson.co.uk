@@ -2,10 +2,11 @@
 
 The Azure Static Web App that serves the site. Unlike the [bootstrap](../bootstrap/README.md), this stack is applied **by CI**, not locally.
 
-| Resource                         | Purpose                                                      |
-| -------------------------------- | ------------------------------------------------------------ |
-| `rg-louislawson-web-prod-weu`    | Read only (data source). Created by the bootstrap stack      |
-| `stapp-louislawson-web-prod-weu` | Static Web App: Free plan, West Europe, preview environments |
+| Resource                               | Purpose                                                            |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `rg-louislawson-web-prod-weu`          | Read only (data source). Created by the bootstrap stack            |
+| `stapp-louislawson-web-prod-weu`       | Static Web App: Free plan, West Europe, preview environments       |
+| `azurerm_static_web_app_custom_domain` | One per entry in `custom_domains`. None until that variable is set |
 
 State lives in the `tfstate` container (key `site.tfstate`) of the bootstrap-created storage account.
 
@@ -37,6 +38,22 @@ The plan comment never contains GUIDs: the repository is public, so subscription
 - **Two infrastructure changes merged back to back.** A run waiting for the `production` approval holds the workflow's concurrency group, so a newer run queues behind it. Reject or cancel the older waiting run, whose guard would refuse it anyway, and the newer one proceeds with the newer state.
 - **Provider registration.** azurerm 5.x registers nothing by default and the bootstrap stack already registered `Microsoft.Web`, so this stack leaves registration alone.
 - **First apply hangs.** There is a reported provider issue where the first `apply` hangs after the Static Web App is created. Re-run with `-parallelism=1` before changing anything else. Do not set `TF_LOG` in CI: the log is public, and debug output includes full response bodies, among them the `listSecrets` response that carries the deployment token, which `add-mask` does not cover. To see more, reproduce locally, or write to a file with `TF_LOG_PATH` that is never uploaded.
+
+## Custom domains
+
+`custom_domains` is empty by default, so applying this stack attaches no domain. To connect one, set it to a map keyed by domain name:
+
+```hcl
+custom_domains = {
+  "example.com"     = { validation_type = "dns-txt-token" }
+  "www.example.com" = { validation_type = "cname-delegation" }
+}
+```
+
+- **An apex uses `dns-txt-token`** (Azure requires it). Terraform does not wait for that validation: after the apply, read the token with `terraform output -json custom_domain_validation_tokens` and add it as the domain's TXT record. The output is sensitive because the provider marks the token so, which also keeps it out of the public CI log. Azure clears the token once the domain is validated.
+- **`www` uses `cname-delegation`**, so its CNAME record must exist before the apply; the apply waits for it.
+- **The Free plan allows 2 domains** and Standard 5; the variable rejects more.
+- **"Set default domain" is not in Terraform.** It makes Azure redirect the other addresses (`www`, and the `azurestaticapps.net` address) to the domain chosen as the default, and the provider has no argument for it. Set it in the portal under Custom domains once the apex has validated. The deploy workflow's Live check follows that redirect to the site's origin, and only to it.
 
 ## Running it locally
 
