@@ -1,16 +1,18 @@
 // Checks a deployed site against the build that was uploaded to it. Run it after a deploy:
 //
 //   node scripts/check-live.ts --url <deployed address> --config dist/staticwebapp.config.json \
-//     --index dist/index.html --context preview|production
+//     [--index dist/index.html] --context preview|production
 //
 // The address is the deploy step's output; no host is written here. The site must send exactly the
 // content security policy the build generated, HSTS, and the X-Robots-Tag the build sends, and a
 // path that does not exist must answer 404. A production deploy address may redirect, once, to
 // the site's own origin, which is read from the build's home page (its canonical link): that is
 // what the address does once the domain is the Static Web App's default, and the origin is then
-// the one checked. A preview is always checked at its own address. A check that fails straight after a deploy is run
-// again for a minute or so, since a new deployment can take a moment to reach every edge. The
-// rules are in src/e2e/live.ts, where Vitest tests them. Node runs this TypeScript directly.
+// the one checked (the address's own headers are then not compared: it serves nothing, and the
+// origin is checked against the same build). --index is needed only for production. A preview is
+// always checked at its own address. A check that fails straight after a deploy is run again for
+// a minute or so, since a new deployment can take a moment to reach every edge. The rules are in
+// src/e2e/live.ts, where Vitest tests them. Node runs this TypeScript directly.
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import {
@@ -45,13 +47,13 @@ const { values } = parseArgs({
 });
 
 const usage =
-  "usage: node scripts/check-live.ts --url <address> --config <staticwebapp.config.json> --index <index.html> --context preview|production";
-if (!values.url || !values.config || !values.index || !values.context) {
-  fail(usage, 2);
-}
+  "usage: node scripts/check-live.ts --url <address> --config <staticwebapp.config.json> [--index <index.html>] --context preview|production";
+if (!values.url || !values.config || !values.context) fail(usage, 2);
 if (values.context !== "preview" && values.context !== "production") {
   fail(`--context must be preview or production, got "${values.context}"`, 2);
 }
+// The home page whose canonical link names the site's origin, which only a production check uses.
+if (values.context === "production" && !values.index) fail(usage, 2);
 const attempts = Number(values.attempts);
 const delaySeconds = Number(values.delay);
 if (!Number.isInteger(attempts) || attempts < 1 || !(delaySeconds >= 0)) {
@@ -72,7 +74,7 @@ try {
   );
   // Only a production check may follow a redirect, so only it needs the origin to follow it to.
   if (expectation.context === "production") {
-    siteOrigin = siteOriginFrom(readFileSync(values.index, "utf-8"));
+    siteOrigin = siteOriginFrom(readFileSync(values.index!, "utf-8"));
   }
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error), 2);

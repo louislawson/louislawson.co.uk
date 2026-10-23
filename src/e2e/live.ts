@@ -97,8 +97,9 @@ export function parseLiveUrl(value: string): string {
  * address. A page without one is an error rather than a reason to trust any redirect.
  */
 export function siteOriginFrom(html: string): string {
-  const link = html.match(/<link\b[^>]*\brel="canonical"[^>]*>/)?.[0];
-  const href = link?.match(/\bhref="([^"]*)"/)?.[1];
+  const link = html.match(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i)?.[0];
+  const hrefMatch = link?.match(/\bhref=(?:"([^"]*)"|'([^']*)')/i);
+  const href = hrefMatch?.[1] ?? hrefMatch?.[2];
   if (href === undefined) {
     throw new Error(
       "the build's home page has no canonical link to read the site's origin from",

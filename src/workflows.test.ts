@@ -744,8 +744,9 @@ describe("the live check in deploy.yml", () => {
   // copy of the address (a SITE_URL variable the job does not have, or a default written twice).
   it("reads the site's origin from the uploaded build's home page, for the redirect it may follow", () => {
     expect(job).toContain("--index dist/index.html");
-    expect(script).toContain("siteOriginFrom(");
-    expect(script).toContain("--index");
+    // Read from the file the option names, and handed to the check, not only mentioned.
+    expect(script).toMatch(/siteOriginFrom\(readFileSync\(values\.index/);
+    expect(script).toMatch(/checkLive\(\{ url, siteOrigin, expectation/);
   });
 
   it("pins its actions to full commit SHAs", () => {

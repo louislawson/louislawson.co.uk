@@ -121,3 +121,27 @@ run "more_domains_than_the_free_plan_allows_rejected" {
 
   expect_failures = [var.custom_domains]
 }
+
+run "malformed_domain_name_rejected" {
+  command = plan
+
+  variables {
+    custom_domains = {
+      "https://example.test" = { validation_type = "dns-txt-token" }
+    }
+  }
+
+  expect_failures = [var.custom_domains]
+}
+
+run "upper_case_domain_name_rejected" {
+  command = plan
+
+  variables {
+    custom_domains = {
+      "Example.test" = { validation_type = "dns-txt-token" }
+    }
+  }
+
+  expect_failures = [var.custom_domains]
+}

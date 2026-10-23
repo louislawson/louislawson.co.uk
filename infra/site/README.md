@@ -41,10 +41,10 @@ The plan comment never contains GUIDs: the repository is public, so subscription
 
 ## Custom domains
 
-`custom_domains` is empty by default, so applying this stack attaches no domain. To connect one, set it to a map keyed by domain name:
+`custom_domains` is empty by default, so applying this stack attaches no domain. CI passes no variables, and `*.tfvars` files are gitignored, so the domains are set by changing the variable's `default` in [`variables.tf`](variables.tf) in a reviewed pull request: the next apply then attaches them, and a later run keeps them, whereas a value supplied only to a local apply would be planned away (destroying the domains) by the next CI run. The value is a map keyed by lower-case domain name:
 
 ```hcl
-custom_domains = {
+default = {
   "example.com"     = { validation_type = "dns-txt-token" }
   "www.example.com" = { validation_type = "cname-delegation" }
 }

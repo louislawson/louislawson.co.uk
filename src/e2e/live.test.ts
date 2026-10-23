@@ -277,6 +277,14 @@ describe("siteOriginFrom", () => {
     ).toBe("https://site.example.test");
   });
 
+  it("reads single-quoted attributes and an upper-case tag, as another build step might write them", () => {
+    expect(
+      siteOriginFrom(
+        page("<LINK REL='canonical' HREF='https://site.example.test/'>"),
+      ),
+    ).toBe("https://site.example.test");
+  });
+
   it("refuses a page with no canonical link, which would leave no origin to trust", () => {
     expect(() => siteOriginFrom(page("<title>x</title>"))).toThrow(/canonical/);
   });
