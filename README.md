@@ -4,6 +4,8 @@
 
 The source for [louislawson.co.uk](https://louislawson.co.uk): a static [Astro](https://astro.build) site hosted on Azure Static Web Apps, with infrastructure in Terraform and delivery by GitHub Actions.
 
+For how to edit content, add a photo, deploy, connect the domain or fix a failure, see the [runbook](docs/RUNBOOK.md). This file is the quick start and how the site works.
+
 ## Running it
 
 Requires the Node version in `.nvmrc` and npm 11.19 or later.
@@ -90,8 +92,10 @@ The repository is public, so a photo or PDF must not carry the person behind it.
 **Images** (`jpg`, `jpeg`, `png`, `webp`, `avif`, `heic`, `heif`, `tif`, `tiff`, `gif`) fail on any EXIF, XMP or IPTC block except an orientation and a colour profile, and on free-text metadata: a PNG `tEXt`, `zTXt` or `iTXt` chunk (`Software` included), a JPEG comment or a GIF comment. A raw colour profile in a PNG is still allowed. Strip a file with [exiftool](https://exiftool.org), keeping only those two:
 
 ```sh
-exiftool -all= -tagsFromFile @ -Orientation -ICC_Profile -overwrite_original photo.jpg
+exiftool -all= -tagsFromFile '@' -Orientation -ICC_Profile -YCbCrPositioning= -overwrite_original photo.jpg
 ```
+
+The `@` is quoted because PowerShell reads a bare `@` as an error, and `-YCbCrPositioning=` removes a harmless tag that exiftool adds back whenever it writes the orientation and that the check rejects. The [runbook](docs/RUNBOOK.md#3-adding-a-garage-photo-safely) has the whole procedure, with the install on Windows.
 
 **SVGs** are text, and fail on a `<metadata>` element, on any `sodipodi:` or `inkscape:` attribute or namespace (Inkscape writes the file name, and often the full local path it was exported to), and on a path-like string anywhere in the file, and a photo pasted in as a `data:` URI is checked like any other image. In Inkscape, save as Plain SVG, which leaves its own data out, and delete by hand anything the check still reports.
 
