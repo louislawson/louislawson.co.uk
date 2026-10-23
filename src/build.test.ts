@@ -774,7 +774,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
   }
 
   if (deployContext === "preview") {
-    it("shows the skills in a preview: a hatched row, with no seen-in line, and a hatched item to explore", () => {
+    it("shows every skill row in a preview, hatching only the placeholders, with a seen-in line only where a row names projects", () => {
       const html = read(dir, "index.html");
       const section = /<section[^>]*\sid="skills"[\s\S]*?<\/section>/.exec(
         html,
@@ -786,16 +786,28 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       );
       expect(html.indexOf('id="skills"')).toBeLessThan(html.indexOf("<footer"));
       expect(html).toContain('href="/#skills"');
-      // The one placeholder row: its group, its context and its tool, and the item to explore.
-      expect(section!.match(/class="skill"/g)).toHaveLength(1);
-      expect(section!.match(/class="ph"/g)!.length).toBeGreaterThanOrEqual(4);
-      expect(section).not.toContain('class="seen"');
+      // A preview shows every row of the real profile, so the expectations come from it: correct
+      // content must not fail this test.
+      const { skills, exploring } = profile;
+      expect(section!.match(/class="skill"/g)).toHaveLength(skills.length);
+      const hatched =
+        skills.some(
+          (skill) =>
+            isPlaceholder(skill.group) ||
+            isPlaceholder(skill.context) ||
+            skill.tools.some((tool) => isPlaceholder(tool)),
+        ) || exploring.some((item) => isPlaceholder(item));
+      expect(section!.includes('class="ph"')).toBe(hatched);
+      const seen = skills.filter((skill) => skill.runs.length > 0).length;
+      expect(section!.match(/class="seen"/g) ?? []).toHaveLength(seen);
       // The heading is the template's own text; the intro goes through an expression, which
       // escapes its apostrophe.
-      expect(section).toContain("what I'm exploring next");
+      if (exploring.length > 0) {
+        expect(section).toContain("what I'm exploring next");
+      }
       expect(section).toContain("Where I&#39;ve used each one");
-      // The one row is a placeholder with no runs, so nothing in the section links anywhere.
-      expect(section).not.toContain("<a ");
+      // Only a "seen in" line links anywhere in the section.
+      expect(section!.includes("<a ")).toBe(seen > 0);
     });
   } else {
     it("shows the skills on production exactly when something in them is real, and its nav link with it, so the page and the nav agree", () => {
