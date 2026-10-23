@@ -81,15 +81,22 @@ ${opts.placeholder ? "TODO: write the run sheet for this project." : "A demo wri
  */
 function makeLaunchable(dir: string): void {
   const profile = join(dir, "src", "data", "profile.ts");
-  replaceOnce(profile, /roleLine: "[^"]*"/, 'roleLine: "A demo role"');
-  replaceOnce(profile, /intro: "[^"]*"/, 'intro: "A demo introduction."');
-  replaceOnce(profile, /careerLine: "[^"]*"/, 'careerLine: "A demo career"');
+  // `\s*`: Prettier puts a long value on the line after its key, so real content may be wrapped.
+  replaceOnce(profile, /roleLine:\s*"[^"]*"/, 'roleLine: "A demo role"');
+  replaceOnce(profile, /intro:\s*"[^"]*"/, 'intro: "A demo introduction."');
+  replaceOnce(profile, /careerLine:\s*"[^"]*"/, 'careerLine: "A demo career"');
   replaceOnce(
     profile,
-    /linkedin: "[^"]*"/,
+    /linkedin:\s*"[^"]*"/,
     'linkedin: "https://www.linkedin.com/in/demo"',
   );
-  replaceOnce(profile, /cv: "[^"]*"/, 'cv: "/cv.pdf"');
+  replaceOnce(profile, /cv:\s*"[^"]*"/, 'cv: "/cv.pdf"');
+  // The copy's projects are replaced by demos below, so a skill row's "seen in" codes would name
+  // projects the copy no longer has, which the build refuses.
+  writeFileSync(
+    profile,
+    readFileSync(profile, "utf-8").replace(/runs:\s*\[[^\]]*\]/g, "runs: []"),
+  );
   writeFileSync(join(dir, "public", "cv.pdf"), "%PDF-1.4\n");
 
   const projects = join(dir, "src", "content", "projects");
