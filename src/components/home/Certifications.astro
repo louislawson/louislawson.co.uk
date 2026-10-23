@@ -82,6 +82,9 @@ const shown =
     align-items: baseline;
     padding-block: 1rem;
     border-bottom: 1px solid var(--line);
+    /* A long word in a title ("Fundamentals") breaks rather than push the page sideways at a
+       visitor's larger text size. The date keeps its own line, as below. */
+    overflow-wrap: anywhere;
   }
 
   .cert .t {
