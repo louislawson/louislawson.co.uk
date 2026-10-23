@@ -143,10 +143,11 @@ The repository is public, so a photo must carry nothing about the person who too
 
    Three details matter. The `@` is quoted because PowerShell reads a bare `@` as an error. `-YCbCrPositioning=` is last because exiftool adds that harmless tag back whenever it writes the orientation, and the metadata check rejects it. A photo with a colour profile prints `Warning: ICC_Profile deleted`, and the same command puts the profile back.
 
-5. **Stage it, then run the gate.** The check reads only the files git tracks, so an unstaged photo is not checked at all (it reports `Checked 0 images`):
+5. **Stage it, then run the gate.** The check reads only the files git tracks, so an unstaged photo is not checked at all, and a run can look green without having seen it. Staging it is part of the check, and so is the count in the last line, which must include your photo:
 
    ```powershell
    git add src/assets/garage/car-meet.jpg
+   git status --short
    npm run metadata:check
    ```
 
@@ -188,7 +189,7 @@ The repository is public, so a photo must carry nothing about the person who too
    Get-ChildItem dist -Recurse -File | Where-Object Name -like '*car-meet*'
    ```
 
-   The first prints `1`. The second prints one `.webp` under `dist\_astro`, the optimised copy; the original is never published. Commit the photo and `profile.ts` by path, and `npm run metadata:check` also runs in CI as the **Metadata check** job.
+   The first prints a count of at least `1`. The second prints one `.webp` under `dist\_astro`, the optimised copy; the original is never published. Commit the photo and `profile.ts` by path, and `npm run metadata:check` also runs in CI as the **Metadata check** job.
 
 ## 4. The CV PDF
 
@@ -201,10 +202,10 @@ The CV is `public/cv.pdf`, linked from the page when the profile's `cv` field is
    winget install --id QPDF.QPDF
    ```
 
-   The installer does not put qpdf on `PATH`. For this terminal, add its folder (the folder name carries the version):
+   The installer does not put qpdf on `PATH`. For this terminal, add its folder (the folder name carries the version, so look it up):
 
    ```powershell
-   $env:Path += ';C:\Program Files\qpdf 12.4.2\bin'
+   $env:Path += ';' + (Get-ChildItem 'C:\Program Files\qpdf*\bin' | Select-Object -Last 1).FullName
    qpdf --version
    ```
 
@@ -355,22 +356,24 @@ The order matters: the records first, then the apply, then the validation token,
    }
    ```
 
-   From `infra\site`, run the checks CI runs:
+   Several comments and sentences describe the default as empty. In the same pull request, reword them as comments and prose only: the `description` of `custom_domains` in `variables.tf`, the comment above the domain resource in `main.tf`, and the Custom domains and resource-table text in [`infra/site/README.md`](../infra/site/README.md). From `infra\site`, run the checks CI runs (the same list as in that README):
 
    ```powershell
    terraform fmt -check
    terraform init -backend=false
    terraform validate
    terraform test
+   tflint --config=../.tflint.hcl --init
+   tflint --config=../.tflint.hcl
    ```
 
-   `terraform test` reports `10 passed, 0 failed`. Open the pull request. Its **Terraform plan** comment must show the two domains and nothing else:
+   `terraform test` reports `10 passed, 0 failed`, and `tflint` prints nothing. Open the pull request. Its **Terraform plan** comment must show the two domains and nothing else:
 
    ```text
    Plan: 2 to add, 0 to change, 0 to destroy.
    ```
 
-4. **Merge it and approve the apply.** Louis merges. The **Infrastructure** workflow plans again, then waits for approval: open its run in GitHub Actions, choose **Review deployments**, select `production` and choose **Approve and deploy**. Read the plan first: the apply must still add only the two domains.
+4. **Merge it and approve the apply.** Louis merges. The **Infrastructure** workflow runs its checks and a plan, then waits for approval. Read the plan job's summary first: it must add only the two domains. Then open the run in GitHub Actions, choose **Review deployments**, select `production` and choose **Approve and deploy**. The apply job plans again before it applies, so afterwards read its own **Plan** step too: it must say the same.
 
    **Check it worked.** The run's **Terraform apply** job is green:
 
@@ -398,7 +401,7 @@ The order matters: the records first, then the apply, then the validation token,
 
 6. **Set the default domain** (the one step Terraform cannot do). In the Azure portal open the Static Web App, choose **Custom domains**, select the apex, then **Set default**. Refresh the table: the apex is marked as the default. From now on Azure redirects the other addresses, `www` and the `azurestaticapps.net` address, to the apex.
 
-7. **Check it worked.** All five must hold.
+7. **Check it worked.** Go back to the repository root first (`Set-Location ..\..`), because the Live check below runs from there. All five must hold.
    - **The apex serves over HTTPS** with a valid certificate (`curl.exe` fails on a bad one):
 
      ```powershell
@@ -551,15 +554,16 @@ CodeQL's config leaves out `**/*.test.ts`, `e2e/` and `src/__tests__/` ([Securit
    ```powershell
    $r = Invoke-RestMethod https://api.scorecard.dev/projects/github.com/louislawson/louislawson.co.uk
    "Score: $($r.score)"
-   $r.checks | Where-Object { $_.score -lt 10 } | Sort-Object score | Select-Object name, score | Format-Table -AutoSize
+   $r.checks | Where-Object { $_.score -ge 0 -and $_.score -lt 10 } | Sort-Object score | Select-Object name, score | Format-Table -AutoSize
    ```
 
 2. Compare with the checks the README says stay low on purpose ([Security](../README.md#security)). A check on that list is not a problem.
-3. For any other check that fell, read its alert. The message says what Scorecard found; change `.most_recent_instance.message.text` to `.rule.help` for its remediation advice:
+3. For any other check that fell, read its alert. The first command finds its number, the second says what Scorecard found, and the third gives its remediation advice:
 
    ```powershell
    gh api "repos/louislawson/louislawson.co.uk/code-scanning/alerts?state=open&tool_name=Scorecard&per_page=100" --jq '.[] | "\(.number)  \(.rule.id)"'
    gh api repos/louislawson/louislawson.co.uk/code-scanning/alerts/<number> --jq '.most_recent_instance.message.text'
+   gh api repos/louislawson/louislawson.co.uk/code-scanning/alerts/<number> --jq '.rule.help'
    ```
 
 4. Fix it in a pull request. The **Scorecard** workflow runs on every push to `main` and every Monday, and publishes the result.
