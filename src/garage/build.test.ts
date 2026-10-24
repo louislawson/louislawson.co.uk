@@ -1,4 +1,10 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join, relative } from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -71,13 +77,23 @@ function addPhotosAndEntry(
   // out of production, with the section when it is the only one.
   text: "finished" | "placeholders" = "finished",
 ) {
-  mkdirSync(join(dir, "src", "assets", "garage"), { recursive: true });
+  // The copy starts from the committed garage. Its photos, and the profile's imports of them, are
+  // taken out first, so the copy holds only the photos given here: a committed photo that this
+  // test's entry does not use would fail the build, as the build is meant to.
+  const garage = join(dir, "src", "assets", "garage");
+  mkdirSync(garage, { recursive: true });
+  for (const file of readdirSync(garage)) {
+    if (file !== "README.md") rmSync(join(garage, file));
+  }
   for (const [name, bytes] of Object.entries(photos)) {
-    writeFileSync(join(dir, "src", "assets", "garage", name), bytes);
+    writeFileSync(join(garage, name), bytes);
   }
 
   const profile = join(dir, "src", "data", "profile.ts");
-  const source = readFileSync(profile, "utf-8");
+  const source = readFileSync(profile, "utf-8").replace(
+    /^import \w+ from "\.\.\/assets\/garage\/[^"]+";\n/gm,
+    "",
+  );
   const words =
     text === "finished"
       ? {

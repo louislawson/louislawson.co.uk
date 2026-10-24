@@ -1102,6 +1102,15 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     expect(declarations).toMatch(/display:inline-block/);
   });
 
+  it("gives a certification's verify link a 24 px target", () => {
+    const css = stylesheetText(dir);
+    const rule = /(?:^|[}])\.cert\[[^\]]*\] a\[[^\]]*\]\{([^}]*)\}/g;
+    const declarations = [...css.matchAll(rule)]
+      .map((match) => match[1])
+      .join(";");
+    expect(declarations).toMatch(/min-height:24px/);
+  });
+
   it("lets a long word break in the skills and the certifications, rather than push the page sideways", () => {
     const css = stylesheetText(dir);
     for (const selector of ["skill", "explore", "cert"]) {
