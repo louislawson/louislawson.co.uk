@@ -104,10 +104,12 @@ const shown =
     justify-self: end;
   }
 
+  /* At least the 24 px target (WCAG 2.5.8): the words alone are about 23.8 px tall on a phone. */
   .cert a {
     display: inline-flex;
     gap: 6px;
     align-items: center;
+    min-height: 24px;
     color: var(--hivis);
   }
 
