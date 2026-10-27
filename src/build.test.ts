@@ -1136,6 +1136,26 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
     }
   });
 
+  // A real project brought long words to a project's title, its headline and its measurements,
+  // which the placeholders never had: at 200 % text on a 320 px window each pushed the page sideways.
+  it("lets a long word break in a project's title, headline and measurements", () => {
+    const css = stylesheetText(dir);
+    for (const [name, selector] of [
+      ["title", /\.run__title\[[^\]]*\]\{[^}]*overflow-wrap:anywhere/],
+      [
+        "headline",
+        /\.run--row\[[^\]]*\] \.headline\[[^\]]*\]\{[^}]*overflow-wrap:anywhere/,
+      ],
+      [
+        "measure",
+        /\.diff\[[^\]]*\] th\[[^\]]*\][,{][^}]*overflow-wrap:anywhere/,
+      ],
+      ["value", /\.diff\[[^\]]*\] td\[[^\]]*\]\{[^}]*overflow-wrap:anywhere/],
+    ] as const) {
+      expect(css, name).toMatch(selector);
+    }
+  });
+
   it("shows the number hints only while data-shortcuts is on, so they never show without script", () => {
     const css = stylesheetText(dir);
     expect(css).toMatch(/\[data-shortcuts=["']?on["']?\][^{]*\.hint/);

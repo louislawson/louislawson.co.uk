@@ -117,6 +117,12 @@ const layout = projectLayout(projects.length);
     color: var(--hivis);
   }
 
+  /* A long word in a title or a headline ("ParcelQuote") breaks rather than push the page sideways
+     at a visitor's larger text on a phone. */
+  .run__title {
+    overflow-wrap: anywhere;
+  }
+
   /* The link over the whole entry, so the entry is one target and the keyboard focus ring (the
      global one on :focus-visible) goes round all of it. */
   .hit {
@@ -297,6 +303,7 @@ const layout = projectLayout(projects.length);
 
   .run--row .headline {
     color: var(--dim);
+    overflow-wrap: anywhere;
   }
 
   @media (max-width: 760px) {

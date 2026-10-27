@@ -298,9 +298,10 @@ const home = Astro.url.pathname === "/";
 </style>
 
 <script>
-  import { trackBarHeight } from "../scripts/bar-height";
+  import { keepFocusClear, trackBarHeight } from "../scripts/bar-height";
   import {
     onHeightChange,
+    onKeyboardFocus,
     onKeydown,
     onShortcutsChange,
     scrollSettled,
@@ -326,6 +327,11 @@ const home = Astro.url.pathname === "/";
             }
           : null;
       },
+    });
+    keepFocusClear({
+      onKeyboardFocus: (listener) => onKeyboardFocus(header, listener),
+      scrollPadding: () => parseFloat(getComputedStyle(root).scrollPaddingTop),
+      viewportHeight: () => innerHeight,
     });
   }
   const menu = header?.querySelector<HTMLButtonElement>("[data-nav-menu]");
