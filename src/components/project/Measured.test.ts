@@ -152,6 +152,53 @@ describe("<Measured>", () => {
       expect(row[1]![2]).not.toMatch(/class="(before|after)"/);
     });
 
+    it("are a measure and a value, with no before or after, when not one of them is a change", async () => {
+      // Columns headed before and after would put every figure under "before" and leave "after"
+      // empty, as if each were a change still to come.
+      const singles = [
+        { label: "Azure credentials stored", before: "0" },
+        { label: "Cold start, measured", before: "48", unit: "seconds" },
+      ];
+      const html = await render({
+        project: project({ measurements: singles }),
+      });
+      expect(html).toMatch(
+        /<caption[^>]*class="vh"[^>]*>\s*Measurements\s*<\/caption>/,
+      );
+      const head = /<thead\b[^>]*>(.*?)<\/thead>/.exec(html)?.[1] ?? "";
+      expect(cells(head).map((m) => text(m[3]!))).toEqual(["measure", "value"]);
+      expect(
+        rows(html).map((row) => cells(row).map((m) => text(m[3]!))),
+      ).toEqual([
+        ["Azure credentials stored", "0"],
+        ["Cold start, measured", "48 seconds"],
+      ]);
+      for (const row of rows(html)) {
+        expect(cells(row)[1]![2]).not.toMatch(/colspan|class="(before|after)"/);
+      }
+      // The measure's width was set beside two values; beside one it takes more, on a phone too,
+      // where its label would otherwise wrap a word to a line.
+      expect(html).toMatch(/<table[^>]*class="diff diff--figures"/);
+      const source = readFileSync(
+        new URL("./Measured.astro", import.meta.url),
+        "utf-8",
+      );
+      const styles = source.slice(source.indexOf("<style>"));
+      expect(styles).toMatch(
+        /\.diff--figures th:first-child\s*\{\s*width:\s*60%;\s*\}/,
+      );
+      // After the phone's width, so it holds there as well.
+      expect(styles.indexOf(".diff--figures")).toBeGreaterThan(
+        styles.indexOf("@media (max-width: 560px)"),
+      );
+    });
+
+    it("keep the measure's own width beside a before and an after", async () => {
+      const html = await render({ project: project({ measurements }) });
+      expect(html).toMatch(/<table[^>]*class="diff"/);
+      expect(html).not.toContain("diff--figures");
+    });
+
     it("keep the measurements in the order they were written", async () => {
       const html = await render({
         project: project({ measurements: [...measurements].reverse() }),

@@ -50,7 +50,7 @@ A project's frontmatter:
 | `links`                                                   | A list of `label` and `url`                                                                                                      |
 | `measurements`                                            | Optional. Real figures or nothing: a measurement takes no placeholder                                                            |
 
-A figure is quoted in the YAML, because a bare number is rejected. With `after` it shows as a before-and-after row; without it, as a single figure. A `unit` starting with `%` sits against the figure.
+A figure is quoted in the YAML, because a bare number is rejected. With `after` it shows as a before-and-after row; without it, as a single figure. When no measurement has an `after`, the table's columns are measure and value, with no before or after. A `unit` starting with `%` sits against the figure.
 
 ```yaml
 measurements:

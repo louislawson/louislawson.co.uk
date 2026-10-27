@@ -1,13 +1,13 @@
 ---
-// The measurements as a before-and-after table, then the tools, and the links that follow them.
-// The links' labels and arrows hug their tags: compressHTML keeps a line break as a space, which
-// would show as a gap before an arrow.
+// The measurements as a table, before and after where a figure moved, then the tools, and the
+// links that follow them. The links' labels and arrows hug their tags: compressHTML keeps a line
+// break as a space, which would show as a gap before an arrow.
 import { site, type DeployContext } from "../../config/site";
 import type { Project } from "../../content/schema";
 import { renderDecision } from "../../content/visibility";
 import Icon from "../Icon.astro";
 import Placeholder from "../Placeholder.astro";
-import { measurementRows } from "./measurement-rows";
+import { hasChange, measurementRows } from "./measurement-rows";
 
 interface Props {
   /** The project this page is for, from getSiteContent(). */
@@ -38,6 +38,7 @@ const shownLinks = links.flatMap((link) => {
 });
 // A measurement is real or absent, so these need no placeholder handling.
 const rows = measurementRows(project.data.measurements);
+const changes = hasChange(rows);
 // The heading's id is fixed, not its words: an id taken from "links" would be the nav's menu panel's.
 const HEADING_ID = "project-details";
 // The heading says only what the block holds: "measured" promises figures, so a project without
@@ -52,15 +53,23 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
   <div class="p-cols">
     <h2 id={HEADING_ID}>{heading}</h2>
     <div>
-      {rows.length > 0 && <table class="diff">
+      {rows.length > 0 && <table
+        class:list={["diff", { "diff--figures": !changes }]}
+      >
         <caption class="vh">
-          Before and after measurements
+          {changes ? "Before and after measurements" : "Measurements"}
         </caption>
         <thead>
           <tr>
             <th scope="col">measure</th>
-            <th scope="col">before</th>
-            <th scope="col">after</th>
+            {changes ? (
+              <>
+                <th scope="col">before</th>
+                <th scope="col">after</th>
+              </>
+            ) : (
+              <th scope="col">value</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -72,7 +81,7 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
                 <td class="after">{row.after}</td>
               </>
             ) : (
-              <td colspan="2">{row.value}</td>
+              <td colspan={changes ? 2 : undefined}>{row.value}</td>
             )}
           </tr>)}
         </tbody>
@@ -146,6 +155,12 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
     .diff th:first-child {
       width: 36%;
     }
+  }
+
+  /* Beside a single value the measure takes more of the row, at every width: labels run longer than
+     figures, and at 36 % on a phone a label wrapped a word to a line beside a column half empty. */
+  .diff--figures th:first-child {
+    width: 60%;
   }
 
   /* Before is dim and after is bone. The - and + are decoration: the second line gives each an
