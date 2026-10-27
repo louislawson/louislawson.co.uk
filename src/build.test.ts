@@ -16,6 +16,13 @@ import { isPlaceholder } from "./content/todo";
 import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
 import { FIRST_TICK, frame } from "./scripts/wheel";
+import {
+  buildCopy,
+  copyOfProject,
+  FIXTURE_PROJECTS,
+  removeCopies,
+  useFixtureProjects,
+} from "./__tests__/project-copy";
 
 // Runs the real Astro build once per deploy context and checks what a deployment would serve.
 const astro = join(process.cwd(), "node_modules", "astro", "bin", "astro.mjs");
@@ -39,12 +46,29 @@ function build(env: Record<string, string>): string {
   return outDir;
 }
 
+/**
+ * Builds a copy of the project whose projects are the fixtures, so the pins on project codes,
+ * titles and links hold whatever projects src/content/projects holds. Returns the copy's dist.
+ */
+function buildWithFixtureProjects(deployContext: string): string {
+  const copy = copyOfProject("site-build-");
+  useFixtureProjects(copy);
+  const output = buildCopy(copy, {
+    DEPLOY_CONTEXT: deployContext,
+    BUILD_NUMBER: "",
+    GIT_SHA: "",
+  });
+  if (output !== "") throw new Error(output);
+  return join(copy, "dist");
+}
+
 function read(dir: string, file: string): string {
   return readFileSync(join(dir, file), "utf-8");
 }
 
 afterAll(() => {
   for (const dir of outDirs) rmSync(dir, { recursive: true, force: true });
+  removeCopies();
 });
 
 /** The file names directly inside one folder of a build. */
@@ -268,7 +292,7 @@ describe("the checks on a build", () => {
 describe.each(["preview", "production"])("a %s build", (deployContext) => {
   let dir = "";
   beforeAll(() => {
-    dir = build({ DEPLOY_CONTEXT: deployContext });
+    dir = buildWithFixtureProjects(deployContext);
   });
 
   it("sends noindex in the generated config while the site is not launched", () => {
@@ -430,14 +454,6 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
       expect(html).toContain("source on GitHub");
     },
   );
-
-  it("shows the date of the last commit in the footer, as git writes it", () => {
-    const expected = execFileSync("git", ["log", "-1", "--format=%cs"], {
-      encoding: "utf-8",
-    }).trim();
-    expect(expected).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(read(dir, "index.html")).toContain(`updated ${expected}`);
-  });
 
   it("serves every script as a file, not inline, and none of them reads the address", () => {
     for (const page of ["index.html", "404.html"]) {
@@ -1165,9 +1181,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
 
     it("are built for the projects this build shows: every one in a preview, the real ones on production", () => {
       if (deployContext === "preview") {
-        const files = readdirSync(
-          join(process.cwd(), "src", "content", "projects"),
-        )
+        const files = readdirSync(FIXTURE_PROJECTS)
           .filter((name) => name.endsWith(".md"))
           .map((name) => name.replace(/\.md$/, ""))
           .sort();
@@ -1290,7 +1304,7 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
 
     it("render R04's write-up under the write-up heading: its ### headings as h3, in order, with no h1 or h2 of its own", () => {
       const source = readFileSync(
-        join(process.cwd(), "src", "content", "projects", "this-website.md"),
+        join(FIXTURE_PROJECTS, "this-website.md"),
         "utf-8",
       );
       // The headings the file writes outside code blocks, as the page shows them: smartypants makes
@@ -1367,6 +1381,19 @@ describe.each(["preview", "production"])("a %s build", (deployContext) => {
         expect(html).not.toContain("next project");
       });
     }
+  });
+});
+
+// The copies the builds above make have no .git, so the date git gives is checked on a build of the
+// checkout itself.
+describe("the footer of a build in the git checkout", () => {
+  it("shows the date of the last commit, as git writes it", () => {
+    const dir = build({ DEPLOY_CONTEXT: "preview" });
+    const expected = execFileSync("git", ["log", "-1", "--format=%cs"], {
+      encoding: "utf-8",
+    }).trim();
+    expect(expected).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(read(dir, "index.html")).toContain(`updated ${expected}`);
   });
 });
 

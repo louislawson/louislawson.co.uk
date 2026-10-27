@@ -62,6 +62,25 @@ export function copyOfProject(prefix: string): string {
   return dir;
 }
 
+// The projects the build tests read, frozen as they were when the tests were written. A test that
+// pins a project's code, title or link would otherwise fail on every content PR that adds or
+// replaces a project, so the copies build these instead of whatever src/content/projects holds.
+// They sit outside src/content, so neither the site's content loader nor list-placeholders sees them.
+export const FIXTURE_PROJECTS = join(
+  root,
+  "src",
+  "__tests__",
+  "fixtures",
+  "projects",
+);
+
+/** Replaces the copy's projects with the fixtures. */
+export function useFixtureProjects(dir: string): void {
+  const projects = join(dir, "src", "content", "projects");
+  rmSync(projects, { recursive: true, force: true });
+  cpSync(FIXTURE_PROJECTS, projects, { recursive: true });
+}
+
 /**
  * Builds the copy and returns what a failed build printed ("" if it succeeded). A build that fails
  * without printing anything, because it could not start or was killed at the timeout, returns the

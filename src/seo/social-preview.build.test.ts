@@ -4,13 +4,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   buildCopy,
   copyOfProject,
+  FIXTURE_PROJECTS,
   removeCopies,
+  useFixtureProjects,
 } from "../__tests__/project-copy";
 
 // Real builds of a copy of the project, in each deploy context, checked as a crawler would see
 // them: the tags in the pages, and the cards the tags point at. The site URL is one of the test's
 // own, so an address is checked to come from it and not from a default. The demo values exist only
-// in the copy: nothing of them is committed.
+// in the copy: nothing of them is committed. Its projects are the fixtures, whatever projects are
+// committed.
 afterAll(removeCopies);
 
 const SITE_URL = "https://example.test";
@@ -30,6 +33,7 @@ function build(
   edit?: (profile: string) => string,
 ): Built {
   const dir = copyOfProject(`social-preview-${label}-`);
+  useFixtureProjects(dir);
   if (edit) {
     const path = join(dir, "src", "data", "profile.ts");
     writeFileSync(path, edit(readFileSync(path, "utf-8")));
@@ -204,10 +208,7 @@ describe.each([
     const page = built().read("projects/this-website/index.html");
     const summary =
       /^summary: (.+)$/m.exec(
-        readFileSync(
-          join(process.cwd(), "src", "content", "projects", "this-website.md"),
-          "utf-8",
-        ),
+        readFileSync(join(FIXTURE_PROJECTS, "this-website.md"), "utf-8"),
       )?.[1] ?? "";
     expect(summary).not.toBe("");
     expect(meta(page, "description")).toBe(summary);
@@ -218,7 +219,7 @@ describe.each([
   it("name R04's card by what is on it, in one line", () => {
     const page = built().read("projects/this-website/index.html");
     const source = readFileSync(
-      join(process.cwd(), "src", "content", "projects", "this-website.md"),
+      join(FIXTURE_PROJECTS, "this-website.md"),
       "utf-8",
     );
     const field = (name: string) =>
