@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { trackBarHeight } from "./bar-height";
+import {
+  keepFocusClear,
+  trackBarHeight,
+  type FocusedControl,
+} from "./bar-height";
 
 // The sticky bar's real height is the page's scroll offset. These run without a browser: the page's
 // parts are the arguments.
@@ -101,5 +105,73 @@ describe("trackBarHeight", () => {
     const bar = page({ landingTop: null });
     await bar.change(97);
     expect(bar.log).toEqual(["height 97"]);
+  });
+});
+
+/**
+ * A window 800 px tall whose scroll offset is 135 px (a 97 px bar and the 38 px under it), so the
+ * room below the bar is 665 px. `focus` moves the keyboard focus to a control at `top`, `height` tall.
+ */
+function focusPage() {
+  const log: string[] = [];
+  let listener: (control: FocusedControl) => unknown = () => {
+    throw new Error("nothing is listening");
+  };
+  keepFocusClear({
+    onKeyboardFocus: (next) => {
+      listener = next;
+    },
+    scrollPadding: () => 135,
+    viewportHeight: () => 800,
+  });
+  return {
+    log,
+    focus: (top: number, height: number) =>
+      listener({
+        top: () => top,
+        height: () => height,
+        scrollInto: () => log.push(`scrolled to the control at ${top}`),
+      }),
+  };
+}
+
+describe("keepFocusClear", () => {
+  it("brings the top of a control taller than the room below the bar out from under it", () => {
+    // A run-sheet strip at a phone's width with a visitor's text spacing: the browser does not
+    // scroll to a control that already fills the room, so its title stays under the bar.
+    const page = focusPage();
+    page.focus(47, 842);
+    expect(page.log).toEqual(["scrolled to the control at 47"]);
+  });
+
+  it("brings a tall control's top into view when it lies above the window, as after Shift+Tab", () => {
+    const page = focusPage();
+    page.focus(-400, 1230);
+    expect(page.log).toEqual(["scrolled to the control at -400"]);
+  });
+
+  it("leaves a control that fits the room to the browser, which the scroll offset already guides", () => {
+    const page = focusPage();
+    page.focus(47, 150);
+    expect(page.log).toEqual([]);
+  });
+
+  it("brings a tall control's top to the offset from lower down too, where the browser would centre it", () => {
+    // Centred in the room, a control taller than the room has its top under the bar.
+    const page = focusPage();
+    page.focus(1366, 842);
+    page.focus(400, 842);
+    expect(page.log).toEqual([
+      "scrolled to the control at 1366",
+      "scrolled to the control at 400",
+    ]);
+  });
+
+  it("leaves a tall control whose top is already at the offset, allowing for rounding", () => {
+    const page = focusPage();
+    page.focus(135, 842);
+    page.focus(134, 842);
+    page.focus(136, 842);
+    expect(page.log).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
-// The two browser events the shortcut scripts share, mapped to the plain shapes they take. The
+// The browser events and measurements the page scripts share, mapped to the plain shapes they take. The
 // scripts themselves run under test without a browser; this is the thin part that needs one.
+import type { FocusedControl } from "./bar-height";
 import type { KeyEvent, KeyTarget } from "./keys";
 
 /** Calls `listener` for each keydown anywhere on the page. */
@@ -25,6 +26,31 @@ export function onShortcutsChange(listener: () => void): void {
   new MutationObserver(listener).observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["data-shortcuts"],
+  });
+}
+
+/**
+ * Calls `listener` each time the keyboard focus moves to a control outside `bar`. It waits a frame,
+ * so the browser has asked for its own scroll to the control first and a scroll the listener asks
+ * for takes its place, and skips a control the focus has already left. A click focuses without
+ * :focus-visible, so a pointer never scrolls the page.
+ */
+export function onKeyboardFocus(
+  bar: HTMLElement,
+  listener: (control: FocusedControl) => void,
+): void {
+  document.addEventListener("focusin", (event) => {
+    const control = event.target;
+    if (!(control instanceof HTMLElement) || bar.contains(control)) return;
+    if (!control.matches(":focus-visible")) return;
+    requestAnimationFrame(() => {
+      if (document.activeElement !== control) return;
+      listener({
+        top: () => control.getBoundingClientRect().top,
+        height: () => control.getBoundingClientRect().height,
+        scrollInto: () => control.scrollIntoView({ block: "start" }),
+      });
+    });
   });
 }
 

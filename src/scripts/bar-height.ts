@@ -42,3 +42,39 @@ export function trackBarHeight(page: BarHeightPage): void {
       landing.scrollInto();
   });
 }
+
+/** A control the keyboard focus has moved to: its box in the window, and a scroll to its start. */
+export interface FocusedControl {
+  top(): number;
+  height(): number;
+  /** Scrolls the control's top to the scroll offset, as a link to a section is. */
+  scrollInto(): void;
+}
+
+export interface FocusPage {
+  /**
+   * Calls the listener each time the keyboard focus moves to a control outside the bar, after the
+   * browser has asked for its own scroll to it.
+   */
+  onKeyboardFocus(listener: (control: FocusedControl) => unknown): void;
+  /** The scroll offset in pixels the stylesheet computes: the bar and the room left under it. */
+  scrollPadding(): number;
+  viewportHeight(): number;
+}
+
+/**
+ * The scroll offset brings a focused control out from under the bar, but only one that fits the
+ * room below it. A browser centres a taller one in that room, which leaves its top, and its title,
+ * under the bar (a run-sheet strip at a phone's width with a visitor's text spacing), and leaves
+ * one that already fills the room where it is, even with its top above the window (Shift+Tab from
+ * below). So a control taller than the room is scrolled to start at the offset, as a link to a
+ * section is, wherever its top was.
+ */
+export function keepFocusClear(page: FocusPage): void {
+  page.onKeyboardFocus((control) => {
+    const offset = page.scrollPadding();
+    const room = page.viewportHeight() - offset;
+    if (control.height() > room && Math.abs(control.top() - offset) > TOLERANCE)
+      control.scrollInto();
+  });
+}

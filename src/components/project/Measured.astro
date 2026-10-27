@@ -110,6 +110,8 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
     font-variant-numeric: tabular-nums;
   }
 
+  /* A long word in a label or a value breaks rather than widen the table past a phone's window at
+     a visitor's larger text: three columns of whole words do not fit 320 px at 200 %. */
   .diff th,
   .diff td {
     padding: 0.7rem 14px;
@@ -117,6 +119,7 @@ const shown = rows.length > 0 || tools.length > 0 || shownLinks.length > 0;
     font-weight: 400;
     vertical-align: top;
     border-bottom: 1px solid var(--line);
+    overflow-wrap: anywhere;
   }
 
   .diff tbody tr:last-child > * {
