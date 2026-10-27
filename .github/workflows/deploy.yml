@@ -26,8 +26,6 @@ on:
       - "!.claude/**"
       - "!src/**/*.test.*"
       - "!src/**/*.spec.*"
-      - "!src/**/__tests__/**"
-      - "!src/**/__fixtures__/**"
       - "!vitest.config.ts"
       - "!playwright.config.ts"
       - "!lychee.toml"
@@ -45,7 +43,10 @@ on:
       - .github/actions/**
       - "!**/*.md"
       - src/**/*.md
-      # Last, so that the Markdown re-include above cannot win over them.
+      # Last, so that the Markdown re-include above cannot win over them: the test fixtures hold
+      # Markdown projects that are not content.
+      - "!src/**/__tests__/**"
+      - "!src/**/__fixtures__/**"
       - "!src/metadata/**"
       - "!src/content/list-placeholders.ts"
       - "!src/e2e/**"

@@ -1,0 +1,7 @@
+{
+  // A write-up's headings start at ###: the project page already has the h1 (the title) and the h2
+  // ("# write-up") above them, so the file itself has no heading to increment from.
+  "config": {
+    "MD001": false,
+  },
+}
