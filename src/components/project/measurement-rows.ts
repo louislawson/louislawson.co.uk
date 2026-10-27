@@ -32,3 +32,11 @@ export function measurementRows(
         },
   );
 }
+
+/**
+ * Whether any figure moved. The table has columns for before and after only then: with none, every
+ * figure would sit under "before" with "after" empty, as if each were a change still to come.
+ */
+export function hasChange(rows: readonly MeasurementRow[]): boolean {
+  return rows.some((row) => row.kind === "change");
+}

@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { measurementRows, withUnit } from "./measurement-rows";
+import { hasChange, measurementRows, withUnit } from "./measurement-rows";
+
+describe("hasChange", () => {
+  it("is true when any row is a before-and-after row, and false for figures alone or none", () => {
+    expect(
+      hasChange(
+        measurementRows([
+          { label: "A", before: "3" },
+          { label: "B", before: "1", after: "2" },
+        ]),
+      ),
+    ).toBe(true);
+    expect(hasChange(measurementRows([{ label: "A", before: "3" }]))).toBe(
+      false,
+    );
+    expect(hasChange([])).toBe(false);
+  });
+});
 
 describe("withUnit", () => {
   it("puts the unit after the value, with a space", () => {
