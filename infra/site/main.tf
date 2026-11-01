@@ -40,4 +40,19 @@ resource "azurerm_static_web_app_custom_domain" "site" {
   static_web_app_id = azurerm_static_web_app.site.id
   domain_name       = each.key
   validation_type   = each.value.validation_type
+
+  # Azure does not return the validation type, so an imported domain would otherwise be replaced.
+  lifecycle {
+    ignore_changes = [validation_type]
+  }
+}
+
+# The first apply created www in Azure, then failed before it reached state: waiting for a
+# cname-delegation domain reads an operation status at subscription scope, where the apply identity
+# holds nothing. This adopts it. Remove this block once it has applied.
+import {
+  for_each = contains(keys(var.custom_domains), "www.louislawson.co.uk") ? toset(["www.louislawson.co.uk"]) : toset([])
+
+  to = azurerm_static_web_app_custom_domain.site[each.key]
+  id = "${data.azurerm_resource_group.site.id}/providers/Microsoft.Web/staticSites/${var.static_web_app_name}/customDomains/${each.key}"
 }

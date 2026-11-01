@@ -8,6 +8,11 @@ mock_provider "azurerm" {
   }
 }
 
+# The app on its own: custom_domains.tftest.hcl covers the domains.
+variables {
+  custom_domains = {}
+}
+
 run "configuration" {
   command = plan
 

@@ -52,6 +52,7 @@ default = {
 
 - **An apex uses `dns-txt-token`** (Azure requires it). Terraform does not wait for that validation: after the apply, read the token with `terraform output -json custom_domain_validation_tokens` and add it as the domain's TXT record. The output is sensitive because the provider marks the token so, which also keeps it out of the public CI log. Azure clears the token once the domain is validated.
 - **`www` uses `cname-delegation`**, so its CNAME record must exist before the apply; the apply waits for it.
+- **Adding or removing a `cname-delegation` domain needs a subscription-scope read the apply identity does not hold.** Terraform waits on `Microsoft.Web/locations/staticSitesOperationStatuses/read`, and bootstrap grants nothing at subscription scope, so the apply fails with a 403 after Azure has accepted the change. The `www` domain was imported for this reason, which is also why `validation_type` is in `ignore_changes`: Azure does not return it, and a change to it no longer replaces a domain.
 - **The Free plan allows 2 domains** and Standard 5; the variable rejects more.
 - **"Set default domain" is not in Terraform.** It makes Azure redirect the other addresses (`www`, and the `azurestaticapps.net` address) to the domain chosen as the default, and the provider has no argument for it. Set it in the portal under Custom domains once the apex has validated. The deploy workflow's Live check follows that redirect to the site's origin, and only to it.
 
