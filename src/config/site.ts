@@ -5,7 +5,7 @@ export type DeployContext = "local" | "preview" | "production";
 const DEPLOY_CONTEXTS: readonly string[] = ["preview", "production"];
 
 /** Flip to true at launch (Phase 8). While false, every build is noindex. */
-const LAUNCH = false;
+const LAUNCH = true;
 
 const DEFAULT_SITE_URL = "https://louislawson.co.uk";
 

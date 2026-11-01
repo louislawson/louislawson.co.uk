@@ -8,6 +8,7 @@ import {
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  beforeLaunch,
   buildCopy,
   copyOfProject,
   removeCopies,
@@ -65,6 +66,7 @@ interface Built {
 
 function buildWithDemoSkill(deployContext: string): Built {
   const dir = copyOfProject(`run-sheet-links-${deployContext}-`);
+  beforeLaunch(dir);
   const profile = join(dir, "src", "data", "profile.ts");
   const source = readFileSync(profile, "utf-8");
   expect(source).toMatch(SKILLS_BLOCK);

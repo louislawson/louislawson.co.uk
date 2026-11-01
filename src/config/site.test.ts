@@ -53,10 +53,10 @@ describe("shouldNoindex", () => {
 });
 
 describe("resolveSite", () => {
-  it("is not launched yet, so every build is noindex", () => {
+  it("is launched, so only a production build may be indexed", () => {
     const production = resolveSite({ DEPLOY_CONTEXT: "production" });
-    expect(production.launch).toBe(false);
-    expect(production.noindex).toBe(true);
+    expect(production.launch).toBe(true);
+    expect(production.noindex).toBe(false);
     expect(resolveSite({ DEPLOY_CONTEXT: "preview" }).noindex).toBe(true);
     expect(resolveSite({}).noindex).toBe(true);
   });

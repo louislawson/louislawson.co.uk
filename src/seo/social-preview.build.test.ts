@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  beforeLaunch,
   buildCopy,
   copyOfProject,
   FIXTURE_PROJECTS,
@@ -34,6 +35,7 @@ function build(
 ): Built {
   const dir = copyOfProject(`social-preview-${label}-`);
   useFixtureProjects(dir);
+  beforeLaunch(dir);
   if (edit) {
     const path = join(dir, "src", "data", "profile.ts");
     writeFileSync(path, edit(readFileSync(path, "utf-8")));
