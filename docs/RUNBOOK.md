@@ -334,7 +334,7 @@ The order matters: the records first, then the apply, then the validation token,
 
    It prints the `<default-host>` value, in quotes.
 
-2. **Add the DNS-only records** at the DNS provider, before the apply. "DNS-only" means plain DNS answers straight from the DNS provider, with no proxy, CDN or redirect service in front, or Azure cannot validate the domain or issue its certificate. Remove any existing record for these names first.
+2. **Add the DNS-only records** at the DNS provider, before the apply. "DNS-only" means plain DNS answers straight from the DNS provider, with no proxy, CDN or redirect service in front, or Azure cannot validate the domain or issue its certificate. First remove any existing `A`, `AAAA` or `CNAME` record for these names. Keep the apex's `MX` and `TXT` records: they carry the domain's email.
    - `www`: a `CNAME` pointing to `<default-host>`. It must exist before the apply, because the apply waits for it.
    - The apex: an `ALIAS`, `ANAME` or flattened `CNAME` pointing to `<default-host>`, whichever your provider offers. A plain `CNAME` is not allowed at an apex.
 
@@ -467,11 +467,15 @@ The domain is connected before the launch switch is flipped. Otherwise productio
 
    **Check it worked.** `npm run build` passes, and the project's page on the production site shows the new status after the deploy.
 
-5. **HSTS: add `includeSubDomains`,** and leave `preload` out, because it is hard to undo. In [`public/staticwebapp.config.json`](../public/staticwebapp.config.json) change the `Strict-Transport-Security` value to `max-age=31536000; includeSubDomains`. Every subdomain of the domain, mail-related ones included, must answer over HTTPS before browsers see this, because they will then refuse plain HTTP for all of them.
+5. **HSTS: add `includeSubDomains`, once every subdomain qualifies.** Not done at launch: `autodiscover`, the Microsoft 365 record, refuses HTTPS, so the header stays `max-age=31536000`. Leave `preload` out, because it is hard to undo. In [`public/staticwebapp.config.json`](../public/staticwebapp.config.json) change the `Strict-Transport-Security` value to `max-age=31536000; includeSubDomains`. Every subdomain of the domain, mail-related ones included, must answer over HTTPS before browsers see this, because they will then refuse plain HTTP for all of them.
 
    **Check it worked.** After the deploy, `curl.exe -sI https://louislawson.co.uk/ | Select-String 'strict-transport'` prints both parts, and the deploy's Live check is green.
 
-6. **Optional: Google Search Console.** It needs Louis's own Google account. Add the domain as a property, verify it with the `TXT` record the console gives you (at the DNS provider, as in [section 6](#6-connecting-the-custom-domain), step 5), then submit `https://louislawson.co.uk/sitemap-index.xml`.
+6. **Set the repository's website field** to `https://louislawson.co.uk`, in the repository's About settings or with `gh repo edit --homepage`. Leave it until now, because the link does not answer before the domain is connected.
+
+   **Check it worked.** `gh repo view --json homepageUrl` prints the address.
+
+7. **Optional: Google Search Console.** It needs Louis's own Google account. Add the domain as a property, verify it with the `TXT` record the console gives you (at the DNS provider, as in [section 6](#6-connecting-the-custom-domain), step 5), then submit `https://louislawson.co.uk/sitemap-index.xml`.
 
    **Check it worked.** The console reports the sitemap as read.
 
