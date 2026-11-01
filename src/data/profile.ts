@@ -24,7 +24,7 @@ export const profile = parseProfile({
     github: "https://github.com/louislawson",
     linkedin: "https://www.linkedin.com/in/louis-lawson-0767363b9",
   },
-  cv: "TODO: set to /cv.pdf once public/cv.pdf exists",
+  cv: "/cv.pdf",
   skills: [
     {
       group: "APIs and automation",
