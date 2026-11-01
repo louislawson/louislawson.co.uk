@@ -53,9 +53,9 @@ variable "sku_size" {
 
 variable "custom_domains" {
   description = <<-EOT
-    Custom domains for the Static Web App, keyed by domain name. Empty by default, so the stack
-    attaches no domain until this default is changed. CI passes no variables and a *.tfvars file
-    is gitignored, so the domains are set by editing the default below in a reviewed pull request.
+    Custom domains for the Static Web App, keyed by domain name. The default holds the apex and
+    www. CI passes no variables and a *.tfvars file is gitignored, so the domains are changed by
+    editing the default below in a reviewed pull request.
     An apex must use dns-txt-token (Azure requires it); a subdomain such as www uses
     cname-delegation, which needs its CNAME record in place before the apply. Free allows 2
     domains and Standard 5.
@@ -63,7 +63,10 @@ variable "custom_domains" {
   type = map(object({
     validation_type = string
   }))
-  default = {}
+  default = {
+    "louislawson.co.uk"     = { validation_type = "dns-txt-token" }
+    "www.louislawson.co.uk" = { validation_type = "cname-delegation" }
+  }
 
   validation {
     condition = alltrue([

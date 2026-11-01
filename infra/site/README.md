@@ -2,11 +2,11 @@
 
 The Azure Static Web App that serves the site. Unlike the [bootstrap](../bootstrap/README.md), this stack is applied **by CI**, not locally.
 
-| Resource                               | Purpose                                                            |
-| -------------------------------------- | ------------------------------------------------------------------ |
-| `rg-louislawson-web-prod-weu`          | Read only (data source). Created by the bootstrap stack            |
-| `stapp-louislawson-web-prod-weu`       | Static Web App: Free plan, West Europe, preview environments       |
-| `azurerm_static_web_app_custom_domain` | One per entry in `custom_domains`. None until that variable is set |
+| Resource                               | Purpose                                                      |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `rg-louislawson-web-prod-weu`          | Read only (data source). Created by the bootstrap stack      |
+| `stapp-louislawson-web-prod-weu`       | Static Web App: Free plan, West Europe, preview environments |
+| `azurerm_static_web_app_custom_domain` | One per entry in `custom_domains`: the apex and `www`        |
 
 State lives in the `tfstate` container (key `site.tfstate`) of the bootstrap-created storage account.
 
@@ -41,7 +41,7 @@ The plan comment never contains GUIDs: the repository is public, so subscription
 
 ## Custom domains
 
-`custom_domains` is empty by default, so applying this stack attaches no domain. CI passes no variables, and `*.tfvars` files are gitignored, so the domains are set by changing the variable's `default` in [`variables.tf`](variables.tf) in a reviewed pull request: the next apply then attaches them, and a later run keeps them, whereas a value supplied only to a local apply would be planned away (destroying the domains) by the next CI run. The value is a map keyed by lower-case domain name:
+`custom_domains` defaults to the apex and `www`. CI passes no variables, and `*.tfvars` files are gitignored, so the domains are changed by editing the variable's `default` in [`variables.tf`](variables.tf) in a reviewed pull request: the next apply then attaches them, and a later run keeps them, whereas a value supplied only to a local apply would be planned away (destroying the domains) by the next CI run. The value is a map keyed by lower-case domain name:
 
 ```hcl
 default = {
