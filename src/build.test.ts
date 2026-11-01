@@ -17,6 +17,7 @@ import { visibleProfile, visibleSections } from "./content/visibility";
 import { profile } from "./data/profile";
 import { FIRST_TICK, frame } from "./scripts/wheel";
 import {
+  beforeLaunch,
   buildCopy,
   copyOfProject,
   FIXTURE_PROJECTS,
@@ -53,6 +54,7 @@ function build(env: Record<string, string>): string {
 function buildWithFixtureProjects(deployContext: string): string {
   const copy = copyOfProject("site-build-");
   useFixtureProjects(copy);
+  beforeLaunch(copy);
   const output = buildCopy(copy, {
     DEPLOY_CONTEXT: deployContext,
     BUILD_NUMBER: "",

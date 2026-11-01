@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   BUILD_TIMEOUT_MS,
+  beforeLaunch,
   buildCopy,
   copyOfProject,
   removeCopies,
@@ -17,6 +18,20 @@ import {
 const root = process.cwd();
 
 afterAll(removeCopies);
+
+describe("beforeLaunch", () => {
+  it("turns the launch switch off in the copy and leaves the repository's alone", () => {
+    const dir = copyOfProject("project-copy-launch-test-");
+    const real = readFileSync(join(root, "src", "config", "site.ts"), "utf-8");
+    beforeLaunch(dir);
+    expect(
+      readFileSync(join(dir, "src", "config", "site.ts"), "utf-8"),
+    ).toContain("const LAUNCH = false;");
+    expect(readFileSync(join(root, "src", "config", "site.ts"), "utf-8")).toBe(
+      real,
+    );
+  });
+});
 
 describe("copyOfProject", () => {
   it("copies what the build reads, and builds it through a config of its own that keeps the real one and adds a cache of the copy's", () => {

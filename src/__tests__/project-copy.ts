@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import {
   cpSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -79,6 +80,21 @@ export function useFixtureProjects(dir: string): void {
   const projects = join(dir, "src", "content", "projects");
   rmSync(projects, { recursive: true, force: true });
   cpSync(FIXTURE_PROJECTS, projects, { recursive: true });
+}
+
+/**
+ * Turns the launch switch off in the copy, for a build of demo content the launch gate would refuse.
+ * The repository's site.ts is never touched.
+ */
+export function beforeLaunch(dir: string): void {
+  const site = join(dir, "src", "config", "site.ts");
+  writeFileSync(
+    site,
+    readFileSync(site, "utf-8").replace(
+      /const LAUNCH = (?:true|false);/,
+      "const LAUNCH = false;",
+    ),
+  );
 }
 
 /**
