@@ -30,7 +30,7 @@ resource "azurerm_static_web_app" "site" {
   }
 }
 
-# Off by default: custom_domains is empty, so applying this changes nothing. A dns-txt-token domain
+# One per entry in custom_domains: the apex and www. A dns-txt-token domain
 # is validated out of band (Terraform does not wait for it), so its TXT record is added after the
 # apply from the validation token output. "Set default domain", which redirects the other
 # addresses to the apex, is a portal setting with no Terraform argument.
