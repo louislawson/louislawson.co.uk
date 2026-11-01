@@ -3,7 +3,7 @@ code: R04
 title: This website
 summary: A static site that is itself a small, checked example of the cloud and DevOps work it describes.
 headline: Pipeline-built, pipeline-deployed
-status: commissioning
+status: in-service
 period: "2026"
 featured: false
 order: 4
