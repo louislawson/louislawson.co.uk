@@ -75,7 +75,6 @@ export const profile = parseProfile({
     },
   ],
   exploring: [
-    "Studying for SC-900, Security, Compliance, and Identity Fundamentals",
     "Studying for AZ-104, Azure Administrator",
     "Terraform for Azure infrastructure",
     "Policy as code beyond Azure Policy",
@@ -88,6 +87,14 @@ export const profile = parseProfile({
       date: "2026-07",
       verify:
         "https://learn.microsoft.com/api/credentials/share/en-us/LouisLawson-6460/749389C6C8673876?sharingId=4D33CE413E567BCF",
+    },
+    {
+      title:
+        "Microsoft Certified: Security, Compliance, and Identity Fundamentals (SC-900)",
+      issuer: "Microsoft",
+      date: "2026-11",
+      verify:
+        "https://learn.microsoft.com/api/credentials/share/en-us/LouisLawson-6460/70EB4F4AF122B124?sharingId=4D33CE413E567BCF",
     },
   ],
   garageIntro:
